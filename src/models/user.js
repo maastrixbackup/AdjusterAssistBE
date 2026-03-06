@@ -1,24 +1,13 @@
-const { DataTypes } = require('sequelize');
-const { sequelize } = require('../config/db');
+const db = require("../config/db");
 
-const User = sequelize.define('User', {
-    id: {
-        type: DataTypes.INTEGER,
-        autoIncrement: true,
-        primaryKey: true
+const User = {
+    async findByEmail(email) {
+        const [rows] = await db.query("SELECT * FROM users WHERE email = ?", [
+            email,
+        ]);
+        return rows[0];
     },
-    email: {
-        type: DataTypes.STRING,
-        allowNull: false,
-        unique: true,
-        validate: { isEmail: true }
-    },
-    password: {
-        type: DataTypes.STRING,
-        allowNull: false
-    }
-}, {
-    timestamps: true // adds createdAt and updatedAt
-});
+
+};
 
 module.exports = User;
