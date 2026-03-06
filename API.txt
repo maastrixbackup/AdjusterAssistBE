@@ -1,0 +1,15 @@
+API TESTING DOCS
+
+
+1. POST http://localhost:5000/api/auth/signup
+{"email":"admin@gmail.com", "password":"AdminPass", "name":"Admin"}
+
+2. POST http://localhost:5000/api/auth/login
+{"email":"admin@gmail.com", "password":"AdminPass"}
+
+3. GET http://localhost:5000/api/user/profile
+Provide Authorization header (Bearer token)
+
+4. GET http://localhost:5000/api/user/all
+Provide Authorization header (Bearer token)
+

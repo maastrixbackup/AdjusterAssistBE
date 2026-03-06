@@ -1,23 +1,27 @@
+const { verifyToken } = require("../utils/jwt");
 
-const jwt = require('jsonwebtoken');
+const authMiddleware = (req, res, next) => {
+    const authHeader = req.headers["authorization"];
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+        return res.status(401).json({ success: false, message: "No token provided" });
+    }
 
-const verifyToken = (req, res, next) => {
-    const authHeader = req.headers['authorization'];
-    // console.log("Auth Header Received:", authHeader);
-
-    const token = authHeader && authHeader.split(' ')[1];
-    // console.log("Extracted Token:", token); 
-
-    if (!token) return res.status(401).json({ message: "Access Denied" });
+    const token = authHeader.split(" ")[1];
 
     try {
-        const verified = jwt.verify(token, process.env.JWT_SECRET);
-        req.user = verified;
+        const decoded = verifyToken(token);
+        
+        if (!decoded || !decoded.id) {
+            console.log("Payload Check Failed. Content:", decoded);
+            return res.status(401).json({ success: false, message: "Invalid Token Payload" });
+        }
+
+        // This is the bridge to your controller
+        req.user = decoded; 
         next();
     } catch (err) {
-        console.log("JWT Error:", err.message);
-        res.status(403).json({ message: "Invalid or Expired Token" });
+        return res.status(500).json({ success: false, message: "Auth Error" });
     }
 };
 
-module.exports = verifyToken
+module.exports = authMiddleware;
