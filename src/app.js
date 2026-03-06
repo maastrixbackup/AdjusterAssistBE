@@ -1,7 +1,7 @@
 const express = require("express");
 const cors = require("cors");
 require("dotenv").config();
-const { connectDB, sequelize } = require('./config/db'); // Import DB tools
+
 const authRoutes = require('./routes/auth.routes');
 
 const authRoutes = require('./routes/auth.routes');
