@@ -1,21 +1,10 @@
-const { Sequelize } = require('sequelize');
-const path = require('path');
+const mysql = require('mysql2/promise');
 
-const sequelize = new Sequelize({
-    dialect: 'sqlite',
-    // This creates a file named 'database.sqlite' in your project root
-    storage: path.join(__dirname, '../database.sqlite'), 
-    logging: false 
+const pool = mysql.createPool({
+    host: process.env.DB_HOST,
+    user: process.env.DB_USER,
+    password: process.env.DB_PASSWORD,
+    database: process.env.DB_NAME
 });
 
-const connectDB = async () => {
-    try {
-        await sequelize.authenticate();
-        console.log('SQLite Database Connected (File-based)');
-    } catch (error) {
-        console.error('SQLite Connection Failed:', error);
-        process.exit(1);
-    }
-};
-
-module.exports = { sequelize, connectDB };
+module.exports = pool;
