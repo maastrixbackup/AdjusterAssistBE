@@ -1,6 +1,5 @@
 API TESTING DOCS
 
-
 1. POST http://localhost:5000/api/auth/signup
 {"email":"admin@gmail.com", "password":"AdminPass", "name":"Admin"}
 

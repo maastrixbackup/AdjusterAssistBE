@@ -16,9 +16,10 @@ const login = async (req, res) => {
 
         const user = await User.findByEmail(email);
         if (!user) {
-            return res.status(400).json({
+            return res.status(404).json({
                 success: false,
-                message: "Invalid email or password",
+                message: "User not found. Please sign up first.",
+                // isNewUser: true
             });
         }
 
