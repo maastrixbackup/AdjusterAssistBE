@@ -13,3 +13,11 @@ Provide Authorization header (Bearer token)
 4. GET http://localhost:5000/api/user/all
 Provide Authorization header (Bearer token)
 
+5. POST http://localhost:5000/api/drafts/generate
+- Authorization Header 
+{
+  "request": "Draft a firm email to insured responding to a complaint about delay",
+  "source": "Claim #12345. Insured: John Doe. Delay caused by waiting for engineer report. Report arrived today."
+}
+
+ 
