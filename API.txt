@@ -7,13 +7,19 @@ API TESTING DOCS
 2. POST http://localhost:5000/api/auth/login
 {"email":"admin@gmail.com", "password":"AdminPass"}
 
-3. GET http://localhost:5000/api/user/profile
+3. POST http://localhost:5000/api/auth/forgot-password
+{ "email": "your_email@gmail.com"}
+
+4. POST http://localhost:5000/api/auth/reset-password
+{ "token": "[TOKEN_FROM_EMAIL]", "newPassword": "[YOUR NEW PASSWORD]" }
+
+5. GET http://localhost:5000/api/user/profile
 Provide Authorization header (Bearer token)
 
-4. GET http://localhost:5000/api/user/all
+6. GET http://localhost:5000/api/user/all
 Provide Authorization header (Bearer token)
 
-5. POST http://localhost:5000/api/drafts/generate
+7. POST http://localhost:5000/api/drafts/generate
 - Authorization Header 
 {
   "request": "Draft a firm email to insured responding to a complaint about delay",

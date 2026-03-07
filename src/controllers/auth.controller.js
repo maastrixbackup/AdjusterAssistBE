@@ -1,6 +1,8 @@
 const bcrypt = require("bcrypt");
 const { generateToken } = require("../utils/jwt");
 const User = require("../models/user");
+const { sendResetEmail } = require("../services/email.service");
+const crypto = require("crypto");
 
 const login = async (req, res) => {
     try {
@@ -99,4 +101,50 @@ const signup = async (req, res) => {
     }
 };
 
-module.exports = { login, signup };
+const forgotPassword = async (req, res) => {
+    const { email } = req.body;
+    try {
+        const user = await User.findByEmail(email);
+        if (!user) {
+            return res.status(404).json({ success: false, message: "User not found" });
+        }
+
+        const token = crypto.randomBytes(20).toString("hex");
+        const expires = new Date(Date.now() + 3600000); // 1 hour
+
+        await User.setResetToken(user.id, token, expires);
+        console.log(token)
+
+        const baseUrl = process.env.FRONTEND_URL || "http://localhost:3000";
+        const resetLink = `${baseUrl}/reset-password?token=${token}`;
+
+        await sendResetEmail(user.email, resetLink);
+
+        res.status(200).json({ 
+            success: true, 
+            message: "Reset link sent to email" 
+        });
+    } catch (error) {
+        console.error("Forgot Password Error:", error);
+        res.status(500).json({ success: false, message: "Error sending email" });
+    }
+};
+
+const resetPassword = async (req, res) => {
+    const { token, newPassword } = req.body;
+    try {
+        const user = await User.findByResetToken(token);
+        if (!user) {
+            return res.status(400).json({ success: false, message: "Token is invalid or expired" });
+        }
+
+        const hashedPassword = await bcrypt.hash(newPassword, 10);
+        await User.updatePassword(user.id, hashedPassword);
+
+        res.status(200).json({ success: true, message: "Password updated successfully" });
+    } catch (error) {
+        res.status(500).json({ success: false, message: "Error resetting password" });
+    }
+};
+
+module.exports = { login, signup, forgotPassword, resetPassword };
