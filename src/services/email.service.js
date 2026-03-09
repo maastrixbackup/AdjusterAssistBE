@@ -8,6 +8,15 @@ const transporter = nodemailer.createTransport({
     },
 });
 
+// Verify connection configuration on startup
+transporter.verify(function (error, success) {
+    if (error) {
+        console.error("Transporter Configuration Error:", error);
+    } else {
+        console.log("Email Server is ready to take our messages");
+    }
+});
+
 const sendResetEmail = async (email, resetLink) => {
     try {
         const mailOptions = {
@@ -26,10 +35,10 @@ const sendResetEmail = async (email, resetLink) => {
         };
 
         const info = await transporter.sendMail(mailOptions);
-        console.log("Email sent: " + info.response);
+        console.log("Email sent successfully: " + info.response);
         return info;
     } catch (error) {
-        console.error("Nodemailer Error:", error);
+        console.error("Detailed Nodemailer Error:", error.message);
         throw new Error("Failed to send email");
     }
 };

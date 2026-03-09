@@ -25,4 +25,10 @@ Provide Authorization header (Bearer token)
   "source": "Claim #12345. Insured: John Doe. Delay caused by waiting for engineer report. Report arrived today."
 }
 
+Sample offline server response 
+8. POST http://localhost:5000/api/drafts/generate
+- Authorization Header
+{
+  "type": "email"
+}
  

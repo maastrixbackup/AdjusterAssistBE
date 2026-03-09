@@ -1,22 +1,38 @@
-const aiService = require("../services/ai.service");
-const User = require("../models/user");
+const STATIC_RESPONSES = require("../utils/sample_response");
 
 const createDraft = async (req, res) => {
     try {
-        const { request, source } = req.body;
+        const { type } = req.body;
 
-        // TODO: In a real scenario, check DB here for user's monthly draft count
+        let responseText = "";
 
-        const draft = await aiService.generateDraft(request, source);
+        // Exact matching based on user input type
+        switch (type?.toLowerCase()) {
+            case 'email':
+                responseText = STATIC_RESPONSES.EMAIL;
+                break;
+            case 'file':
+                responseText = STATIC_RESPONSES.FILE_NOTE;
+                break;
+            case 'escalation':
+                responseText = STATIC_RESPONSES.ESCALATION;
+                break;
+            default:
+                return res.status(400).json({ 
+                    success: false, 
+                    message: "Invalid type. Use: 'email', 'file note', or 'escalation'." 
+                });
+        }
 
-        // Session-only: We return the draft but do NOT save it to the DB
+        // Send the exact static output
         res.status(200).json({
             success: true,
-            data: draft
+            data: responseText
         });
+
     } catch (error) {
-        console.error("AI Error:", error);
-        res.status(500).json({ success: false, message: "AI generation failed" });
+        console.error("Draft Controller Error:", error);
+        res.status(500).json({ success: false, message: "Server error" });
     }
 };
 
