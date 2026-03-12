@@ -20,9 +20,9 @@ const createDraft = async (req, res) => {
                 responseText = STATIC_RESPONSES.ESCALATION;
                 break;
             default:
-                return res.status(400).json({ 
-                    success: false, 
-                    message: "Invalid type. Use: 'email', 'file', or 'escalation'." 
+                return res.status(400).json({
+                    success: false,
+                    message: "Invalid type. Use: 'email', 'file', or 'escalation'."
                 });
         }
 

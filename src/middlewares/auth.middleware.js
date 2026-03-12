@@ -1,6 +1,6 @@
 const { verifyToken } = require("../utils/jwt");
 
-const authMiddleware = (req, res, next) => {
+const authMiddleware = async (req, res, next) => {
     const authHeader = req.headers["authorization"];
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
         return res.status(401).json({ success: false, message: "No token provided" });
@@ -18,6 +18,9 @@ const authMiddleware = (req, res, next) => {
 
         // This is the bridge to your controller
         req.user = decoded; 
+
+        // Reset usage if subscription expired (MONTHLY CHECK)
+        await Subscription.checkAndResetMonthlyUsage(decoded.id);
         next();
     } catch (err) {
         return res.status(500).json({ success: false, message: "Auth Error" });
