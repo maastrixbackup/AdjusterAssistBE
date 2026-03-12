@@ -1,8 +1,9 @@
 const User = require("../models/user");
-const Subscription = require("../models/subscription.model"); // Import the model
+const Subscription = require("../models/subscription.model");
 
 const getProfile = async (req, res) => {
     try {
+        // Validation check for middleware payload
         if (!req.user || !req.user.id) {
             return res.status(401).json({
                 success: false,
@@ -11,15 +12,13 @@ const getProfile = async (req, res) => {
         }
 
         const userId = req.user.id;
-        
-        // 1. Get user details (this already includes 'role' from your Model.findById)
         const user = await User.findById(userId);
 
         if (!user) {
             return res.status(404).json({ success: false, message: "User not found" });
         }
 
-        // 2. Get subscription/usage details using the Model method
+        // 1. Get stats (our updated model now handles null cases internally)
         const subscription = await Subscription.getStats(userId);
 
         res.status(200).json({ 
@@ -30,7 +29,8 @@ const getProfile = async (req, res) => {
                     plan: subscription.plan_type,
                     limit: subscription.usage_limit,
                     used: subscription.current_usage,
-                    remaining: subscription.usage_limit - subscription.current_usage
+                    remaining: Math.max(0, subscription.usage_limit - subscription.current_usage),
+                    expires_at: subscription.expires_at
                 }
             }
         });
@@ -42,20 +42,22 @@ const getProfile = async (req, res) => {
 
 const getAllUsers = async (req, res) => {
     try {
-        // 1. Fetch all users (already includes roles)
         const users = await User.findAll();
 
-        // 2. Map through users to attach their subscription status
-        // Note: In a large production app, you might use a SQL JOIN instead 
-        // for better performance, but this is clean for now.
+        // 2. Map through users with a fallback check
         const usersWithStats = await Promise.all(users.map(async (user) => {
             const sub = await Subscription.getStats(user.id);
+            
+            // If sub is null (uninitialized user), provide default free tier view
+            const subData = sub || { plan_type: 'free', current_usage: 0, usage_limit: 5 };
+
             return {
                 ...user,
                 subscription: {
-                    plan: sub.plan_type,
-                    used: sub.current_usage,
-                    limit: sub.usage_limit
+                    plan: subData.plan_type,
+                    used: subData.current_usage,
+                    limit: subData.usage_limit,
+                    expires_at: subData.expires_at || null
                 }
             };
         }));

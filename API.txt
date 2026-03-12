@@ -35,3 +35,5 @@ Sample offline server response
   "type": "email"
 }
 
+9. GET http://localhost:5000/api/v1/subscription/my-plan
+

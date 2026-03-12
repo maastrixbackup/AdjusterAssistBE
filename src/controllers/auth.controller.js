@@ -5,62 +5,51 @@ const { sendResetEmail, sendSignupEmail } = require("../services/email.service")
 const crypto = require("crypto");
 const Subscription = require("../models/subscription.model");
 
+
 const login = async (req, res) => {
     try {
         const { email, password } = req.body;
         if (!email || !password) {
-            return res.status(400).json({
-                success: false,
-                message: "Email and password are required",
-            });
+            return res.status(400).json({ success: false, message: "Email and password are required" });
         }
 
         const user = await User.findByEmail(email);
         if (!user) {
-            return res.status(404).json({
-                success: false,
-                message: "User not found. Please sign up first.",
-            });
+            return res.status(404).json({ success: false, message: "User not found. Please sign up first." });
         }
 
         const isMatch = await bcrypt.compare(password, user.password);
         if (!isMatch) {
-            return res.status(400).json({
-                success: false,
-                message: "Invalid email or password",
-            });
+            return res.status(400).json({ success: false, message: "Invalid email or password" });
         }
-        // 1. Fetch subscription details for the user
-        const subRows = await Subscription.getStats(user.id);
-        
-        const subscription = subRows[0] || { plan_type: 'free', usage_limit: 10, current_usage: 0 };
+
+        // 1. Fetch subscription details
+        const subscription = await Subscription.getStats(user.id);
+
+        // 2. Generate token with a clean payload
         const token = generateToken({ id: user.id, email: user.email });
 
-        // 2. Build the Enhanced Response
-        const userResponse = {
-            id: user.id,
-            name: user.name,
-            email: user.email,
-            role: user.role, 
-            subscription: {
-                plan: subscription.plan_type,
-                limit: subscription.usage_limit,
-                used: subscription.current_usage,
-                remaining: subscription.usage_limit - subscription.current_usage
-            },
-            created_at: user.created_at,
-            updated_at: user.updated_at,
-        };
-
+        // 3. Build response
         res.status(200).json({
             success: true,
             message: "Login successful",
-            user: userResponse,
+            user: {
+                id: user.id,
+                name: user.name,
+                email: user.email,
+                role: user.role,
+                subscription: {
+                    plan: subscription.plan_type,
+                    limit: subscription.usage_limit,
+                    used: subscription.current_usage,
+                    remaining: subscription.usage_limit - subscription.current_usage
+                }
+            },
             token: token,
         });
     } catch (error) {
         console.error("Login Error:", error);
-        return res.status(500).json({ message: "Server error" });
+        return res.status(500).json({ success: false, message: "Server error during login" });
     }
 };
 
@@ -68,56 +57,34 @@ const signup = async (req, res) => {
     try {
         const { name, email, password, role } = req.body;
 
-        // 1. Validation
         if (!name || !email || !password || !role) {
-            return res.status(400).json({
-                success: false,
-                message: "Name, email, password, and role are required",
-            });
+            return res.status(400).json({ success: false, message: "All fields are required" });
         }
 
         const validRoles = ['ca', 'pa'];
-        if (!validRoles.includes(role)) {
-            return res.status(400).json({
-                success: false,
-                message: "Invalid role. Must be 'ca' or 'pa'.",
-            });
+        if (!validRoles.includes(role.toLowerCase())) {
+            return res.status(400).json({ success: false, message: "Invalid role. Use 'ca' or 'pa'." });
         }
 
         const existingUser = await User.findByEmail(email);
-        if (existingUser) { 
-            return res.status(400).json({ 
-                success: false, 
-                message: "Email already in use", 
-            }); 
+        if (existingUser) {
+            return res.status(400).json({ success: false, message: "Email already in use" });
         }
 
-        const saltRounds = 10;
-        const hashedPassword = await bcrypt.hash(password, saltRounds);
+        const hashedPassword = await bcrypt.hash(password, 10);
+        const newUser = await User.create({ name, email, password: hashedPassword, role: role.toLowerCase() });
 
-        // 2. Create User
-        const newUser = await User.create({
-            name,
-            email,
-            password: hashedPassword,
-            role 
-        });
-
-        // 3. Initialize & Fetch Subscription
+        // Auto-initialize free tier
         await Subscription.initFreeTier(newUser.id);
         const subscription = await Subscription.getStats(newUser.id);
 
-        // 4. Auth & Email
         const token = generateToken({ id: newUser.id, email: newUser.email });
-        
-        sendSignupEmail(newUser.email, newUser.name).catch(err => {
-            console.error("Error sending signup email:", err);
-        });
 
-        // 5. Unified Response Structure (Same as Login)
+        sendSignupEmail(newUser.email, newUser.name).catch(console.error);
+
         return res.status(201).json({
             success: true,
-            message: `User created successfully for ${role === 'ca' ? 'Carrier' : 'Public'} Adjuster workspace`,
+            message: `User created successfully for ${role.toUpperCase()} workspace`,
             user: {
                 id: newUser.id,
                 name: newUser.name,
@@ -132,15 +99,12 @@ const signup = async (req, res) => {
             },
             token: token
         });
-
     } catch (error) {
         console.error("Signup Error:", error);
-        return res.status(500).json({ 
-            success: false, 
-            message: "Server error during registration" 
-        });
+        return res.status(500).json({ success: false, message: "Server error during registration" });
     }
 };
+
 
 const forgotPassword = async (req, res) => {
     const { email } = req.body;
@@ -161,9 +125,9 @@ const forgotPassword = async (req, res) => {
 
         await sendResetEmail(user.email, resetLink);
 
-        res.status(200).json({ 
-            success: true, 
-            message: "Reset link sent to email" 
+        res.status(200).json({
+            success: true,
+            message: "Reset link sent to email"
         });
     } catch (error) {
         console.error("Forgot Password Error:", error);
