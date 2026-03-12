@@ -7,7 +7,6 @@ const Subscription = {
             "SELECT plan_type, usage_limit, current_usage, expires_at FROM subscriptions WHERE user_id = ?",
             [userId]
         );
-        // If no row exists, return null so the reset logic knows to create one
         return rows[0] || null;
     },
 
@@ -19,7 +18,7 @@ const Subscription = {
         );
     },
 
-    // 3. Upgrade logic for Gold/Diamond plans
+    // 3. Upgrade logic for Pro/Enterprise plans
     async updateTier(userId, planData) {
         const { plan_type, usage_limit, expires_at } = planData;
         return await db.query(
@@ -34,18 +33,16 @@ const Subscription = {
     async initFreeTier(userId) {
         const initialExpiry = new Date();
         initialExpiry.setDate(initialExpiry.getDate() + 30); 
-
         return await db.query(
             "INSERT INTO subscriptions (user_id, plan_type, usage_limit, current_usage, expires_at, status) VALUES (?, 'free', 5, 0, ?, 'active')",
             [userId, initialExpiry]
         );
     },
 
-    // 5. CRITICAL FIX: The Monthly Reset & Auto-Repair Logic
+    // 5. The Monthly Reset & Auto-Repair Logic
   async checkAndResetMonthlyUsage(userId) {
     try {
         let sub = await this.getStats(userId);
-
         if (!sub) {
             await this.initFreeTier(userId);
             return;

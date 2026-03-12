@@ -18,6 +18,7 @@ Provide Authorization header (Bearer token)
 FOR ADMIN######################ADMIN #####################
 6. GET http://localhost:5000/api/v1/user/all
 Provide Authorization header (Bearer token)
+
 ############################################################################
 
 7. POST http://localhost:5000/api/v1/drafts/generate
@@ -36,4 +37,9 @@ Sample offline server response
 }
 
 9. GET http://localhost:5000/api/v1/subscription/my-plan
+Authorization Header
+
+10. POST http://localhost:5000/api/v1/subscription/my-plan
+Authorization Header
+{"planType":"enterprise"}
 
