@@ -66,9 +66,9 @@ const login = async (req, res) => {
 
 const signup = async (req, res) => {
     try {
-        // 1. Destructure 'role' from request body
         const { name, email, password, role } = req.body;
 
+        // 1. Validation
         if (!name || !email || !password || !role) {
             return res.status(400).json({
                 success: false,
@@ -76,7 +76,6 @@ const signup = async (req, res) => {
             });
         }
 
-        // 2. Validate that the role is either 'ca' or 'pa'
         const validRoles = ['ca', 'pa'];
         if (!validRoles.includes(role)) {
             return res.status(400).json({
@@ -96,7 +95,7 @@ const signup = async (req, res) => {
         const saltRounds = 10;
         const hashedPassword = await bcrypt.hash(password, saltRounds);
 
-        // 3. Create user with the selected role
+        // 2. Create User
         const newUser = await User.create({
             name,
             email,
@@ -104,22 +103,32 @@ const signup = async (req, res) => {
             role 
         });
 
-        // 4. AUTOMATION: Create the default subscription record
+        // 3. Initialize & Fetch Subscription
         await Subscription.initFreeTier(newUser.id);
+        const subscription = await Subscription.getStats(newUser.id);
 
+        // 4. Auth & Email
         const token = generateToken({ id: newUser.id, email: newUser.email });
-
+        
         sendSignupEmail(newUser.email, newUser.name).catch(err => {
             console.error("Error sending signup email:", err);
         });
+
+        // 5. Unified Response Structure (Same as Login)
         return res.status(201).json({
             success: true,
-            message: "User created successfully with " + role + " workspace",
+            message: `User created successfully for ${role === 'ca' ? 'Carrier' : 'Public'} Adjuster workspace`,
             user: {
                 id: newUser.id,
                 name: newUser.name,
                 email: newUser.email,
-                role: newUser.role
+                role: newUser.role,
+                subscription: {
+                    plan: subscription.plan_type,
+                    limit: subscription.usage_limit,
+                    used: subscription.current_usage,
+                    remaining: subscription.usage_limit - subscription.current_usage
+                }
             },
             token: token
         });
@@ -179,4 +188,9 @@ const resetPassword = async (req, res) => {
     }
 };
 
-module.exports = { login, signup, forgotPassword, resetPassword };
+const logout = async (req, res) => {
+    // Since we're using JWTs, logout can be handled on the client side by simply deleting the token.
+    res.status(200).json({ success: true, message: "Logout successful" });
+};
+
+module.exports = { login, signup, forgotPassword, resetPassword, logout };

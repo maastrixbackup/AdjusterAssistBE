@@ -1,7 +1,7 @@
 API TESTING DOCS
 
 1. POST http://localhost:5000/api/v1/auth/signup
-{"email":"admin@gmail.com", "password":"AdminPass", "name":"Admin"}
+{"email":"akasheditz00@gmail.com","name":"Akash","password":"password01","role":"pa"}
 
 2. POST http://localhost:5000/api/v1/auth/login
 {"email":"admin@gmail.com", "password":"AdminPass"}
@@ -15,12 +15,15 @@ API TESTING DOCS
 5. GET http://localhost:5000/api/v1/user/profile
 Provide Authorization header (Bearer token)
 
+FOR ADMIN######################ADMIN #####################
 6. GET http://localhost:5000/api/v1/user/all
 Provide Authorization header (Bearer token)
+############################################################################
 
 7. POST http://localhost:5000/api/v1/drafts/generate
 - Authorization Header 
 {
+  "type":"file",
   "request": "Draft a firm email to insured responding to a complaint about delay",
   "source": "Claim #12345. Insured: John Doe. Delay caused by waiting for engineer report. Report arrived today."
 }
@@ -31,4 +34,4 @@ Sample offline server response
 {
   "type": "email"
 }
- 
+

@@ -4,7 +4,7 @@ const Subscription = require("../models/subscription.model");
 const createDraft = async (req, res) => {
     try {
         const { type } = req.body;
-        const userId = req.user.id; // Extracted from your authMiddleware
+        const userId = req.user.id;
 
         let responseText = "";
 
