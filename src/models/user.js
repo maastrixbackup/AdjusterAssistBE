@@ -23,12 +23,12 @@ const User = {
         return rows[0];
     },
 
-    async create({ name, email, password }) {
+    async create({ name, email, password, role }) {
         const [result] = await db.query(
-            "INSERT INTO users (name, email, password) VALUES (?, ?, ?)",
-            [name, email, password]
+            "INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, ?)",
+            [name, email, password, role || 'ca'] 
         );
-        return { id: result.insertId, name, email };
+        return { id: result.insertId, name, email, role };
     },
 
     // Password RESET opeartion with DB
