@@ -43,4 +43,29 @@ const sendResetEmail = async (email, resetLink) => {
     }
 };
 
-module.exports = { sendResetEmail };
+const sendSignupEmail = async (email, name) => {
+    try {
+        const mailOptions = {
+            from: `"AdjusterAssist Support" <${process.env.EMAIL_USER}>`,
+            to: email,
+            subject: "Welcome to AdjusterAssist!",
+            html: `
+                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; border: 1px solid #ddd; padding: 20px;">
+                    <h2 style="color: #333;">Welcome to AdjusterAssist, ${name}!</h2>
+                    <p>Thank you for signing up for AdjusterAssist. We're excited to have you on board!</p>
+                    <p>Get started by exploring our features and let us know if you have any questions.</p>
+                    <p style="margin-top: 20px; font-size: 12px; color: #777;">We're here to help you make the most of AdjusterAssist.</p>
+                </div>
+            `,
+        };
+        const info = await transporter.sendMail(mailOptions);
+        console.log("Email sent successfully: " + info.response);
+        return info;
+    } catch (error) {
+        console.error("Detailed Nodemailer Error:", error.message);
+        throw new Error("Failed to send email");
+    }
+};
+
+
+module.exports = { sendResetEmail, sendSignupEmail };

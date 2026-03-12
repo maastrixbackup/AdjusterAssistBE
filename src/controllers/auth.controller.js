@@ -1,8 +1,9 @@
 const bcrypt = require("bcrypt");
 const { generateToken } = require("../utils/jwt");
 const User = require("../models/user");
-const { sendResetEmail } = require("../services/email.service");
+const { sendResetEmail, sendSignupEmail } = require("../services/email.service");
 const crypto = require("crypto");
+const Subscription = require("../models/subscription.model");
 
 const login = async (req, res) => {
     try {
@@ -19,7 +20,6 @@ const login = async (req, res) => {
             return res.status(404).json({
                 success: false,
                 message: "User not found. Please sign up first.",
-                // isNewUser: true
             });
         }
 
@@ -30,15 +30,24 @@ const login = async (req, res) => {
                 message: "Invalid email or password",
             });
         }
-
-        // FIX: Explicitly pass id and email
+        // 1. Fetch subscription details for the user
+        const subRows = await Subscription.getStats(user.id);
+        
+        const subscription = subRows[0] || { plan_type: 'free', usage_limit: 10, current_usage: 0 };
         const token = generateToken({ id: user.id, email: user.email });
 
+        // 2. Build the Enhanced Response
         const userResponse = {
             id: user.id,
             name: user.name,
             email: user.email,
-            role: user.role,
+            role: user.role, 
+            subscription: {
+                plan: subscription.plan_type,
+                limit: subscription.usage_limit,
+                used: subscription.current_usage,
+                remaining: subscription.usage_limit - subscription.current_usage
+            },
             created_at: user.created_at,
             updated_at: user.updated_at,
         };
@@ -57,12 +66,22 @@ const login = async (req, res) => {
 
 const signup = async (req, res) => {
     try {
-        const { name, email, password } = req.body;
+        // 1. Destructure 'role' from request body
+        const { name, email, password, role } = req.body;
 
-        if (!name || !email || !password) {
+        if (!name || !email || !password || !role) {
             return res.status(400).json({
                 success: false,
-                message: "Name, email, and password are required",
+                message: "Name, email, password, and role are required",
+            });
+        }
+
+        // 2. Validate that the role is either 'ca' or 'pa'
+        const validRoles = ['ca', 'pa'];
+        if (!validRoles.includes(role)) {
+            return res.status(400).json({
+                success: false,
+                message: "Invalid role. Must be 'ca' or 'pa'.",
             });
         }
 
@@ -77,19 +96,31 @@ const signup = async (req, res) => {
         const saltRounds = 10;
         const hashedPassword = await bcrypt.hash(password, saltRounds);
 
+        // 3. Create user with the selected role
         const newUser = await User.create({
             name,
             email,
-            password: hashedPassword
+            password: hashedPassword,
+            role 
         });
 
-        // FIX: Don't pass the whole newUser object. 
+        // 4. AUTOMATION: Create the default subscription record
+        await Subscription.initFreeTier(newUser.id);
+
         const token = generateToken({ id: newUser.id, email: newUser.email });
 
+        sendSignupEmail(newUser.email, newUser.name).catch(err => {
+            console.error("Error sending signup email:", err);
+        });
         return res.status(201).json({
             success: true,
-            message: "User created successfully",
-            user: newUser,
+            message: "User created successfully with " + role + " workspace",
+            user: {
+                id: newUser.id,
+                name: newUser.name,
+                email: newUser.email,
+                role: newUser.role
+            },
             token: token
         });
 
