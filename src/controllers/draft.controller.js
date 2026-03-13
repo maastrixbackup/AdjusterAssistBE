@@ -4,7 +4,7 @@ const Draft = require("../models/draft.model");
 
 const createDraft = async (req, res) => {
     try {
-        const { type, fileId, shouldSave } = req.body;
+        const { type, fileId, save } = req.body;
         const userId = req.user.id;
 
         if (!fileId) {
@@ -28,8 +28,8 @@ const createDraft = async (req, res) => {
 
         let savedDraft = null;
 
-        // Only save and charge credit IF shouldSave is true
-        if (shouldSave === true || shouldSave === "true") {
+        // Only save and charge credit IF save is true
+        if (save === true || save === "true") {
             savedDraft = await Draft.create({
                 file_id: fileId,
                 user_id: userId,
@@ -84,4 +84,27 @@ const getFileDrafts = async (req, res) => {
     }
 };
 
-module.exports = { createDraft, getFileDrafts };
+const deleteDraft = async (req, res) => {
+    try {
+        const { draftId } = req.params;
+        const userId = req.user.id;
+        if (!draftId) {
+            return res.status(400).json({ success: false, message: "Draft ID is required" });
+        }  
+        const draft = await Draft.findById(draftId);
+        if (!draft) {
+            return res.status(404).json({ success: false, message: "Draft not found" });
+        }
+        if (draft.user_id !== userId) {
+            return res.status(403).json({ success: false, message: "Unauthorized to delete this draft" });
+        }
+        await Draft.deleteById(draftId);
+        res.status(200).json({ success: true, message: "Draft deleted successfully" });
+    } catch (error) {
+        console.error("Delete Draft Error:", error);
+        res.status(500).json({ success: false, message: "Error deleting draft" });
+    }
+};
+
+
+module.exports = { createDraft, getFileDrafts, deleteDraft };

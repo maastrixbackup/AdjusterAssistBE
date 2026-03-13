@@ -7,18 +7,7 @@ router.get("/", async(req, res)=>{
     res.status(200).json({message:"Subscription Routes Success"})
 });
 
-/**
- * @route   GET /api/subscriptions/my-plan
- * @desc    Get current user's subscription and usage details
- * @access  Private
- */
 router.get("/my-plan", authMiddleware, getMySubscription);
-
-/**
- * @route   POST /api/subscriptions/upgrade
- * @desc    Upgrade user to Gold or Diamond plan
- * @access  Private
- */
 router.post("/upgrade", authMiddleware, upgradeSubscription);
 
 module.exports = router;

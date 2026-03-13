@@ -15,6 +15,12 @@ const Draft = {
     return null;
   },
 
+  findById: async (draftId) => {
+    const [rows] = await db.query("SELECT * FROM drafts WHERE id = ?", [draftId]);
+    return rows[0];
+  },
+
+
   findByFileId: async (fileId) => {
     const [rows] = await db.query(
       "SELECT * FROM drafts WHERE file_id = ? ORDER BY created_at DESC",
@@ -23,7 +29,7 @@ const Draft = {
     return rows;
   },
 
-  delete: async (draftId) => {
+  deleteById: async (draftId) => {
     return await db.query("DELETE FROM drafts WHERE id = ?", [draftId]);
   }
 };
