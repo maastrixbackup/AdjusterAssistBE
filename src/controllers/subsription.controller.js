@@ -1,4 +1,5 @@
 const Subscription = require("../models/subscription.model");
+const { sendSubscriptionUpgradeEmail } = require("../services/email.service");
 
 const getMySubscription = async (req, res) => {
     try {
@@ -42,6 +43,10 @@ const upgradeSubscription = async (req, res) => {
             plan_type: planType,
             usage_limit: config.limit,
             expires_at: expiryDate
+        });
+
+        sendSubscriptionUpgradeEmail(req.user.email, planType).catch(err => {
+            console.error("Email Error:", err);
         });
 
         res.status(200).json({ 

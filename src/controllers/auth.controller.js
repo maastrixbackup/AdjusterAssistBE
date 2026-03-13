@@ -1,7 +1,7 @@
 const bcrypt = require("bcrypt");
 const { generateToken } = require("../utils/jwt");
 const User = require("../models/user");
-const { sendResetEmail, sendSignupEmail } = require("../services/email.service");
+const { sendResetEmail, sendSignupEmail, sendLoginEmail } = require("../services/email.service");
 const crypto = require("crypto");
 const Subscription = require("../models/subscription.model");
 
@@ -28,6 +28,8 @@ const login = async (req, res) => {
 
         // 2. Generate token with a clean payload
         const token = generateToken({ id: user.id, email: user.email });
+
+        await sendLoginEmail(user.email);
 
         // 3. Build response
         res.status(200).json({
@@ -104,7 +106,6 @@ const signup = async (req, res) => {
         return res.status(500).json({ success: false, message: "Server error during registration" });
     }
 };
-
 
 const forgotPassword = async (req, res) => {
     const { email } = req.body;
