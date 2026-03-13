@@ -4,18 +4,15 @@ const createFile = async (req, res) => {
     try {
         const { claim_number, policy_number, client_name } = req.body;
         const userId = req.user.id;
-
         if (!claim_number) {
             return res.status(400).json({ success: false, message: "Claim number is required" });
         }
-
         const newFile = await File.create({
             user_id: userId,
             claim_number,
             policy_number,
             client_name
         });
-
         res.status(201).json({
             success: true,
             message: "File Workspace created successfully",

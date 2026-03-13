@@ -4,10 +4,9 @@ const Draft = require("../models/draft.model");
 
 const createDraft = async (req, res) => {
     try {
-        const { type, fileId } = req.body;
+        const { type, fileId, shouldSave } = req.body;
         const userId = req.user.id;
 
-        // 1. Validate File Workspace presence
         if (!fileId) {
             return res.status(400).json({
                 success: false,
@@ -16,18 +15,10 @@ const createDraft = async (req, res) => {
         }
 
         let responseText = "";
-
-        // Selection logic
         switch (type?.toLowerCase()) {
-            case 'email':
-                responseText = STATIC_RESPONSES.EMAIL;
-                break;
-            case 'file':
-                responseText = STATIC_RESPONSES.FILE_NOTE;
-                break;
-            case 'escalation':
-                responseText = STATIC_RESPONSES.ESCALATION;
-                break;
+            case 'email': responseText = STATIC_RESPONSES.EMAIL; break;
+            case 'file': responseText = STATIC_RESPONSES.FILE_NOTE; break;
+            case 'escalation': responseText = STATIC_RESPONSES.ESCALATION; break;
             default:
                 return res.status(400).json({
                     success: false,
@@ -35,23 +26,30 @@ const createDraft = async (req, res) => {
                 });
         }
 
-        // 2. Persist the draft to the File Workspace (Permanent Storage)
-        const savedDraft = await Draft.create({
-            file_id: fileId,
-            user_id: userId,
-            draft_type: type,
-            content: responseText
-        });
+        let savedDraft = null;
 
-        // 3. Update the subscription usage count
-        await Subscription.incrementUsage(userId);
+        // Only save and charge credit IF shouldSave is true
+        if (shouldSave === true || shouldSave === "true") {
+            savedDraft = await Draft.create({
+                file_id: fileId,
+                user_id: userId,
+                draft_type: type,
+                content: responseText
+            });
 
-        // 4. Return the response including the saved record details
+            // Increment usage ONLY if it was saved
+            await Subscription.incrementUsage(userId);
+        }
+
+        // 4. Return the response safely
         res.status(200).json({
             success: true,
-            message: "Draft generated and saved to workspace successfully.",
+            message: savedDraft
+                ? "Draft generated and saved to workspace."
+                : "Draft generated (Preview only).",
             data: {
-                draftId: savedDraft.id,
+                // Safe access: uses savedDraft.id if it exists, otherwise null
+                draftId: savedDraft ? savedDraft.id : null,
                 fileId: fileId,
                 content: responseText
             }
@@ -63,4 +61,27 @@ const createDraft = async (req, res) => {
     }
 };
 
-module.exports = { createDraft };
+const getFileDrafts = async (req, res) => {
+    try {
+        // We get the fileId from the URL parameters: /api/files/:fileId/drafts
+        const { fileId } = req.params;
+
+        if (!fileId) {
+            return res.status(400).json({ success: false, message: "File ID is required" });
+        }
+
+        // Fetch drafts belonging specifically to this workspace
+        const drafts = await Draft.findByFileId(fileId);
+
+        res.status(200).json({
+            success: true,
+            count: drafts.length,
+            drafts: drafts
+        });
+    } catch (error) {
+        console.error("Get File Drafts Error:", error);
+        res.status(500).json({ success: false, message: "Error fetching drafts for this workspace" });
+    }
+};
+
+module.exports = { createDraft, getFileDrafts };
