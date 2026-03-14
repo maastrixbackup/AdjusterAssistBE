@@ -36,10 +36,41 @@ Sample offline server response
   "type": "email"
 }
 
+################################## SUBSCRIPTION ROUTES ########################################  SUBSCRIPTION ROUTES #############
+
 9. GET http://localhost:5000/api/v1/subscription/my-plan
 Authorization Header
 
-10. POST http://localhost:5000/api/v1/subscription/my-plan
+10. POST http://localhost:5000/api/v1/subscription/upgrade
 Authorization Header
 {"planType":"enterprise"}
 
+
+################################################# 
+File will be created during workspace selection
+
+11. POST  http://localhost:5000/api/v1/files/new
+Authorization Middleware
+{
+  "claim_number": "CLM-2026-001",
+  "client_name": "John Smith",
+  "policy_number": "POL-99",
+}
+
+
+12. GET http://localhost:5000/api/v1/files/my-files
+Authorization Header
+
+
+13. GET http://localhost:5000/api/v1/files/:fileId/drafts
+Authorization Header
+
+
+###################################### DRAFTS Routes ################
+14. POSt http://localhost:5000/api/v1/drafts/generate
+Authorization Header
+{
+  "type":"email",
+  "fileId":2,
+  "save":true
+}

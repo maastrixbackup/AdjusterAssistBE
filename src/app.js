@@ -6,6 +6,7 @@ const authRoutes = require('./routes/auth.routes');
 const userRoutes = require('./routes/user.routes');
 const draftRoutes = require('./routes/draft.routes');
 const subscriptionRoutes = require('./routes/subscription.routes');
+const fileRoutes = require('./routes/file.routes');
 
 const app = express();
 
@@ -21,6 +22,7 @@ app.get("/", (req, res) => {
 app.use('/api/v1/auth', authRoutes);
 app.use("/api/v1/user", userRoutes);
 app.use("/api/v1/drafts", draftRoutes);
+app.use("/api/v1/files", fileRoutes);
 app.use("/api/v1/subscriptions", subscriptionRoutes);
 
 module.exports = app;
