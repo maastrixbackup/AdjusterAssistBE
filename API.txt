@@ -67,10 +67,19 @@ Authorization Header
 
 
 ###################################### DRAFTS Routes ################
-14. POSt http://localhost:5000/api/v1/drafts/generate
+14. POSt http://localhost:5000/api/v1/drafts/generate-test
 Authorization Header
 {
   "type":"email",
   "fileId":2,
   "save":true
+}
+
+15. POST http://localhost:5000/api/v1/drafts/generate
+Authorization Header
+{
+  "fileId": 1,
+  "type": "email",
+  "userInput": "The carrier is delaying payment on Claim #4451 despite all proof of loss being submitted 30 days ago.",
+  "shouldSave": true
 }
