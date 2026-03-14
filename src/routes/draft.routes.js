@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const { createDraft } = require("../controllers/draft.controller");
+const { testDraft, createAIDraft } = require("../controllers/draft.controller");
 const authMiddleware = require("../middlewares/auth.middleware");
 const checkUsageLimit = require("../middlewares/usageLimit");
 
@@ -9,6 +9,8 @@ router.get("/", async(req, res)=>{
 })
 
 // This makes the full URL: /api/drafts/generate
-router.post("/generate", authMiddleware, checkUsageLimit, createDraft);
+router.post("/generate-test", authMiddleware, checkUsageLimit, testDraft);
+
+router.post("/generate", authMiddleware, checkUsageLimit, createAIDraft );
 
 module.exports = router;
