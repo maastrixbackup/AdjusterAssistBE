@@ -4,7 +4,7 @@ API TESTING DOCS
 {"email":"akasheditz00@gmail.com","name":"Akash","password":"password01","role":"pa"}
 
 2. POST http://localhost:5000/api/v1/auth/login
-{"email":"admin@gmail.com", "password":"AdminPass"}
+{"email":"developer01.ac@gmail.com", "password":"Password01"}
 
 3. POST http://localhost:5000/api/v1/auth/forgot-password
 { "email": "your_email@gmail.com"}

@@ -1,7 +1,9 @@
 const STATIC_RESPONSES = require("../utils/sample_response");
 const Subscription = require("../models/subscription.model");
 const Draft = require("../models/draft.model");
-const { generateAIDraft } = require("../services/ai.service");
+const db = require("../config/db");
+const  aiService = require("../services/ai.service");
+
 
 const testDraft = async (req, res) => {
     try {
@@ -113,16 +115,30 @@ const createAIDraft = async (req, res) => {
         const { type, fileId, shouldSave, userInput } = req.body;
         const userId = req.user.id;
 
-        if (!fileId) {
-            return res.status(400).json({ success: false, message: "File ID is required." });
+        // 1. Fetch File Metadata first to give the AI context
+        const [fileRows] = await db.query(
+            "SELECT client_name, claim_number FROM files WHERE id = ?", 
+            [fileId]
+        );
+
+        if (fileRows.length === 0) {
+            return res.status(404).json({ success: false, message: "Workspace not found." });
         }
 
-        // 1. Call the Service
-        const aiResponse = await generateAIDraft(type, userInput);
+        const { client_name, claim_number } = fileRows[0];
+
+        // 2. Enhance the User Input with Context
+        // This ensures the AI knows WHO it is writing to.
+        const contextEnhancedInput = `
+            Client Name: ${client_name}
+            Claim Number: ${claim_number}
+            Subject/Instructions: ${userInput}
+        `;
+
+        // 3. Call the Service with the enhanced context
+        const aiResponse = await aiService.generateAIDraft(type, contextEnhancedInput);
 
         let savedDraft = null;
-        
-        // 2. Handle Persistence and Credits
         if (shouldSave === true || shouldSave === "true") {
             savedDraft = await Draft.create({
                 file_id: fileId,
@@ -130,29 +146,23 @@ const createAIDraft = async (req, res) => {
                 draft_type: type,
                 content: aiResponse
             });
-
             await Subscription.incrementUsage(userId);
         }
 
-        // 3. Final Response
         res.status(200).json({
             success: true,
             message: savedDraft ? "Saved to workspace" : "Preview generated",
             data: {
                 draftId: savedDraft ? savedDraft.id : null,
+                claim_number,
+                client_name,
                 content: aiResponse
             }
         });
 
     } catch (error) {
         console.error("Controller Error:", error);
-        
-        // Specific error handling for OpenAI status codes
-        if (error.status === 429) {
-            return res.status(429).json({ success: false, message: "AI Quota exceeded." });
-        }
-        
-        res.status(500).json({ success: false, message: "Server error during AI generation." });
+        res.status(500).json({ success: false, message: "AI Generation failed." });
     }
 };
 
