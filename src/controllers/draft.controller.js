@@ -1,8 +1,9 @@
 const STATIC_RESPONSES = require("../utils/sample_response");
 const Subscription = require("../models/subscription.model");
 const Draft = require("../models/draft.model");
+const { generateAIDraft } = require("../services/ai.service");
 
-const createDraft = async (req, res) => {
+const testDraft = async (req, res) => {
     try {
         const { type, fileId, save } = req.body;
         const userId = req.user.id;
@@ -107,4 +108,53 @@ const deleteDraft = async (req, res) => {
 };
 
 
-module.exports = { createDraft, getFileDrafts, deleteDraft };
+const createAIDraft = async (req, res) => {
+    try {
+        const { type, fileId, shouldSave, userInput } = req.body;
+        const userId = req.user.id;
+
+        if (!fileId) {
+            return res.status(400).json({ success: false, message: "File ID is required." });
+        }
+
+        // 1. Call the Service
+        const aiResponse = await generateAIDraft(type, userInput);
+
+        let savedDraft = null;
+        
+        // 2. Handle Persistence and Credits
+        if (shouldSave === true || shouldSave === "true") {
+            savedDraft = await Draft.create({
+                file_id: fileId,
+                user_id: userId,
+                draft_type: type,
+                content: aiResponse
+            });
+
+            await Subscription.incrementUsage(userId);
+        }
+
+        // 3. Final Response
+        res.status(200).json({
+            success: true,
+            message: savedDraft ? "Saved to workspace" : "Preview generated",
+            data: {
+                draftId: savedDraft ? savedDraft.id : null,
+                content: aiResponse
+            }
+        });
+
+    } catch (error) {
+        console.error("Controller Error:", error);
+        
+        // Specific error handling for OpenAI status codes
+        if (error.status === 429) {
+            return res.status(429).json({ success: false, message: "AI Quota exceeded." });
+        }
+        
+        res.status(500).json({ success: false, message: "Server error during AI generation." });
+    }
+};
+
+
+module.exports = { testDraft, getFileDrafts, deleteDraft, createAIDraft };
