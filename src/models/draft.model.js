@@ -31,6 +31,19 @@ const Draft = {
 
   deleteById: async (draftId) => {
     return await db.query("DELETE FROM drafts WHERE id = ?", [draftId]);
+  },
+
+  findRecent: async (userId, limit = 5) => {
+    const [rows] = await db.query(
+      `SELECT d.*, f.claim_number, f.client_name 
+       FROM drafts d
+       JOIN files f ON d.file_id = f.id
+       WHERE d.user_id = ? 
+       ORDER BY d.created_at DESC 
+       LIMIT ?`,
+      [userId, limit]
+    );
+    return rows;
   }
 };
 

@@ -40,8 +40,8 @@ const testDraft = async (req, res) => {
                 content: responseText
             });
 
-            // Increment usage ONLY if it was saved
         }
+
         await Subscription.incrementUsage(userId);
         
         // 4. Return the response safely
@@ -84,6 +84,25 @@ const getFileDrafts = async (req, res) => {
     } catch (error) {
         console.error("Get File Drafts Error:", error);
         res.status(500).json({ success: false, message: "Error fetching drafts for this workspace" });
+    }
+};
+
+const getRecentDrafts = async (req, res) => {
+    try {
+        const userId = req.user.id;
+        // You can let the frontend decide the limit via query params, default to 5
+        const limit = parseInt(req.query.limit) || 2;
+
+        const recentDrafts = await Draft.findRecent(userId, limit);
+
+        res.status(200).json({
+            success: true,
+            count: recentDrafts.length,
+            data: recentDrafts
+        });
+    } catch (error) {
+        console.error("Recent Drafts Error:", error);
+        res.status(500).json({ success: false, message: "Failed to fetch recent activity." });
     }
 };
 
@@ -166,4 +185,4 @@ const createAIDraft = async (req, res) => {
 };
 
 
-module.exports = { testDraft, getFileDrafts, deleteDraft, createAIDraft };
+module.exports = { testDraft, getFileDrafts, getRecentDrafts, deleteDraft, createAIDraft };
