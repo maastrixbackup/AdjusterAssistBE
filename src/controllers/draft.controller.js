@@ -109,7 +109,6 @@ const deleteDraft = async (req, res) => {
     }
 };
 
-
 const createAIDraft = async (req, res) => {
     try {
         const { type, fileId, shouldSave, userInput } = req.body;
