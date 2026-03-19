@@ -41,9 +41,9 @@ const testDraft = async (req, res) => {
             });
 
             // Increment usage ONLY if it was saved
-            await Subscription.incrementUsage(userId);
         }
-
+        await Subscription.incrementUsage(userId);
+        
         // 4. Return the response safely
         res.status(200).json({
             success: true,
@@ -145,9 +145,9 @@ const createAIDraft = async (req, res) => {
                 draft_type: type,
                 content: aiResponse
             });
-            await Subscription.incrementUsage(userId);
         }
-
+        
+        await Subscription.incrementUsage(userId);
         res.status(200).json({
             success: true,
             message: savedDraft ? "Saved to workspace" : "Preview generated",
