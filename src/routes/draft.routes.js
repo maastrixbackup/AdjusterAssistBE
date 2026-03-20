@@ -1,16 +1,29 @@
 const express = require("express");
 const router = express.Router();
-const { testDraft, createAIDraft, getRecentDrafts } = require("../controllers/draft.controller");
+const { 
+    testDraft, 
+    createAIDraft, 
+    getRecentDrafts, 
+    saveGeneratedDraft // New Controller function
+} = require("../controllers/draft.controller");
+
 const authMiddleware = require("../middlewares/auth.middleware");
 const checkUsageLimit = require("../middlewares/usageLimit");
 
-router.get("/", async(req, res)=>{
-    res.status(200).json({message:"Success"})
-})
+// Health Check
+router.get("/", async(req, res) => {
+    res.status(200).json({ message: "Draft Route Active" });
+});
 
-// This makes the full URL: /api/drafts/generate
+
+
 router.post("/generate-test", authMiddleware, checkUsageLimit, testDraft);
-router.post("/generate", authMiddleware, checkUsageLimit, createAIDraft );
+
+router.post("/generate", authMiddleware, checkUsageLimit, createAIDraft);
+
+
+router.post("/save", authMiddleware, saveGeneratedDraft);
+
 router.get("/recent", authMiddleware, getRecentDrafts);
 
 module.exports = router;
