@@ -38,10 +38,10 @@ Sample offline server response
 
 ################################## SUBSCRIPTION ROUTES ########################################  SUBSCRIPTION ROUTES #############
 
-9. GET http://localhost:5000/api/v1/subscription/my-plan
+9. GET http://localhost:5000/api/v1/subscriptions/my-plan
 Authorization Header
 
-10. POST http://localhost:5000/api/v1/subscription/upgrade
+10. POST http://localhost:5000/api/v1/subscriptions/upgrade
 Authorization Header
 {"planType":"enterprise"}
 

@@ -40,10 +40,10 @@ const testDraft = async (req, res) => {
                 content: responseText
             });
 
-            // Increment usage ONLY if it was saved
-            await Subscription.incrementUsage(userId);
         }
 
+        await Subscription.incrementUsage(userId);
+        
         // 4. Return the response safely
         res.status(200).json({
             success: true,
@@ -87,6 +87,25 @@ const getFileDrafts = async (req, res) => {
     }
 };
 
+const getRecentDrafts = async (req, res) => {
+    try {
+        const userId = req.user.id;
+        // You can let the frontend decide the limit via query params, default to 5
+        const limit = parseInt(req.query.limit) || 2;
+
+        const recentDrafts = await Draft.findRecent(userId, limit);
+
+        res.status(200).json({
+            success: true,
+            count: recentDrafts.length,
+            data: recentDrafts
+        });
+    } catch (error) {
+        console.error("Recent Drafts Error:", error);
+        res.status(500).json({ success: false, message: "Failed to fetch recent activity." });
+    }
+};
+
 const deleteDraft = async (req, res) => {
     try {
         const { draftId } = req.params;
@@ -108,7 +127,6 @@ const deleteDraft = async (req, res) => {
         res.status(500).json({ success: false, message: "Error deleting draft" });
     }
 };
-
 
 const createAIDraft = async (req, res) => {
     try {
@@ -146,9 +164,9 @@ const createAIDraft = async (req, res) => {
                 draft_type: type,
                 content: aiResponse
             });
-            await Subscription.incrementUsage(userId);
         }
-
+        
+        await Subscription.incrementUsage(userId);
         res.status(200).json({
             success: true,
             message: savedDraft ? "Saved to workspace" : "Preview generated",
@@ -167,4 +185,4 @@ const createAIDraft = async (req, res) => {
 };
 
 
-module.exports = { testDraft, getFileDrafts, deleteDraft, createAIDraft };
+module.exports = { testDraft, getFileDrafts, getRecentDrafts, deleteDraft, createAIDraft };
