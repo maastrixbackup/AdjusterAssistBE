@@ -1,66 +1,41 @@
 const STATIC_RESPONSES = require("../utils/sample_response");
 const Subscription = require("../models/subscription.model");
 const Draft = require("../models/draft.model");
+const  File = require("../models/file.model");
 const db = require("../config/db");
 const  aiService = require("../services/ai.service");
 
 
 const testDraft = async (req, res) => {
     try {
-        const { type, fileId, save } = req.body;
+        const { type, fileId } = req.body;
         const userId = req.user.id;
 
         if (!fileId) {
-            return res.status(400).json({
-                success: false,
-                message: "A File ID is required. All drafting must occur within a Workspace."
-            });
+            return res.status(400).json({ success: false, message: "File ID required." });
         }
 
-        let responseText = "";
-        switch (type?.toLowerCase()) {
-            case 'email': responseText = STATIC_RESPONSES.EMAIL; break;
-            case 'file': responseText = STATIC_RESPONSES.FILE_NOTE; break;
-            case 'escalation': responseText = STATIC_RESPONSES.ESCALATION; break;
-            default:
-                return res.status(400).json({
-                    success: false,
-                    message: "Invalid type. Use: 'email', 'file', or 'escalation'."
-                });
+        // 1. Get Response (Static for test, or AI Service)
+        let responseText = STATIC_RESPONSES[type?.toUpperCase()] || null;
+        if (!responseText) {
+            return res.status(400).json({ success: false, message: "Invalid type." });
         }
 
-        let savedDraft = null;
-
-        // Only save and charge credit IF save is true
-        if (save === true || save === "true") {
-            savedDraft = await Draft.create({
-                file_id: fileId,
-                user_id: userId,
-                draft_type: type,
-                content: responseText
-            });
-
-        }
-
+        // 2. Increment usage immediately (charging for the AI generation)
         await Subscription.incrementUsage(userId);
-        
-        // 4. Return the response safely
+
+        // 3. Return ONLY the content to the frontend
         res.status(200).json({
             success: true,
-            message: savedDraft
-                ? "Draft generated and saved to workspace."
-                : "Draft generated (Preview only).",
+            message: "Draft generated successfully.",
             data: {
-                // Safe access: uses savedDraft.id if it exists, otherwise null
-                draftId: savedDraft ? savedDraft.id : null,
+                content: responseText,
                 fileId: fileId,
-                content: responseText
+                type: type
             }
         });
-
     } catch (error) {
-        console.error("Draft Controller Error:", error);
-        res.status(500).json({ success: false, message: "Server error" });
+        res.status(500).json({ success: false, message: "Generation failed." });
     }
 };
 
@@ -184,5 +159,42 @@ const createAIDraft = async (req, res) => {
     }
 };
 
+const saveGeneratedDraft = async (req, res) => {
+    try {
+        let { fileId, type, content } = req.body;
+        const userId = req.user.id;
 
-module.exports = { testDraft, getFileDrafts, getRecentDrafts, deleteDraft, createAIDraft };
+        // 1. If fileId is missing, create a new File record first
+        if (!fileId) {
+            const newFile = await File.create({
+                user_id: userId,
+                name: `New Draft - ${new Date().toLocaleDateString()}`, 
+                status: 'draft'
+            });
+            fileId = newFile.id;
+        }
+
+        // 2. Persist the Draft to the DB using the (existing or new) fileId
+        const savedDraft = await Draft.create({
+            file_id: fileId,
+            user_id: userId,
+            draft_type: type,
+            content: content
+        });
+
+        res.status(201).json({
+            success: true,
+            message: "Draft saved to workspace.",
+            data: {
+                draftId: savedDraft.id,
+                fileId: fileId // Returning the fileId in case it was newly created
+            }
+        });
+    } catch (error) {
+        console.error("Save Draft Error:", error);
+        res.status(500).json({ success: false, message: "Save failed." });
+    }
+};
+
+
+module.exports = { testDraft, getFileDrafts, getRecentDrafts, deleteDraft, createAIDraft, saveGeneratedDraft };
