@@ -62,6 +62,22 @@ const getFileDrafts = async (req, res) => {
     }
 };
 
+const AllDrafts = async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const drafts = await Draft.findAllByUser(userId);
+        res.status(200).json({
+            success: true,
+            count: drafts.length,
+            data: drafts
+        });
+    } catch (error) {
+        console.error("All Drafts Error:", error);
+        res.status(500).json({ success: false, message: "Failed to fetch draft history." });
+    }
+};
+
+
 const getRecentDrafts = async (req, res) => {
     try {
         const userId = req.user.id;
@@ -127,6 +143,7 @@ const createAIDraft = async (req, res) => {
             Claim Number: ${claim_number}
             Subject/Instructions: ${userInput}
         `;
+        console.log(contextEnhancedInput)
 
         // 3. Call the Service with the enhanced context
         const aiResponse = await aiService.generateAIDraft(type, contextEnhancedInput);
@@ -197,4 +214,4 @@ const saveGeneratedDraft = async (req, res) => {
 };
 
 
-module.exports = { testDraft, getFileDrafts, getRecentDrafts, deleteDraft, createAIDraft, saveGeneratedDraft };
+module.exports = { testDraft, getFileDrafts, getRecentDrafts, deleteDraft, createAIDraft, saveGeneratedDraft, AllDrafts };

@@ -4,7 +4,8 @@ const {
     testDraft, 
     createAIDraft, 
     getRecentDrafts, 
-    saveGeneratedDraft // New Controller function
+    saveGeneratedDraft,
+    AllDrafts
 } = require("../controllers/draft.controller");
 
 const authMiddleware = require("../middlewares/auth.middleware");
@@ -25,5 +26,6 @@ router.post("/generate", authMiddleware, checkUsageLimit, createAIDraft);
 router.post("/save", authMiddleware, saveGeneratedDraft);
 
 router.get("/recent", authMiddleware, getRecentDrafts);
+router.get("/history", authMiddleware, AllDrafts); 
 
 module.exports = router;

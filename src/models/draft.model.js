@@ -44,6 +44,18 @@ const Draft = {
       [userId, limit]
     );
     return rows;
+  },
+
+  findAllByUser: async (userId) => {
+    const [rows] = await db.query(
+      `SELECT d.*, f.claim_number, f.client_name 
+       FROM drafts d
+       JOIN files f ON d.file_id = f.id
+       WHERE d.user_id = ? 
+       ORDER BY d.created_at DESC`,
+      [userId]
+    );
+    return rows;
   }
 };
 
