@@ -21,6 +21,7 @@
     "nodemailer": "^8.0.1",
     "openai": "^6.27.0",
     "sequelize": "^6.37.7",
+    "serverless-http": "^4.0.0",
     "sqlite3": "^5.1.7"
   },
   "devDependencies": {
