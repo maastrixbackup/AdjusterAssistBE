@@ -24,7 +24,8 @@
     "openai": "^6.27.0",
     "sequelize": "^6.37.7",
     "serverless-http": "^4.0.0",
-    "sqlite3": "^5.1.7"
+    "sqlite3": "^5.1.7",
+    "swagger-ui-express": "^5.0.1"
   },
   "devDependencies": {
     "nodemon": "^3.1.14"

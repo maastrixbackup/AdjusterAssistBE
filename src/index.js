@@ -7,9 +7,19 @@ const userRoutes = require('./routes/user.routes');
 const draftRoutes = require('./routes/draft.routes');
 const subscriptionRoutes = require('./routes/subscription.routes');
 const fileRoutes = require('./routes/file.routes');
+const swaggerUi = require("swagger-ui-express");
+const swaggerDocument = require("../swagger.json");
 
 const app = express();
 
+// add this line
+app.use(
+  "/docs",
+  swaggerUi.serve,
+  swaggerUi.setup(swaggerDocument, {
+    customSiteTitle: "Adjuster Assist API Docs",
+  })
+);
 
 app.use(cors());
 app.use(express.json());
