@@ -115,7 +115,7 @@ const sendSubscriptionUpgradeEmail = async (email, newPlan) => {
         const content = `
             <h2 style="color: #333; margin-top: 0;">Subscription Upgrade Successful</h2>
             <p>Hello,</p>
-            <p>We're excited to let you know that your subscription has been successfully upgraded to the <strong>${newPlan.toUppercase()}</strong> plan.</p>
+            <p>We're excited to let you know that your subscription has been successfully upgraded to the <strong>${newPlan}</strong> plan.</p>
             <p>Thank you for choosing AdjusterAssist!</p>
         `;
 

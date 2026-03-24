@@ -68,7 +68,21 @@ const Subscription = {
   // 5. The Monthly Reset & Auto-Repair Logic
   async checkAndResetMonthlyUsage(userId) {
     try {
+      // 1. Safety Check: Verify the user actually exists in Supabase first
+      const { data: userExists, error: userError } = await supabase
+        .from('users')
+        .select('id')
+        .eq('id', userId)
+        .single();
+
+      if (userError || !userExists) {
+        console.warn(`⚠️ Sync Skipped: User ${userId} not found in Supabase. (Likely stale JWT)`);
+        return; // Exit early so it doesn't try to insert/update and crash
+      }
+
       let sub = await this.getStats(userId);
+
+      // 2. Initialize if missing
       if (!sub) {
         await this.initFreeTier(userId);
         return;
@@ -77,6 +91,7 @@ const Subscription = {
       const now = new Date();
       const expiry = new Date(sub.expires_at);
 
+      // 3. Monthly Rollover Logic
       if (now > expiry) {
         const nextExpiry = new Date();
         nextExpiry.setMonth(nextExpiry.getMonth() + 1);
@@ -95,12 +110,13 @@ const Subscription = {
         if (error) throw error;
 
         const action = sub.plan_type === "free" ? "Refreshed" : "Downgraded";
-        console.log(`🚀 ${action} user ${userId} to Free Tier for the new month.`);
+        console.log(`🚀 ${action} user ${userId} to Free Tier.`);
       }
     } catch (error) {
+      // Log the specific error message to help debug constraint issues
       console.error("Error in checkAndResetMonthlyUsage:", error.message);
     }
-  },
-};
+  }
+}
 
 module.exports = Subscription;
