@@ -1,11 +1,12 @@
 const STATIC_RESPONSES = require("../utils/sample_response");
 const Subscription = require("../models/subscription.model");
 const Draft = require("../models/draft.model");
-const  File = require("../models/file.model");
-const db = require("../config/db");
-const  aiService = require("../services/ai.service");
+const File = require("../models/file.model");
+const aiService = require("../services/ai.service");
 
-
+/**
+ * 1. Test Draft: Uses static responses to simulate AI for testing UI
+ */
 const testDraft = async (req, res) => {
     try {
         const { type, fileId } = req.body;
@@ -15,19 +16,17 @@ const testDraft = async (req, res) => {
             return res.status(400).json({ success: false, message: "File ID required." });
         }
 
-        // 1. Get Response (Static for test, or AI Service)
         let responseText = STATIC_RESPONSES[type?.toUpperCase()] || null;
         if (!responseText) {
             return res.status(400).json({ success: false, message: "Invalid type." });
         }
 
-        // 2. Increment usage immediately (charging for the AI generation)
+        // Use Supabase model to increment usage
         await Subscription.incrementUsage(userId);
 
-        // 3. Return ONLY the content to the frontend
         res.status(200).json({
             success: true,
-            message: "Draft generated successfully.",
+            message: "Draft generated successfully (Test Mode).",
             data: {
                 content: responseText,
                 fileId: fileId,
@@ -35,20 +34,22 @@ const testDraft = async (req, res) => {
             }
         });
     } catch (error) {
+        console.error("Test Draft Error:", error.message);
         res.status(500).json({ success: false, message: "Generation failed." });
     }
 };
 
+/**
+ * 2. Get File Drafts: Fetches all drafts for a specific workspace
+ */
 const getFileDrafts = async (req, res) => {
     try {
-        // We get the fileId from the URL parameters: /api/files/:fileId/drafts
         const { fileId } = req.params;
 
         if (!fileId) {
             return res.status(400).json({ success: false, message: "File ID is required" });
         }
 
-        // Fetch drafts belonging specifically to this workspace
         const drafts = await Draft.findByFileId(fileId);
 
         res.status(200).json({
@@ -57,11 +58,14 @@ const getFileDrafts = async (req, res) => {
             drafts: drafts
         });
     } catch (error) {
-        console.error("Get File Drafts Error:", error);
+        console.error("Get File Drafts Error:", error.message);
         res.status(500).json({ success: false, message: "Error fetching drafts for this workspace" });
     }
 };
 
+/**
+ * 3. All Drafts: Comprehensive history for the current user
+ */
 const AllDrafts = async (req, res) => {
     try {
         const userId = req.user.id;
@@ -72,16 +76,17 @@ const AllDrafts = async (req, res) => {
             data: drafts
         });
     } catch (error) {
-        console.error("All Drafts Error:", error);
+        console.error("All Drafts Error:", error.message);
         res.status(500).json({ success: false, message: "Failed to fetch draft history." });
     }
 };
 
-
+/**
+ * 4. Recent Drafts: Quick view activity (limited)
+ */
 const getRecentDrafts = async (req, res) => {
     try {
         const userId = req.user.id;
-        // You can let the frontend decide the limit via query params, default to 5
         const limit = parseInt(req.query.limit) || 2;
 
         const recentDrafts = await Draft.findRecent(userId, limit);
@@ -92,106 +97,110 @@ const getRecentDrafts = async (req, res) => {
             data: recentDrafts
         });
     } catch (error) {
-        console.error("Recent Drafts Error:", error);
+        console.error("Recent Drafts Error:", error.message);
         res.status(500).json({ success: false, message: "Failed to fetch recent activity." });
     }
 };
 
+/**
+ * 5. Delete Draft: Secure deletion
+ */
 const deleteDraft = async (req, res) => {
     try {
         const { draftId } = req.params;
         const userId = req.user.id;
-        if (!draftId) {
-            return res.status(400).json({ success: false, message: "Draft ID is required" });
-        }  
+
         const draft = await Draft.findById(draftId);
         if (!draft) {
             return res.status(404).json({ success: false, message: "Draft not found" });
         }
+
+        // Security check: Ensure user owns the draft
         if (draft.user_id !== userId) {
-            return res.status(403).json({ success: false, message: "Unauthorized to delete this draft" });
+            return res.status(403).json({ success: false, message: "Unauthorized deletion" });
         }
+
         await Draft.deleteById(draftId);
         res.status(200).json({ success: true, message: "Draft deleted successfully" });
     } catch (error) {
-        console.error("Delete Draft Error:", error);
+        console.error("Delete Draft Error:", error.message);
         res.status(500).json({ success: false, message: "Error deleting draft" });
     }
 };
 
+/**
+ * 6. Create AI Draft: The core logic for OpenAI/Groq generation
+ */
 const createAIDraft = async (req, res) => {
     try {
-        const { type, fileId, shouldSave, userInput } = req.body;
+        const { type, fileId, userInput } = req.body;
         const userId = req.user.id;
 
-        // 1. Fetch File Metadata first to give the AI context
-        const [fileRows] = await db.query(
-            "SELECT client_name, claim_number FROM files WHERE id = ?", 
-            [fileId]
-        );
+        // 1. Fetch File Metadata using Supabase model
+        const file = await File.findById(fileId);
 
-        if (fileRows.length === 0) {
+        if (!file) {
             return res.status(404).json({ success: false, message: "Workspace not found." });
         }
 
-        const { client_name, claim_number } = fileRows[0];
-
-        // 2. Enhance the User Input with Context
-        // This ensures the AI knows WHO it is writing to.
+        // 2. Enhance the User Input with context from the 'files' record
         const contextEnhancedInput = `
-            Client Name: ${client_name}
-            Claim Number: ${claim_number}
+            Client Name: ${file.client_name}
+            Claim Number: ${file.claim_number}
             Subject/Instructions: ${userInput}
         `;
-        console.log(contextEnhancedInput)
 
-        // 3. Call the Service with the enhanced context
+        // 3. Generate AI response
         const aiResponse = await aiService.generateAIDraft(type, contextEnhancedInput);
 
-        let savedDraft = null;
-        if (shouldSave === true || shouldSave === "true") {
-            savedDraft = await Draft.create({
-                file_id: fileId,
-                user_id: userId,
-                draft_type: type,
-                content: aiResponse
-            });
-        }
+        // let savedDraft = null;
+        // if (shouldSave === true || shouldSave === "true") {
+        //     savedDraft = await Draft.create({
+        //         file_id: fileId,
+        //         user_id: userId,
+        //         draft_type: type,
+        //         content: aiResponse
+        //     });
+        // }
         
+        // 4. Record usage
         await Subscription.incrementUsage(userId);
+
         res.status(200).json({
             success: true,
-            message: savedDraft ? "Saved to workspace" : "Preview generated",
+            message: "Preview generated",
             data: {
-                draftId: savedDraft ? savedDraft.id : null,
-                claim_number,
-                client_name,
+                claim_number: file.claim_number,
+                client_name: file.client_name,
                 content: aiResponse
             }
         });
 
     } catch (error) {
-        console.error("Controller Error:", error);
+        console.error("AI Controller Error:", error.message);
         res.status(500).json({ success: false, message: "AI Generation failed." });
     }
 };
 
+/**
+ * 7. Save Generated Draft: Manual save for a previewed draft
+ */
 const saveGeneratedDraft = async (req, res) => {
     try {
         let { fileId, type, content } = req.body;
         const userId = req.user.id;
 
-        // 1. If fileId is missing, create a new File record first
+        // 1. If no workspace provided, create a generic one
         if (!fileId) {
             const newFile = await File.create({
                 user_id: userId,
-                name: `New Draft - ${new Date().toLocaleDateString()}`, 
-                status: 'draft'
+                claim_number: `TEMP-${Date.now()}`,
+                client_name: "Unnamed Client"
             });
             fileId = newFile.id;
         }
 
-        // 2. Persist the Draft to the DB using the (existing or new) fileId
+        // 2. Persist the Draft using the Supabase model
         const savedDraft = await Draft.create({
             file_id: fileId,
             user_id: userId,
@@ -204,14 +213,21 @@ const saveGeneratedDraft = async (req, res) => {
             message: "Draft saved to workspace.",
             data: {
                 draftId: savedDraft.id,
-                fileId: fileId // Returning the fileId in case it was newly created
+                fileId: fileId
             }
         });
     } catch (error) {
-        console.error("Save Draft Error:", error);
+        console.error("Save Draft Error:", error.message);
         res.status(500).json({ success: false, message: "Save failed." });
     }
 };
 
-
-module.exports = { testDraft, getFileDrafts, getRecentDrafts, deleteDraft, createAIDraft, saveGeneratedDraft, AllDrafts };
+module.exports = { 
+    testDraft, 
+    getFileDrafts, 
+    getRecentDrafts, 
+    deleteDraft, 
+    createAIDraft, 
+    saveGeneratedDraft, 
+    AllDrafts 
+};

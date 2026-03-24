@@ -1,82 +1,122 @@
-const db = require("../config/db");
+const supabase = require("../config/supabase");
 
 const Subscription = {
-    // 1. Unified Stats Fetcher (Always returns an object to prevent crashes)
-    async getStats(userId) {
-        const [rows] = await db.query(
-            "SELECT plan_type, usage_limit, current_usage, expires_at FROM subscriptions WHERE user_id = ?",
-            [userId]
-        );
-        return rows[0] || null;
-    },
+  // 1. Unified Stats Fetcher
+  async getStats(userId) {
+    const { data, error } = await supabase
+      .from("subscriptions")
+      .select("plan_type, usage_limit, current_usage, expires_at")
+      .eq("user_id", userId)
+      .single();
 
-    // 2. Increments usage during draft generation
-    async incrementUsage(userId) {
-        return await db.query(
-            "UPDATE subscriptions SET current_usage = current_usage + 1 WHERE user_id = ?",
-            [userId]
-        );
-    },
+    if (error && error.code !== "PGRST116") {
+      console.error("Error fetching stats:", error.message);
+      throw error;
+    }
+    return data || null;
+  },
 
-    // 3. Upgrade logic for Pro/Enterprise plans
-    async updateTier(userId, planData) {
-        const { plan_type, usage_limit, expires_at } = planData;
-        return await db.query(
-            `UPDATE subscriptions 
-             SET plan_type = ?, usage_limit = ?, current_usage = 0, expires_at = ?, status = 'active' 
-             WHERE user_id = ?`,
-            [plan_type, usage_limit, expires_at, userId]
-        );
-    },
+  // 2. Increments usage during draft generation
+  // Uses the RPC function we created in Step 1 for thread-safety
+  async incrementUsage(userId) {
+    const { error } = await supabase.rpc("increment_subscription_usage", {
+      target_user_id: userId,
+    });
 
-    // 4. Initialization for new users
-    async initFreeTier(userId) {
-        const initialExpiry = new Date();
-        initialExpiry.setDate(initialExpiry.getDate() + 30); 
-        return await db.query(
-            "INSERT INTO subscriptions (user_id, plan_type, usage_limit, current_usage, expires_at, status) VALUES (?, 'free', 5, 0, ?, 'active')",
-            [userId, initialExpiry]
-        );
-    },
+    if (error) throw error;
+    return true;
+  },
 
-    // 5. The Monthly Reset & Auto-Repair Logic
+  // 3. Upgrade logic for Pro/Enterprise plans
+  async updateTier(userId, planData) {
+    const { plan_type, usage_limit, expires_at } = planData;
+    const { data, error } = await supabase
+      .from("subscriptions")
+      .update({
+        plan_type,
+        usage_limit,
+        current_usage: 0,
+        expires_at: new Date(expires_at).toISOString(),
+        status: "active",
+      })
+      .eq("user_id", userId);
+
+    if (error) throw error;
+    return data;
+  },
+
+  // 4. Initialization for new users
+  async initFreeTier(userId) {
+    const initialExpiry = new Date();
+    initialExpiry.setDate(initialExpiry.getDate() + 30);
+
+    const { data, error } = await supabase.from("subscriptions").insert([
+      {
+        user_id: userId,
+        plan_type: "free",
+        usage_limit: 5,
+        current_usage: 0,
+        expires_at: initialExpiry.toISOString(),
+        status: "active",
+      },
+    ]);
+
+    if (error) throw error;
+    return data;
+  },
+
+  // 5. The Monthly Reset & Auto-Repair Logic
   async checkAndResetMonthlyUsage(userId) {
     try {
-        let sub = await this.getStats(userId);
-        if (!sub) {
-            await this.initFreeTier(userId);
-            return;
-        }
+      // 1. Safety Check: Verify the user actually exists in Supabase first
+      const { data: userExists, error: userError } = await supabase
+        .from('users')
+        .select('id')
+        .eq('id', userId)
+        .single();
 
-        const now = new Date();
-        const expiry = new Date(sub.expires_at);
+      if (userError || !userExists) {
+        console.warn(`⚠️ Sync Skipped: User ${userId} not found in Supabase. (Likely stale JWT)`);
+        return; // Exit early so it doesn't try to insert/update and crash
+      }
 
-        if (now > expiry) {
-            const nextExpiry = new Date();
-            // Move forward exactly one month
-            nextExpiry.setMonth(nextExpiry.getMonth() + 1);
+      let sub = await this.getStats(userId);
 
-            // This single query handles both:
-            // 1. Refreshing a Free user for a new month
-            // 2. Downgrading a Pro/Enterprise user whose time is up
-            await db.query(
-                `UPDATE subscriptions 
-                 SET plan_type = 'free', 
-                     usage_limit = 5, 
-                     current_usage = 0, 
-                     expires_at = ?, 
-                     status = 'active' 
-                 WHERE user_id = ?`,
-                [nextExpiry, userId]
-            );
-            
-            const action = sub.plan_type === 'free' ? "Refreshed" : "Downgraded";
-            console.log(`${action} user ${userId} to Free Tier for the new month.`);
-        }
+      // 2. Initialize if missing
+      if (!sub) {
+        await this.initFreeTier(userId);
+        return;
+      }
+
+      const now = new Date();
+      const expiry = new Date(sub.expires_at);
+
+      // 3. Monthly Rollover Logic
+      if (now > expiry) {
+        const nextExpiry = new Date();
+        nextExpiry.setMonth(nextExpiry.getMonth() + 1);
+
+        const { error } = await supabase
+          .from("subscriptions")
+          .update({
+            plan_type: "free",
+            usage_limit: 5,
+            current_usage: 0,
+            expires_at: nextExpiry.toISOString(),
+            status: "active",
+          })
+          .eq("user_id", userId);
+
+        if (error) throw error;
+
+        const action = sub.plan_type === "free" ? "Refreshed" : "Downgraded";
+        console.log(`🚀 ${action} user ${userId} to Free Tier.`);
+      }
     } catch (error) {
-        console.error("Error in checkAndResetMonthlyUsage:", error);
+      // Log the specific error message to help debug constraint issues
+      console.error("Error in checkAndResetMonthlyUsage:", error.message);
     }
+  }
 }
-};
 
 module.exports = Subscription;

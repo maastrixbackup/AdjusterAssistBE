@@ -18,7 +18,7 @@ transporter.verify((error) => {
 const emailLayout = (content) => `
     <div style="background-color: #f4f7f9; padding: 40px 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
         <div style="max-width: 600px; margin: auto; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.05);">
-            <div style="background-color: #007bff; padding: 30px; text-align: center;">
+            <div style="background-color: #0F4C9C; padding: 30px; text-align: center;">
                 <h1 style="color: white; margin: 0; font-size: 24px; letter-spacing: 1px;">AdjusterAssist</h1>
             </div>
             <div style="padding: 40px; line-height: 1.6; color: #444;">
@@ -60,7 +60,7 @@ const sendResetEmail = async (email, resetLink) => {
             <p>Hello,</p>
             <p>We received a request to reset the password for your <strong>AdjusterAssist</strong> account. Click the button below to secure your account:</p>
             <div style="text-align: center; margin: 35px 0;">
-                <a href="${resetLink}" style="background-color: #007bff; color: white; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block;">Set New Password</a>
+                <a href="${resetLink}" style="background-color: #0F4C9C; color: white; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block;">Set New Password</a>
             </div>
             <p style="font-size: 14px; color: #666;">This link is valid for <strong>1 hour</strong>. If you didn't request this change, you can safely ignore this email.</p>
         `;

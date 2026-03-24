@@ -1,57 +1,93 @@
-const db = require("../config/db");
+const supabase = require('../config/supabase');
 
-const User = {
-    async findByEmail(email) {
-        const [rows] = await db.query("SELECT * FROM users WHERE email = ?", [
-            email,
-        ]);
-        return rows[0];
-    },
+const UserModel = {
+  // 1. Find all users (Used in getAllUsers for Admin Dashboard)
+  async findAll() {
+    const { data, error } = await supabase
+      .from('users')
+      .select('*')
+      .order('created_at', { ascending: false });
 
-    async findAll() {
-        const [rows] = await db.query(
-            "SELECT id, name, email, role, created_at FROM users ORDER BY created_at DESC"
-        );
-        return rows;
-    },
+    if (error) throw error;
+    return data;
+  },
 
-    async findById(id) {
-        const [rows] = await db.query(
-            "SELECT id, name, email, role, created_at, updated_at FROM users WHERE id = ?", 
-            [id]
-        );
-        return rows[0];
-    },
+  // 2. Find user by Primary Key ID (Used in getProfile)
+  async findById(id) {
+    const { data, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('id', id)
+      .single();
 
-    async create({ name, email, password, role }) {
-        const [result] = await db.query(
-            "INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, ?)",
-            [name, email, password, role || 'ca'] 
-        );
-        return { id: result.insertId, name, email, role };
-    },
+    if (error && error.code !== 'PGRST116') throw error;
+    return data;
+  },
 
-    // Password RESET opeartion with DB
-    async setResetToken(userId, token, expires) {
-        await db.query(
-            "UPDATE users SET reset_token = ?, reset_token_expires = ? WHERE id = ?",
-            [token, expires, userId]
-        );
-    },
-    async findByResetToken(token) {
-        const [rows] = await db.query(
-            "SELECT * FROM users WHERE reset_token = ? AND reset_token_expires > NOW()",
-            [token]
-        );
-        return rows[0];
-    },
-    async updatePassword(userId, newHashedPassword) {
-        await db.query(
-            "UPDATE users SET password = ?, reset_token = NULL, reset_token_expires = NULL WHERE id = ?",
-            [newHashedPassword, userId]
-        );
-    }
+  // 3. Find user by email (For Login/Signup checks)
+  async findByEmail(email) {
+    const { data, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('email', email)
+      .single();
+    
+    if (error && error.code !== 'PGRST116') throw error;
+    return data;
+  },
 
+  // 4. Create new user (For Registration)
+  async create(userData) {
+    const { data, error } = await supabase
+      .from('users')
+      .insert([userData])
+      .select();
+
+    if (error) throw error;
+    return data[0];
+  },
+
+  // 5. Update password (Used in resetPassword)
+  async updatePassword(id, newHashedPassword) {
+    const { data, error } = await supabase
+      .from('users')
+      .update({ 
+        password: newHashedPassword,
+        reset_token: null,          // Clear token after use
+        reset_token_expires: null   // Clear expiry after use
+      })
+      .eq('id', id)
+      .select();
+
+    if (error) throw error;
+    return data[0];
+  },
+
+  // 6. Find user by a valid reset token
+  async findByResetToken(token) {
+    const { data, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('reset_token', token)
+      // Ensure token hasn't expired (Postgres handles ISO strings automatically)
+      .gt('reset_token_expires', new Date().toISOString()) 
+      .single();
+
+    if (error && error.code !== 'PGRST116') throw error;
+    return data;
+  },
+
+  // 7. Set Reset Token (For Forgot Password flow)
+  async updateResetToken(userId, token, expires) {
+    const { data, error } = await supabase
+      .from('users')
+      .update({ reset_token: token, reset_token_expires: expires })
+      .eq('id', userId)
+      .select();
+
+    if (error) throw error;
+    return data[0];
+  }
 };
 
-module.exports = User;
+module.exports = UserModel;
