@@ -21,8 +21,8 @@ app.get("/", (req, res) => {
 // 3. Routes
 app.use('/api/v1/auth', authRoutes);
 app.use("/api/v1/user", userRoutes);
-app.use("/api/v1/drafts", draftRoutes);
-app.use("/api/v1/files", fileRoutes);
 app.use("/api/v1/subscriptions", subscriptionRoutes);
+// app.use("/api/v1/drafts", draftRoutes);
+// app.use("/api/v1/files", fileRoutes);
 
 module.exports = app;
