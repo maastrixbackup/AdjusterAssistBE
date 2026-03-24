@@ -427,8 +427,7 @@
                 "type": "object",
                 "required": [
                   "type",
-                  "fileId",
-                  "save"
+                  "fileId"
                 ],
                 "properties": {
                   "type": {
@@ -438,10 +437,6 @@
                   "fileId": {
                     "type": "integer",
                     "example": 2
-                  },
-                  "save": {
-                    "type": "boolean",
-                    "example": true
                   }
                 }
               }
@@ -509,6 +504,101 @@
           },
           "400": {
             "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      }
+    },
+    "/api/v1/drafts/save": {
+      "post": {
+        "summary": "Save a draft",
+        "tags": [
+          "Drafts"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "fileId",
+                  "type",
+                  "content"
+                ],
+                "properties": {
+                  "fileId": {
+                    "type": "integer",
+                    "example": 1
+                  },
+                  "type": {
+                    "type": "string",
+                    "example": "email"
+                  },
+                  "content": {
+                    "type": "string",
+                    "example": "This is the draft content..."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Draft saved successfully"
+          },
+          "400": {
+            "description": "Validation error"
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      }
+    },
+    "/api/v1/drafts/recent": {
+      "get": {
+        "summary": "Get recent drafts of user",
+        "tags": [
+          "Drafts"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Recent drafts fetched successfully"
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      }
+    },
+    "/api/v1/drafts/history": {
+      "get": {
+        "summary": "Get all drafts history of user",
+        "tags": [
+          "Drafts"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Draft history fetched successfully"
           },
           "401": {
             "description": "Unauthorized"
