@@ -5,7 +5,8 @@ const {
     createAIDraft, 
     getRecentDrafts, 
     saveGeneratedDraft,
-    AllDrafts
+    AllDrafts,
+    deleteDraft
 } = require("../controllers/draft.controller");
 
 const authMiddleware = require("../middlewares/auth.middleware");
@@ -22,6 +23,7 @@ router.post("/generate-test", authMiddleware, checkUsageLimit, testDraft);
 
 router.post("/generate", authMiddleware, checkUsageLimit, createAIDraft);
 
+router.delete("/delete/:draftId", authMiddleware, deleteDraft);
 
 router.post("/save", authMiddleware, saveGeneratedDraft);
 

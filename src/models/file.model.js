@@ -4,16 +4,16 @@ const File = {
   // 1. Create a new Workspace (File)
   create: async (fileData) => {
     const { user_id, claim_number, policy_number, client_name } = fileData;
-    
+
     const { data, error } = await supabase
       .from('files') // Matches the new Supabase table name
       .insert([
-        { 
-          user_id, 
-          claim_number, 
-          policy_number, 
-          client_name, 
-          status: 'active' 
+        {
+          user_id,
+          claim_number,
+          policy_number,
+          client_name,
+          status: 'active'
         }
       ])
       .select();
@@ -49,14 +49,14 @@ const File = {
   // 4. Update file metadata (status, client name, etc.)
   update: async (fileId, updateData) => {
     const { client_name, status, claim_number, policy_number } = updateData;
-    
+
     const { data, error } = await supabase
       .from('files')
-      .update({ 
-        client_name, 
-        status, 
+      .update({
+        client_name,
+        status,
         claim_number,
-        policy_number 
+        policy_number
       })
       .eq('id', fileId)
       .select();
@@ -72,7 +72,11 @@ const File = {
       .delete()
       .eq('id', fileId);
 
-    if (error) throw error;
+    if (error) {
+      console.error("Supabase Delete Error:", error.message);
+      throw error;
+    }
+
     return true;
   }
 };
