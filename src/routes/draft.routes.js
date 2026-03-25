@@ -18,9 +18,9 @@ router.get("/", async(req, res) => {
 
 
 
-router.post("/generate-test", authMiddleware, checkUsageLimit, testDraft);
+router.post("/generate-static", authMiddleware, checkUsageLimit, testDraft);
 
-router.post("/generate", authMiddleware, checkUsageLimit, createAIDraft);
+router.post("/generate-test", authMiddleware, checkUsageLimit, createAIDraft);
 
 
 router.post("/save", authMiddleware, saveGeneratedDraft);
