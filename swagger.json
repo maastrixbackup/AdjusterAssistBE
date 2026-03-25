@@ -16,12 +16,12 @@
   },
   "servers": [
     {
-      "url": "http://localhost:5000",
-      "description": "Local server"
-    },
-    {
       "url": "https://adjusterassistbe.onrender.com",
       "description": "Production server"
+    },
+    {
+      "url": "http://localhost:5000",
+      "description": "Local server"
     }
   ],
   "paths": {
@@ -607,6 +607,155 @@
           },
           "401": {
             "description": "Unauthorized"
+          }
+        }
+      }
+    },
+    "/api/v1/drafts/delete/{draftId}": {
+      "delete": {
+        "tags": [
+          "Drafts"
+        ],
+        "summary": "Delete a draft by ID",
+        "description": "Deletes a specific draft. Requires authentication.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "draftId",
+            "in": "path",
+            "required": true,
+            "description": "The numeric ID of the draft to delete",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Draft deleted successfully"
+          },
+          "401": {
+            "description": "Unauthorized - token missing or invalid"
+          },
+          "404": {
+            "description": "Draft not found"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/api/v1/files/update/{fileId}": {
+      "put": {
+        "tags": [
+          "Files"
+        ],
+        "summary": "Update workspace details",
+        "description": "Updates the metadata for a specific workspace. Only the owner can perform this action.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "fileId",
+            "in": "path",
+            "required": true,
+            "description": "The unique ID of the workspace to update",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "client_name": {
+                    "type": "string",
+                    "example": "John Doe"
+                  },
+                  "claim_number": {
+                    "type": "string",
+                    "example": "CLM-12345"
+                  },
+                  "policy_number": {
+                    "type": "string",
+                    "example": "POL-9988"
+                  },
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "active",
+                      "archived"
+                    ],
+                    "default": "active"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Workspace updated successfully"
+          },
+          "401": {
+            "description": "Unauthorized - Missing or invalid token"
+          },
+          "403": {
+            "description": "Forbidden - You do not own this workspace"
+          },
+          "404": {
+            "description": "Workspace not found"
+          }
+        }
+      }
+    },
+    "/api/v1/files/delete/{fileId}": {
+      "delete": {
+        "tags": [
+          "Files"
+        ],
+        "summary": "Delete a workspace and its drafts",
+        "description": "Permanently deletes the workspace. WARNING: This will also delete all associated AI drafts due to database cascading rules.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "fileId",
+            "in": "path",
+            "required": true,
+            "description": "The unique ID of the workspace to delete",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Workspace and all associated drafts deleted"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden - Ownership mismatch"
+          },
+          "404": {
+            "description": "Workspace not found"
           }
         }
       }
