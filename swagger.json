@@ -720,35 +720,45 @@
           }
         }
       }
-    }
-  },
-  "/api/v1/files/delete/{fileId}": {
-  "delete": {
-    "tags": ["Files"],
-    "summary": "Delete a workspace and its drafts",
-    "description": "Permanently deletes the workspace. WARNING: This will also delete all associated AI drafts due to database cascading rules.",
-    "security": [
-      {
-        "BearerAuth": []
-      }
-    ],
-    "parameters": [
-      {
-        "name": "fileId",
-        "in": "path",
-        "required": true,
-        "description": "The unique ID of the workspace to delete",
-        "schema": {
-          "type": "integer"
+    },
+    "/api/v1/files/delete/{fileId}": {
+      "delete": {
+        "tags": [
+          "Files"
+        ],
+        "summary": "Delete a workspace and its drafts",
+        "description": "Permanently deletes the workspace. WARNING: This will also delete all associated AI drafts due to database cascading rules.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "fileId",
+            "in": "path",
+            "required": true,
+            "description": "The unique ID of the workspace to delete",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Workspace and all associated drafts deleted"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden - Ownership mismatch"
+          },
+          "404": {
+            "description": "Workspace not found"
+          }
         }
       }
-    ],
-    "responses": {
-      "200": { "description": "Workspace and all associated drafts deleted" },
-      "401": { "description": "Unauthorized" },
-      "403": { "description": "Forbidden - Ownership mismatch" },
-      "404": { "description": "Workspace not found" }
     }
   }
-}
 }
