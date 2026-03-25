@@ -16,7 +16,12 @@
   },
   "servers": [
     {
-      "url": "http://localhost:5000"
+      "url": "http://localhost:5000",
+      "description": "Local server"
+    },
+    {
+      "url": "https://adjusterassistbe.onrender.com",
+      "description": "Production server"
     }
   ],
   "paths": {
@@ -39,11 +44,11 @@
                 "properties": {
                   "email": {
                     "type": "string",
-                    "example": "user@example.com"
+                    "example": "admin@admin.com"
                   },
                   "password": {
                     "type": "string",
-                    "example": "password123"
+                    "example": "AdminPass"
                   }
                 }
               }
