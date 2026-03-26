@@ -133,52 +133,63 @@ const deleteDraft = async (req, res) => {
  */
 const createAIDraft = async (req, res) => {
     try {
-        const { type, fileId, userInput } = req.body;
+        // 1. Extract all 4 parameters from the user request
+        const { 
+            type,         // 'email', 'file', or 'escalation'
+            fileId,       // Reference to the workspace
+            userInput,    // The rough notes or raw data
+            task_type     // 'claim_note_drafting', 'damage_evaluation_drafting', etc.
+        } = req.body;
+
         const userId = req.user.id;
 
-        // 1. Fetch File Metadata using Supabase model
+        // 2. Fetch File Metadata for context
         const file = await File.findById(fileId);
 
         if (!file) {
-            return res.status(404).json({ success: false, message: "Workspace not found." });
+            return res.status(404).json({ 
+                success: false, 
+                message: "Workspace not found. Cannot provide claim context." 
+            });
         }
 
-        // 2. Enhance the User Input with context from the 'files' record
+        // 3. Enhance the Input with workspace metadata
+        // This gives the AI the "Who" and "What" before the task logic begins
         const contextEnhancedInput = `
-            Client Name: ${file.client_name}
-            Claim Number: ${file.claim_number}
-            Subject/Instructions: ${userInput}
+            WORKSPACE CONTEXT:
+            - Client Name: ${file.client_name}
+            - Claim Number: ${file.claim_number}
+
+            USER NOTES/INSTRUCTIONS:
+            ${userInput}
         `;
 
-        // 3. Generate AI response
-        const aiResponse = await aiService.generateAIDraft(type, contextEnhancedInput);
+        // 4. Generate AI response using the dynamic 3-argument service
+        // Passing: format type, the enhanced input, and the specific assistant task
+        const aiResponse = await aiService.generateAIDraft(type, contextEnhancedInput, task_type);
 
-        // let savedDraft = null;
-        // if (shouldSave === true || shouldSave === "true") {
-        //     savedDraft = await Draft.create({
-        //         file_id: fileId,
-        //         user_id: userId,
-        //         draft_type: type,
-        //         content: aiResponse
-        //     });
-        // }
-        
-        // 4. Record usage
+        // 5. Record subscription usage
         await Subscription.incrementUsage(userId);
 
+        // 6. Return response with original metadata for the UI
         res.status(200).json({
             success: true,
-            message: "Preview generated",
+            message: "Assistant draft generated successfully",
             data: {
                 claim_number: file.claim_number,
                 client_name: file.client_name,
-                content: aiResponse
+                content: aiResponse,
+                task_applied: task_type,
+                format_applied: type
             }
         });
 
     } catch (error) {
         console.error("AI Controller Error:", error.message);
-        res.status(500).json({ success: false, message: "AI Generation failed." });
+        res.status(500).json({ 
+            success: false, 
+            message: "AI Generation failed. Please check your service configuration." 
+        });
     }
 };
 
