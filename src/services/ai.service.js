@@ -12,20 +12,28 @@ const openai = new OpenAI({
  * @param {string} task_type - The specific assistant (claim_note_drafting, damage_eval, etc.)
  */
 const generateAIDraft = async (type, userInput, task_type) => {
+    console.log(type);
+    console.log(userInput);
+    console.log(task_type);
     try {
-        // 1. Get the instructions for the specific assistant chosen
-        const taskInstruction = taskSpecificPrompts[task_type?.toLowerCase()] || "Draft a professional response based on the provided notes.";
-        console.log(taskInstruction)
+        // 1. Logic: What is the assistant doing?
+        const taskInstruction = taskSpecificPrompts[task_type?.toLowerCase()] || 
+                                "Draft a professional response based on the provided notes.";
 
-        // 2. Define the output format constraint
-        // const formatStyle = `Please provide the final output as a professional ${type?.toUpperCase()}.`;
+        // 2. Format: How should it be delivered?
+        // We use the 'type' variable here to set the structure.
+        const formatStyle = `Deliver the final response strictly as a professional ${type?.toUpperCase()}. 
+        - If EMAIL: Include a Subject line and professional greeting.
+        - If FILE: Format as an internal chronological log entry.
+        - If ESCALATION: Use an urgent, formal tone for supervisor review.`;
 
         // 3. Construct the layered System Message
-        // Identity (Constant) + Task (Dynamic) + Format (Dynamic)
         const systemMessage = `
             ${adjusterPrompt}
             
-            CURRENT ASSIGNMENT: ${taskInstruction}
+            CURRENT ASSIGNMENT (THE LOGIC): ${taskInstruction}
+            
+            OUTPUT REQUIREMENT (THE FORMAT): ${formatStyle}
         `;
 
         const completion = await openai.chat.completions.create({
@@ -34,7 +42,7 @@ const generateAIDraft = async (type, userInput, task_type) => {
                 { role: "system", content: systemMessage },
                 { role: "user", content: `Context/Input: ${userInput}` }
             ],
-            temperature: 0.5, // Lowered for more professional consistency
+            temperature: 0.5, 
         });
 
         return completion.choices[0].message.content;
