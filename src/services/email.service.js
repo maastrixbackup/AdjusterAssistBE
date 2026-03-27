@@ -1,24 +1,29 @@
 const nodemailer = require("nodemailer");
 
 const transporter = nodemailer.createTransport({
-    host: "smtp.gmail.com",
-    port: 587,
-    secure: false, // use false for 587
-    auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS,
-    },
-    tls: {
-        rejectUnauthorized: false
-    }
+  host: "smtp.gmail.com",
+  port: 587,
+  secure: false,
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS,
+  },
+  connectionTimeout: 30000,
+  greetingTimeout: 30000,
+  socketTimeout: 30000,
+  tls: {
+    rejectUnauthorized: false,
+    family: 4
+  }
 });
 
-// Verify connection
-transporter.verify((error) => {
-    if (error) console.error("Transporter Configuration Error:", error);
-    else console.log("AdjusterAssist Email Server is Ready");
+transporter.verify((error, success) => {
+  if (error) {
+    console.error("Transporter Configuration Error:", error);
+  } else {
+    console.log("SMTP server is ready to send emails");
+  }
 });
-
 // Common Styles for Reuse
 const emailLayout = (content) => `
     <div style="background-color: #f4f7f9; padding: 40px 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
