@@ -6,21 +6,13 @@ export const transporter = nodemailer.createTransport({
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS,
     },
-    // Adding extra time for the handshake on slow networks
-    connectionTimeout: 10000, // 10 seconds
-    greetingTimeout: 10000,   // 10 seconds
-    socketTimeout: 10000,     // 10 seconds
-    // Enabling Debugging to see exactly where it hangs
-    debug: true, 
-    logger: true 
 });
+
 // Verify connection
 transporter.verify((error) => {
     if (error) console.error("Transporter Configuration Error:", error);
     else console.log("AdjusterAssist Email Server is Ready");
 });
-
-
 
 
 // Common Styles for Reuse
