@@ -1,14 +1,17 @@
-const nodemailer = require("nodemailer");
-
+import nodemailer from "nodemailer"
 
 export const transporter = nodemailer.createTransport({
-    service: "gmail",
+    host: process.env.EMAIL_HOST || "smtp.gmail.com",
+    port: parseInt(process.env.EMAIL_PORT) || 465,
+    secure: process.env.EMAIL_PORT == 465, // true for 465, false for 587
     auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS,
     },
+    // Enabling Debugging
+    debug: true, 
+    logger: true 
 });
-
 // Verify connection
 transporter.verify((error) => {
     if (error) console.error("Transporter Configuration Error:", error);
@@ -16,8 +19,10 @@ transporter.verify((error) => {
 });
 
 
+
+
 // Common Styles for Reuse
-const emailLayout = (content) => `
+export const emailLayout = (content) => `
     <div style="background-color: #f4f7f9; padding: 40px 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
         <div style="max-width: 600px; margin: auto; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.05);">
             <div style="background-color: #0F4C9C; padding: 30px; text-align: center;">
@@ -34,7 +39,7 @@ const emailLayout = (content) => `
     </div>
 `;
 
-const sendLoginEmail = async (email) => {
+export const sendLoginEmail = async (email) => {
     try {
         const content = `
             <h2 style="color: #333; margin-top: 0;">Welcome Back!</h2>
@@ -55,7 +60,7 @@ const sendLoginEmail = async (email) => {
 };
 
 
-const sendResetEmail = async (email, resetLink) => {
+export const sendResetEmail = async (email, resetLink) => {
     try {
         const content = `
             <h2 style="color: #333; margin-top: 0;">Reset Your Password</h2>
@@ -81,7 +86,7 @@ const sendResetEmail = async (email, resetLink) => {
     }
 };
 
-const sendSignupEmail = async (email) => {
+export const sendSignupEmail = async (email) => {
     try {
         const content = `
             <h2 style="color: #333; margin-top: 0;">Welcome to the Team!</h2>
@@ -112,7 +117,7 @@ const sendSignupEmail = async (email) => {
     }
 };
 
-const sendSubscriptionUpgradeEmail = async (email, newPlan) => {
+export const sendSubscriptionUpgradeEmail = async (email, newPlan) => {
     try {
         const content = `
             <h2 style="color: #333; margin-top: 0;">Subscription Upgrade Successful</h2>
@@ -135,4 +140,3 @@ const sendSubscriptionUpgradeEmail = async (email, newPlan) => {
     }
 };
 
-module.exports = { sendResetEmail, sendLoginEmail, sendSignupEmail, sendSubscriptionUpgradeEmail };

@@ -1,6 +1,5 @@
 
 import nodemailer from "nodemailer";
-import dns from "dns"
 
 export const transporter = nodemailer.createTransport({
     service: "gmail",
