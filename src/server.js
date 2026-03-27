@@ -1,5 +1,5 @@
 const app = require('./index');
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 4000;
 
 // Explicitly add '0.0.0.0' to allow the USB bridge connection
 app.listen(PORT, '0.0.0.0', () => {
