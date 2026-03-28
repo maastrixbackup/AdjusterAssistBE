@@ -1,19 +1,19 @@
 const supabase = require('../config/supabase');
 
 const Draft = {
-  
+
   // 1. Create a new AI Draft
   create: async (draftData) => {
     const { file_id, user_id, draft_type, content } = draftData;
-    
+
     const { data, error } = await supabase
       .from('drafts')
       .insert([
-        { 
-          file_id, 
-          user_id, 
-          draft_type, 
-          content 
+        {
+          file_id,
+          user_id,
+          draft_type,
+          content
         }
       ])
       .select();
@@ -89,6 +89,24 @@ const Draft = {
       `)
       .eq('user_id', userId)
       .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    return data;
+  },
+
+  updateById: async (draftId, updateData) => {
+    const { content, draft_type } = updateData;
+
+    const { data, error } = await supabase
+      .from('drafts')
+      .update({
+        content,
+        draft_type,
+        updated_at: new Date().toISOString() // Ensure your DB column exists for this
+      })
+      .eq('id', draftId)
+      .select()
+      .single();
 
     if (error) throw error;
     return data;

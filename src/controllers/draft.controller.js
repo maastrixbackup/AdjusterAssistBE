@@ -193,9 +193,7 @@ const createAIDraft = async (req, res) => {
     }
 };
 
-/**
- * 7. Save Generated Draft: Manual save for a previewed draft
- */
+
 const saveGeneratedDraft = async (req, res) => {
     try {
         let { fileId, type, content } = req.body;
@@ -233,6 +231,51 @@ const saveGeneratedDraft = async (req, res) => {
     }
 };
 
+const updateDraft = async (req, res) => {
+    try {
+        const { draftId } = req.params;
+        const { content, draft_type } = req.body;
+        const userId = req.user.id; 
+        // 1. First, verify the draft exists and belongs to this user
+        const existingDraft = await Draft.findById(draftId);
+
+        if (!existingDraft) {
+            return res.status(404).json({
+                success: false,
+                message: "Draft not found."
+            });
+        }
+
+        if (existingDraft.user_id !== userId) {
+            return res.status(403).json({
+                success: false,
+                message: "Unauthorized: You do not have permission to edit this draft."
+            });
+        }
+
+        // 2. Perform the update
+        const updatedData = {
+            content: content || existingDraft.content,
+            draft_type: draft_type || existingDraft.draft_type
+        };
+
+        const updatedDraft = await Draft.updateById(draftId, updatedData);
+
+        return res.status(200).json({
+            success: true,
+            message: "Draft updated successfully",
+            data: updatedDraft
+        });
+
+    } catch (error) {
+        console.error("Error in updateDraft controller:", error);
+        return res.status(500).json({
+            success: false,
+            message: "Internal server error",
+            error: error.message
+        });
+    }
+};
 
 module.exports = { 
     testDraft, 
@@ -241,5 +284,6 @@ module.exports = {
     deleteDraft, 
     createAIDraft, 
     saveGeneratedDraft, 
-    AllDrafts 
+    AllDrafts,
+    updateDraft
 };
