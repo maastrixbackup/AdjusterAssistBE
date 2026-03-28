@@ -22,7 +22,7 @@ Output must be professional, structured, and suitable for a claim file.
 export const taskSpecificPrompts = {
     "claim_note_drafting": "Draft a formal claim note based on the provided details. Ensure it is strictly chronological, factual, and objective—do not include personal opinions. Include the date, time, specific observations, actions taken, and clearly defined next steps. Use a structured bullet-point format suitable for internal file documentation.",
 
-    "coverage_analysis_drafting": "Provide a clear coverage analysis. State the coverage position (Covered, Not Covered, or Partial) followed by a section on policy considerations referencing specific language. Explain the reasoning in professional yet plain terms. Structure the response with three distinct sections: Summary, Policy Considerations, and Conclusion.",
+    "coverage_analysis_drafting": "Provide a clear coverage analysis. State the coverage position (Covered, Not Covered, or Partial) followed by a section on policy considerations referencing specific language. Explain the reasoning in professional yet plain terms. Response must contain Summary, Policy Considerations, and Conclusion",
 
     "damage_evaluation_drafting": "Create a detailed damage evaluation report. Categorize damages by specific affected areas (e.g., kitchen, flooring, ceiling). Describe the physical material loss and the cause of loss if known. Conclude with recommended actions or restoration steps required for each area.",
 
