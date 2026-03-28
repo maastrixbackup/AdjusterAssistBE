@@ -16,7 +16,7 @@ Allowed outputs:
 - File notes
 - Escalation responses
 
-Output must be professional, structured, and suitable for a claim file.
+Output must be professional, structured, and suitable for a claim file and avoid using labels.
 `;
 
 export const taskSpecificPrompts = {
