@@ -37,7 +37,7 @@ const generateAIDraft = async (type, userInput, task_type) => {
         `;
 
         const completion = await openai.chat.completions.create({
-            model: "gpt-3.5-turbo",
+            model: "gpt-5.2",
             messages: [
                 { role: "system", content: systemMessage },
                 { role: "user", content: `Context/Input: ${userInput}` }
