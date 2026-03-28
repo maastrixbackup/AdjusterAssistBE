@@ -3,7 +3,7 @@
 const STATIC_RESPONSES = {
     EMAIL: `Good afternoon Mr. Reynolds,
 
-Thank you for your follow-up regarding the contractor’s recommendation for replacement of the electrical system.
+Thank you for your follow-up regarding the contractor's recommendation for replacement of the electrical system.
 
 Ordinance or Law coverage may apply when code-related upgrades are required as a direct result of repairing covered physical damage from the reported loss. At this time, we have not received documentation from a building authority confirming that a full electrical replacement is required due to damage caused by this event.
 

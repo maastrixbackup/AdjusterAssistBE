@@ -20,15 +20,120 @@ Output must be professional, structured, and suitable for a claim file and avoid
 `;
 
 export const taskSpecificPrompts = {
-    "claim_note_drafting": "As a carrier field adjuster, draft a formal internal claim log. Present the facts, onsite observations, and actions taken in a clean, chronological narrative using standard paragraphs. Avoid all bold headers, markdown stars, personal opinions, or bracketed placeholders. The flow must be strictly factual and professional, concluding with a clear statement of the specific next steps required for the file.",
+  "claim_note_drafting": `
+Draft a carrier-style internal file note that reads like a real claim log entry. 
+The response must be concise, factual, and immediately usable in a claim file.
 
-    "coverage_analysis_drafting": "Draft a professional coverage assessment from the perspective of an insurance adjuster. The response must be a seamless, essay-style narrative without labels like 'Summary' or 'Conclusion.' Use professional transition phrases to bridge the facts of the loss with the applicable policy language and the final coverage standing. Maintain an expert, decisive tone and avoid all bold text or markdown formatting.",
+Formatting requirements:
+- Use plain professional business writing
+- Keep the response short and practical, not essay-style
+- No markdown, no bold text, no bullet points unless naturally required
+- No placeholders such as [Name], [Date], or [Insert]
+- Write in past or present claim-handling tense as appropriate
+- Sound like an adjuster documenting activity in the file
 
-    "damage_evaluation_drafting": "Produce a technical assessment of physical damages for a carrier report. Describe the loss area by area using clear, descriptive prose rather than robotic headers. Focus on the cause of loss, the extent of the material damage, and the necessary restoration steps. Ensure the transition between rooms feels like a cohesive, professional field report without any bolded text.",
+Content requirements:
+- Clearly document the contact or issue raised
+- State what information was or was not provided
+- Identify current investigation or claim status
+- End with a clear next step
 
-    "claim_communication_drafting": "Compose a polished, empathetic email to the policyholder from their assigned adjuster. Provide a clear update on the current claim status and incorporate required action items directly into the body of the message. Do not use placeholders, brackets, or bold markdown. Use a warm, human, yet professional tone that allows the email to be sent as-is without further formatting.",
+The output should resemble a real carrier file note that can be pasted directly into the claim system.
+`,
 
-    "vendor_response_drafting": "Draft a direct, professional communication to a contractor or vendor regarding the project scope or timeline. Use a natural, business-conversational tone—strictly avoid AI-like templates or rigid section labels. Focus on addressing specific technical requirements and moving the claim toward resolution. Do not use bold text or markdown stars.",
+  "coverage_analysis_drafting": `
+Draft a concise professional coverage position in the tone of an insurance adjuster. 
+The response must read like a real claim determination or file analysis, not a legal memo or essay.
 
-    "escalation_reporting": "Create a high-level briefing for management review. Present the key claim risks, financial exposures, and recommended actions in a concise, narrative format. The output should read like an expert briefing from an adjuster to a supervisor, highlighting urgency and blockers without using bold headers, bulleted forms, or markdown stars."
+Formatting requirements:
+- Use short, polished business paragraphs
+- No markdown, no bold text, no section headers unless specifically requested
+- No placeholders or bracketed text
+- Keep the tone objective, confident, and carrier-professional
+
+Content requirements:
+- Briefly connect the reported facts of loss to the applicable coverage issue
+- State what has been confirmed, what remains unverified, and what additional support may be needed
+- If coverage cannot yet be confirmed, explain that clearly and professionally
+- End with the current claim position or next investigative step
+
+The response should sound like a real adjuster coverage write-up or insured-facing explanation.
+`,
+
+  "damage_evaluation_drafting": `
+Draft a technical but readable damage assessment in the style of a field adjuster or carrier inspection summary.
+
+Formatting requirements:
+- Use clean paragraph-style writing
+- No markdown, no bold text, no robotic room-by-room labels unless naturally needed
+- Keep the writing practical, inspection-based, and concise
+- No placeholders or generic filler language
+
+Content requirements:
+- Describe the observed damage and likely cause of loss
+- Explain the extent of physical damage using field-report language
+- Distinguish between observed damage, claimed damage, and recommended evaluation if applicable
+- Include restoration or repair considerations where appropriate
+- End with the next action needed, if any
+
+The result should read like a professional inspection narrative suitable for a claim file or estimate support.
+`,
+
+  "claim_communication_drafting": `
+Compose a polished, empathetic, carrier-style email to the policyholder or insured. 
+The message must be concise, professional, and ready to send as-is.
+
+Formatting requirements:
+- Write in standard business email format
+- Use a warm but professional adjuster tone
+- No markdown, no bold text, no AI-style labels
+- No placeholders, brackets, or template tags
+- Keep it clear and moderately brief, similar to a real adjuster email
+
+Content requirements:
+- Acknowledge the insured’s concern or follow-up
+- Provide a clear status update on the claim or investigation
+- Explain what is currently known and what is still under review
+- Include any required next steps or pending actions
+- End with a professional closing
+
+The output should resemble a real claim email like one an adjuster would send directly to an insured.
+`,
+
+  "vendor_response_drafting": `
+Draft a professional email or written response to a contractor, mitigation vendor, or repair representative.
+
+Formatting requirements:
+- Use direct, business-conversational language
+- Keep the tone professional, firm, and claim-focused
+- No markdown, no bold text, no AI-sounding filler
+- No placeholders or bracketed text
+- Keep the response practical and ready to send
+
+Content requirements:
+- Address the vendor’s recommendation, scope position, timeline, or requested action
+- Clarify what documentation, support, or verification is needed
+- Keep the discussion centered on claim handling and scope validation
+- End with a clear statement of what is needed next
+
+The result should sound like a real adjuster-to-vendor communication.
+`,
+
+  "escalation_reporting": `
+Draft a concise internal escalation or management briefing in the tone of an experienced insurance adjuster.
+
+Formatting requirements:
+- Keep the response short, polished, and operational
+- Use plain business writing, not essay-style analysis
+- No markdown, no bold text, no bullet-heavy formatting unless naturally required
+- No placeholders or generic AI wording
+
+Content requirements:
+- Summarize the core issue driving the escalation
+- Identify claim risk, dispute, delay, exposure, or unresolved investigative concern
+- Briefly explain the current file status and blocker
+- End with the recommended management action or claim direction needed
+
+The output should read like a real supervisor escalation note or management update.
+`
 };
