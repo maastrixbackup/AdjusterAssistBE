@@ -31,7 +31,7 @@ const UserModel = {
       .select('*')
       .eq('email', email)
       .single();
-    
+
     if (error && error.code !== 'PGRST116') throw error;
     return data;
   },
@@ -51,7 +51,7 @@ const UserModel = {
   async updatePassword(id, newHashedPassword) {
     const { data, error } = await supabase
       .from('users')
-      .update({ 
+      .update({
         password: newHashedPassword,
         reset_token: null,          // Clear token after use
         reset_token_expires: null   // Clear expiry after use
@@ -70,7 +70,7 @@ const UserModel = {
       .select('*')
       .eq('reset_token', token)
       // Ensure token hasn't expired (Postgres handles ISO strings automatically)
-      .gt('reset_token_expires', new Date().toISOString()) 
+      .gt('reset_token_expires', new Date().toISOString())
       .single();
 
     if (error && error.code !== 'PGRST116') throw error;
@@ -87,7 +87,20 @@ const UserModel = {
 
     if (error) throw error;
     return data[0];
+  },
+  // 8. Save/Update Expo Push Token (For Notifications)
+  async updatePushToken(userId, token) {
+    const { data, error } = await supabase
+      .from('users')
+      .update({ expo_push_token: token })
+      .eq('id', userId)
+      .select();
+
+    if (error) throw error;
+    return data[0];
   }
+
 };
+
 
 module.exports = UserModel;
