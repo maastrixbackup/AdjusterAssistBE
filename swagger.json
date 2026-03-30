@@ -703,6 +703,85 @@
           }
         }
       }
+    },
+    "/api/v1/drafts/update/{draftId}": {
+      "put": {
+        "summary": "Update an existing AI draft",
+        "description": "Allows the user to edit the content or type of a previously saved draft. Only the owner of the draft can perform this action.",
+        "tags": [
+          "Drafts"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "draftId",
+            "in": "path",
+            "required": true,
+            "description": "The unique numeric ID of the draft to update",
+            "schema": {
+              "type": "integer",
+              "example": 101
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "draft_type": {
+                    "type": "string",
+                    "example": "claim_note_drafting",
+                    "description": "The category of the claim task"
+                  },
+                  "content": {
+                    "type": "string",
+                    "example": "Updated factual observations regarding the roof damage...",
+                    "description": "The edited text content of the draft"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Draft updated successfully",
+            "content": {
+              "application/json": {
+                "example": {
+                  "success": true,
+                  "message": "Draft updated successfully",
+                  "data": {
+                    "id": 101,
+                    "content": "Updated content...",
+                    "draft_type": "claim_note_drafting",
+                    "updated_at": "2026-03-28T11:00:00Z"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized - Missing or invalid token"
+          },
+          "403": {
+            "description": "Forbidden - You do not own this draft"
+          },
+          "404": {
+            "description": "Draft not found"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
     }
   }
 }
