@@ -137,3 +137,96 @@ Content requirements:
 The output should read like a real supervisor escalation note or management update.
 `
 };
+
+
+export const getFormatInstruction = (type) => {
+    const style = type?.toUpperCase();
+
+    const instructions = {
+        EMAIL: `
+Deliver the final response strictly as a professional EMAIL.
+
+Email requirements:
+- Format with:
+  Subject:
+  Greeting
+  Body
+  Closing
+- The email must be fully send-ready with no placeholders, brackets, or template tags.
+- Use natural insurance claim handling language, not AI-style phrasing.
+- Keep the tone polished, practical, and professional.
+
+Audience adaptation:
+- If insured-facing: tone must be calm, clear, empathetic, and professional.
+- If vendor or contractor-facing: tone must be direct, documentation-focused, and claim-control oriented.
+- If internal: tone must be concise, operational, and businesslike.
+
+Handling rules:
+- Do not overpromise.
+- Do not imply coverage approval unless explicitly supported by the user’s instructions.
+- Clearly explain current status, what is pending, and any action required.
+- Include a clear next step or requested action within the body.
+- End with a professional closing.
+
+The output must read like a real adjuster email that can be sent as-is.
+`,
+
+        FILE: `
+Deliver the final response strictly as a professional FILE NOTE.
+
+File note requirements:
+- Write like authentic carrier claim file documentation, not a conversation recap or transcript summary.
+- Use structured professional paragraphs only.
+- Do not use markdown, bullets, bold text, or placeholders.
+- Keep the note concise, factual, and operationally realistic.
+
+Required content:
+- Include the reported facts and affected area or issue.
+- Include known, observed, or documented conditions.
+- Include adjuster control, claim direction, or handling guidance.
+- Include pending verification where facts remain incomplete.
+- If emergency services, mitigation, or repairs are discussed, include conditional handling language where appropriate.
+- End with a clear final line beginning exactly with:
+  Next step:
+
+Preferred sequence:
+1. Reported issue and affected area
+2. Documented status and limitations
+3. Adjuster guidance or claim control
+4. Pending verification or conditional services
+5. Final Next step line
+
+The output must read like a real claim file entry that can be pasted directly into the claim system.
+`,
+
+        ESCALATION: `
+Deliver the final response strictly as a professional ESCALATION.
+
+Escalation requirements:
+- Write as a factual internal escalation for supervisor, manager, or leadership review.
+- Use a formal, concise, operational tone.
+- Do not sound defensive, emotional, argumentative, or conversational.
+- Do not use markdown, bullets, bold text, or placeholders unless specifically requested.
+
+Required structure:
+1. Issue summary
+2. Prior handling actions
+3. Current dispute, blocker, or barrier
+4. Requested review, support, or management direction
+
+Handling rules:
+- Clearly summarize the issue requiring escalation.
+- Identify the claim risk, dispute point, delay, or unresolved concern.
+- Show what has already been done on the file.
+- State what decision, support, or direction is being requested.
+- Keep the writing factual and professional even if the matter is contentious.
+
+The output must read like a real internal claim escalation suitable for management review.
+`
+    };
+
+    return instructions[style] || `
+Deliver the final response strictly as a professional business communication.
+Use concise, claim-professional language with no placeholders or markdown.
+`;
+};
