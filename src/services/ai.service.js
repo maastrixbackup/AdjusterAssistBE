@@ -22,16 +22,13 @@ const generateAIDraft = async (type, userInput, task_type) => {
         // 4. Construct the Layered System Message
         const systemMessage = `
             ${adjusterPrompt}
-            
             CURRENT ASSIGNMENT (THE LOGIC): ${taskInstruction}
-            
-            OUTPUT REQUIREMENT (THE FORMAT): ${formatStyle}
-
             ${guardrailInjection}
+            OUTPUT REQUIREMENT (THE FORMAT): ${formatStyle}
         `;
 
         const completion = await openai.chat.completions.create({
-            model: "gpt-4-turbo", // Note: Corrected from 'gpt-5.2' to a valid model name
+            model: "gpt-4-turbo", 
             messages: [
                 { role: "system", content: systemMessage },
                 { role: "user", content: `Context/Input: ${userInput}` }

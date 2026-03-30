@@ -140,10 +140,10 @@ The output should read like a real supervisor escalation note or management upda
 
 
 export const getFormatInstruction = (type) => {
-    const style = type?.toUpperCase();
+  const style = type?.toUpperCase();
 
-    const instructions = {
-        EMAIL: `
+  const instructions = {
+    EMAIL: `
 Deliver the final response strictly as a professional EMAIL.
 
 Email requirements:
@@ -171,7 +171,7 @@ Handling rules:
 The output must read like a real adjuster email that can be sent as-is.
 `,
 
-        FILE: `
+    FILE: `
 Deliver the final response strictly as a professional FILE NOTE.
 
 File note requirements:
@@ -199,7 +199,7 @@ Preferred sequence:
 The output must read like a real claim file entry that can be pasted directly into the claim system.
 `,
 
-        ESCALATION: `
+    ESCALATION: `
 Deliver the final response strictly as a professional ESCALATION.
 
 Escalation requirements:
@@ -222,10 +222,60 @@ Handling rules:
 - Keep the writing factual and professional even if the matter is contentious.
 
 The output must read like a real internal claim escalation suitable for management review.
-`
-    };
+`,
+    XACTANALYSIS: `
+  Deliver the final response strictly as a professional ESCALATION.
 
-    return instructions[style] || `
+Required structure:
+- Issue summary
+- Prior handling actions
+- Current dispute, blocker, or barrier
+- Requested review, support, or direction
+
+Requirements:
+- Formal, concise, factual, and internal in tone
+- Must remain non-defensive even if the issue is contentious
+- No markdown, bullets, bold text, or placeholders
+- Clearly identify the reason the file needs review or intervention
+
+The output must read like a real internal claim escalation for management review.
+`,
+    CONTRACTOR: `Deliver the final response strictly as a professional CONTRACTOR RESPONSE.
+
+Required structure:
+- Issue or scope item being addressed
+- Documentation or support needed
+- Scope limitation or claim control language if applicable
+- Clear next step
+
+Requirements:
+- Tone must remain professional, direct, and firm
+- Maintain scope control at all times
+- Request documentation, photos, measurements, code support, or technical basis where needed
+- Do not imply approval beyond what has been confirmed
+- Distinguish contractor recommendations from carrier-reviewed scope
+- Avoid emotional, conversational, or overly soft phrasing
+
+The output must read like a real adjuster communication to a contractor or repair representative.`,
+
+    INSURED: `Deliver the final response strictly as a professional INSURED RESPONSE.
+
+Required structure:
+- Simple explanation of current status or issue
+- Clear explanation of what is happening next
+- Professional closing
+
+Requirements:
+- Use clear, respectful, and calm language
+- Keep the writing easy to understand and free of unnecessary technical jargon
+- Use empathy naturally where appropriate, but do not sound scripted or overly emotional
+- Do not overpromise or make premature commitments regarding coverage, scope, or payment
+- Focus on what is known, what is pending, and what the insured can expect next
+
+The output must read like a real adjuster response intended for a policyholder.`
+  };
+
+  return instructions[style] || `
 Deliver the final response strictly as a professional business communication.
 Use concise, claim-professional language with no placeholders or markdown.
 `;
