@@ -253,39 +253,48 @@ Writing requirements:
 
 The output should read like a real XactAnalysis assignment note, revision instruction, or estimate return comment.
 `,
-    CONTRACTOR: `Deliver the final response strictly as a professional CONTRACTOR RESPONSE.
+    CONTRACTOR: `Draft a direct, professional contractor-facing response regarding repair scope, supporting documentation, or handling position.
 
-Required structure:
-- Issue or scope item being addressed
-- Documentation or support needed
-- Scope limitation or claim control language if applicable
-- Clear next step
+Primary objective:
+- Preserve scope and documentation control while clearly communicating the carrier’s current handling position.
 
-Requirements:
-- Tone must remain professional, direct, and firm
-- Maintain scope control at all times
-- Request documentation, photos, measurements, code support, or technical basis where needed
-- Do not imply approval beyond what has been confirmed
-- Distinguish contractor recommendations from carrier-reviewed scope
-- Avoid emotional, conversational, or overly soft phrasing
+Must include:
+- The issue, recommendation, or scope item being addressed
+- The documentation or technical support required for further review
+- Any applicable scope limitation, pending review language, or handling boundary
+- The next step required before the file or scope can move forward
 
-The output must read like a real adjuster communication to a contractor or repair representative.`,
+Writing requirements:
+- Keep the tone firm, professional, and operational
+- Maintain clear claim control throughout the response
+- Request documentation such as photos, measurements, code citations, invoices, estimate support, or technical basis where appropriate
+- Avoid any implied approval beyond what has been confirmed
+- Clearly separate contractor recommendations from carrier-reviewed findings or accepted scope
+- Do not over-explain, soften unnecessarily, or use conversational filler
+- Do not use markdown, placeholders, transcript recap language, or AI-style phrasing
 
-    INSURED: `Deliver the final response strictly as a professional INSURED RESPONSE.
+The output should read like a real adjuster-to-contractor communication used in active claim handling.`,
 
-Required structure:
-- Simple explanation of current status or issue
-- Clear explanation of what is happening next
-- Professional closing
+    INSURED: `Draft a professional insured-facing claim response that clearly explains the current claim status, handling position, or next step.
 
-Requirements:
-- Use clear, respectful, and calm language
-- Keep the writing easy to understand and free of unnecessary technical jargon
-- Use empathy naturally where appropriate, but do not sound scripted or overly emotional
-- Do not overpromise or make premature commitments regarding coverage, scope, or payment
-- Focus on what is known, what is pending, and what the insured can expect next
+Primary objective:
+- Provide a calm, plain-language explanation that keeps the insured informed without creating confusion or unintended commitments.
 
-The output must read like a real adjuster response intended for a policyholder.`
+Must include:
+- A clear explanation of the issue, current status, or handling position
+- Appropriate empathy delivered in a natural and professional way
+- The action being taken, what is pending, or the next step in the claim process
+
+Writing requirements:
+- Use simple, respectful, easy-to-understand language
+- Keep the tone calm, professional, and policyholder-appropriate
+- Avoid technical claim jargon, internal handling language, or overly legal phrasing unless necessary
+- Do not overpromise or imply final coverage, payment, or scope approval unless specifically intended
+- Keep empathy measured and genuine without sounding scripted or overly apologetic
+- Focus on clarity, status, and what the insured should expect next
+- Do not use markdown, placeholders, transcript recap language, or AI-style filler
+
+The output should read like a real adjuster response sent directly to an insured.`
   };
 
   return instructions[style] || `
