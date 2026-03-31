@@ -211,42 +211,47 @@ The output must read like a real claim file entry that can be pasted directly in
 `,
 
     ESCALATION: `
-Deliver the final response strictly as a professional ESCALATION.
+Draft a concise internal escalation for leadership or supervisory review regarding a claim issue that requires guidance, support, or handling direction.
 
-Escalation requirements:
-- Write as a factual internal escalation for supervisor, manager, or leadership review.
-- Use a formal, concise, operational tone.
-- Do not sound defensive, emotional, argumentative, or conversational.
-- Do not use markdown, bullets, bold text, or placeholders unless specifically requested.
+Primary objective:
+- Provide a leadership-ready issue summary that clearly explains why the file is being escalated.
 
-Required structure:
-1. Issue summary
-2. Prior handling actions
-3. Current dispute, blocker, or barrier
-4. Requested review, support, or management direction
+Must include:
+- The issue requiring escalation
+- The handling actions already taken to date
+- The current dispute, concern, delay, or operational barrier
+- The specific management review, support, or direction being requested
 
-Handling rules:
-- Clearly summarize the issue requiring escalation.
-- Identify the claim risk, dispute point, delay, or unresolved concern.
-- Show what has already been done on the file.
-- State what decision, support, or direction is being requested.
-- Keep the writing factual and professional even if the matter is contentious.
+Writing requirements:
+- Keep the response factual, measured, and well organized
+- Maintain a non-defensive tone at all times, even if the matter is contentious
+- Focus on claim handling posture, file progression, unresolved blockers, and decision needs
+- Avoid unnecessary narrative, emotional wording, argumentative language, or one-sided advocacy
+- Do not imply criticism of prior handling unless specifically supported by the user’s facts
+- Do not use markdown, placeholders, transcript recap language, or AI-style filler
 
-The output must read like a real internal claim escalation suitable for management review.
+The output should read like a real escalation written by an experienced adjuster for management review.
 `,
     XACTANALYSIS: `
-  Deliver the final response strictly as a professional ESCALATION.
-Objective: Short task orriented vender communication
-Required structure:
-- Requested review, support, or direction
+  Draft a concise XactAnalysis communication for estimate, assignment, or vendor workflow handling.
 
-Requirements:
-- Formal, concise, factual, and internal in tone
-- Must remain non-defensive even if the issue is contentious
-- No markdown, bullets, bold text, or placeholders
-- Clearly identify the reason the file needs review or intervention
+Primary objective:
+- Provide a short, direct, task-oriented instruction suitable for XactAnalysis activity.
 
-The output must read like a real internal claim escalation for management review.
+Must include:
+- What is being assigned, revised, approved, requested, returned, or clarified
+- Any required estimate changes, documentation, photos, measurements, or supporting detail
+- The current file or review status where relevant
+
+Writing requirements:
+- Keep the response brief, direct, and operational
+- Use carrier-style claim handling language appropriate for vendor and estimate workflow
+- Focus only on the task, revision, request, or instruction being communicated
+- Avoid unnecessary background narrative or explanatory filler
+- Maintain scope control and professional handling tone
+- Do not use greetings, closings, markdown, placeholders, or transcript-style recap
+
+The output should read like a real XactAnalysis assignment note, revision instruction, or estimate return comment.
 `,
     CONTRACTOR: `Deliver the final response strictly as a professional CONTRACTOR RESPONSE.
 
