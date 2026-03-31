@@ -161,6 +161,7 @@ Email requirements:
   Subject:
   Greeting
   Body
+  Next Step
   Closing
 - The email must be fully send-ready with no placeholders, brackets, or template tags.
 - Use natural insurance claim handling language, not AI-style phrasing.
@@ -200,9 +201,9 @@ Required content:
   Next step:
 
 Preferred sequence:
-1. Reported issue and affected area
-2. Documented status and limitations
-3. Adjuster guidance or claim control
+1. Reported issue and affected area (Observe)
+2. Documented status and limitations (Status)
+3. Adjuster guidance or claim control (Direction)
 4. Pending verification or conditional services
 5. Final Next step line
 
@@ -235,11 +236,8 @@ The output must read like a real internal claim escalation suitable for manageme
 `,
     XACTANALYSIS: `
   Deliver the final response strictly as a professional ESCALATION.
-
+Objective: Short task orriented vender communication
 Required structure:
-- Issue summary
-- Prior handling actions
-- Current dispute, blocker, or barrier
 - Requested review, support, or direction
 
 Requirements:
@@ -285,7 +283,6 @@ Requirements:
 The output must read like a real adjuster response intended for a policyholder.`
   };
 
-  console.log(instructions[style]);
   return instructions[style] || `
 Deliver the final response strictly as a professional business communication.
 Use concise, claim-professional language with no placeholders or markdown.

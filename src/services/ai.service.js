@@ -12,9 +12,11 @@ const generateAIDraft = async (type, userInput, task_type) => {
         // 1. Identify the Task Logic
         const taskInstruction = taskSpecificPrompts[task_type?.toLowerCase()] || 
                                 "Draft a professional response based on the provided notes.";
+        console.log("Task:",taskInstruction)
 
         // 2. Identify the Formatting Requirements (Separated)
         const formatStyle = getFormatInstruction(type);
+        console.log(formatStyle)
 
         // 3. Apply Trigger-Based Guardrails (New Feature)
         const guardrailInjection = getAppliedGuardrails(userInput);
