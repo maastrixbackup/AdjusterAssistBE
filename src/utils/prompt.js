@@ -182,7 +182,7 @@ Handling rules:
 The output must read like a real adjuster email that can be sent as-is.
 `,
 
-    FILE: `
+    FILE_NOTE: `
 Deliver the final response strictly as a professional FILE NOTE.
 
 File note requirements:
