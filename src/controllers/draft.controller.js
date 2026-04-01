@@ -3,6 +3,7 @@ const Subscription = require("../models/subscription.model");
 const Draft = require("../models/draft.model");
 const File = require("../models/file.model");
 const aiService = require("../services/ai.service");
+const PayloadBuilder = require("../utils/payloadBuilder");
 
 /**
  * 1. Test Draft: Uses static responses to simulate AI for testing UI
@@ -133,63 +134,43 @@ const deleteDraft = async (req, res) => {
  */
 const createAIDraft = async (req, res) => {
     try {
-        // 1. Extract all 4 parameters from the user request
-        const { 
-            type,         // 'email', 'file', or 'escalation'
-            fileId,       // Reference to the workspace
-            userInput,    // The rough notes or raw data
-            task_type     // 'claim_note_drafting', 'damage_evaluation_drafting', etc.
-        } = req.body;
+        const { type, role, userInput, fileId, task_type } = req.body;
 
-        const userId = req.user.id;
-
-        // 2. Fetch File Metadata for context
+        // 1. Get the Workspace data from DB
         const file = await File.findById(fileId);
+        if (!file) return res.status(404).json({ message: "Workspace not found" });
 
-        if (!file) {
-            return res.status(404).json({ 
-                success: false, 
-                message: "Workspace not found. Cannot provide claim context." 
-            });
-        }
+        // 2. CONSTRUCT: Create the massive JSON payload automatically
+        const fullPayload = PayloadBuilder.build(file, {
+            output_type: type,
+            role: role,
+            inputText: userInput,
+            task_type: task_type
+        });
 
-        // 3. Enhance the Input with workspace metadata
-        // This gives the AI the "Who" and "What" before the task logic begins
-        const contextEnhancedInput = `
-            WORKSPACE CONTEXT:
-            - Client Name: ${file.client_name}
-            - Claim Number: ${file.claim_number}
+        // 3. TRANSFORM: Convert that JSON into the string the AI actually reads
+        // (Using the mapper we discussed earlier)
+        const contextEnhancedInput = JSON.stringify(fullPayload);
+        console.log("PAYLOAD:", contextEnhancedInput  ) 
 
-            USER NOTES/INSTRUCTIONS:
-            ${userInput}
-        `;
+        // 4. GENERATE
+        const aiResponse = await aiService.generateAIDraft(
+            type, 
+            contextEnhancedInput, 
+            task_type
+        );
 
-        // 4. Generate AI response using the dynamic 3-argument service
-        // Passing: format type, the enhanced input, and the specific assistant task
-        const aiResponse = await aiService.generateAIDraft(type, contextEnhancedInput, task_type);
-
-        // 5. Record subscription usage
-        await Subscription.incrementUsage(userId);
-
-        // 6. Return response with original metadata for the UI
         res.status(200).json({
             success: true,
-            message: "Assistant draft generated successfully",
             data: {
-                claim_number: file.claim_number,
-                client_name: file.client_name,
                 content: aiResponse,
-                task_applied: task_type,
-                format_applied: type
+                payload_sent: fullPayload 
             }
         });
 
     } catch (error) {
-        console.error("AI Controller Error:", error.message);
-        res.status(500).json({ 
-            success: false, 
-            message: "AI Generation failed. Please check your service configuration." 
-        });
+        console.error("AI Controller Error:", error);
+        res.status(500).json({ success: false, message: "Generation failed" });
     }
 };
 
