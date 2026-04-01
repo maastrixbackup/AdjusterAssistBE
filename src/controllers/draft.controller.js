@@ -133,6 +133,7 @@ const deleteDraft = async (req, res) => {
  * 6. Create AI Draft: The core logic for OpenAI/Groq generation
  */
 const createAIDraft = async (req, res) => {
+    const userId = req.user.id;
     try {
         const { type, role, userInput, fileId, task_type } = req.body;
 
@@ -151,20 +152,30 @@ const createAIDraft = async (req, res) => {
         // 3. TRANSFORM: Convert that JSON into the string the AI actually reads
         // (Using the mapper we discussed earlier)
         const contextEnhancedInput = JSON.stringify(fullPayload);
-        console.log("PAYLOAD:", contextEnhancedInput  ) 
+        console.log("PAYLOAD:", contextEnhancedInput)
 
         // 4. GENERATE
         const aiResponse = await aiService.generateAIDraft(
-            type, 
-            contextEnhancedInput, 
+            type,
+            contextEnhancedInput,
             task_type
         );
+
+        Subscription.incrementUsage(userId)
+
+        /// Optional For TESTING AUTO SAVE
+        await Draft.create({
+            file_id: fileId,
+            user_id: userId,
+            draft_type: type,
+            content: aiResponse
+        });
 
         res.status(200).json({
             success: true,
             data: {
                 content: aiResponse,
-                payload_sent: fullPayload 
+                payload_sent: fullPayload
             }
         });
 
@@ -216,7 +227,7 @@ const updateDraft = async (req, res) => {
     try {
         const { draftId } = req.params;
         const { content, draft_type } = req.body;
-        const userId = req.user.id; 
+        const userId = req.user.id;
         // 1. First, verify the draft exists and belongs to this user
         const existingDraft = await Draft.findById(draftId);
 
@@ -258,13 +269,13 @@ const updateDraft = async (req, res) => {
     }
 };
 
-module.exports = { 
-    testDraft, 
-    getFileDrafts, 
-    getRecentDrafts, 
-    deleteDraft, 
-    createAIDraft, 
-    saveGeneratedDraft, 
+module.exports = {
+    testDraft,
+    getFileDrafts,
+    getRecentDrafts,
+    deleteDraft,
+    createAIDraft,
+    saveGeneratedDraft,
     AllDrafts,
     updateDraft
 };
