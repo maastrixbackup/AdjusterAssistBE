@@ -1,58 +1,177 @@
-/**
- * PayloadBuilder Orchestrator
- * Responsibility: Transform raw user input and DB metadata into the 
- * complex JSON structure required by the Carrier client.
- */
 
 class PayloadBuilder {
-    // 1. Unified Configuration Mapping based on Client Requirements
     static #TYPE_CONFIGS = {
-        "file_note": { 
-            audience: "internal", greeting: false, closing: false, 
-            length: "standard", format: "paragraph", allow_softening: false,
+        "file_note": {
+            // Communication Context
+            audience: "internal",
+            recipient_role: "",
+            tone_override: "",
+            purpose: "document vender call",
+            greeting: false,
+            closing: false,
+
+            // Drafting Control
+            length: "standard",
+            format: "paragraph",
+            allow_softening: true,
+            allow_direct_request_language: true,
+            preserve_user_facts_verbatim: false,
+            must_include: ["Next step"],
+            must_avoid: [],
+            special_instructions: "Keep Consise and file-ready",
+        },
+        "email_insured": {
+            audience: "external",
+            recipient_role: "insured",
+            tone_override: "",
+            purpose: "provide status update",
+            greeting: true,
+            closing: true,
+
+            length: "standard",
+            format: "paragraph",
+            allow_softening: true,
+            allow_direct_request_language: true,
+            preserve_user_facts_verbatim: false,
+            must_include: [],
+            must_avoid: ["coverage confirmed", "payment will be issued"],
+            special_instructions: "Keep clear and professional.",
+        },
+        "email_contractor": {
+            audience: "external",
+            recipient_role: "contractor",
+            tone_override: "firm",
+            purpose: "request suppliment support",
+            greeting: true,
+            closing: true,
+
+            length: "short",
+            format: "paragraph",
+            allow_softening: false,
+            allow_direct_request_language: true,
+            preserve_user_facts_verbatim: false,
+            must_include: ["supporting documentation"],
+            must_avoid: ["approved", "payment will be made"],
+            special_instructions: "Short, direct, professional.",
+        },
+        "escalation_response": {
+            audience: "internal",
+            recipient_role: "supervisor",
+            tone_override: "",
+            purpose: "respond to escalation",
+            greeting: false,
+            closing: false,
+
+            length: "standard",
+            format: "paragraph",
+            allow_softening: true,
+            allow_direct_request_language: true,
+            preserve_user_facts_verbatim: false,
             must_include: ["actions taken", "next step"],
+            must_avoid: [],
+            special_instructions: "Internal escalation summary.",
         },
-        "email_insured": { 
-            audience: "external", greeting: true, closing: true, 
-            length: "standard", format: "paragraph", allow_softening: true,
-            must_include: [],must_avoid:  ["coverage confirmed", "payment will be issued"],
-            special_instructions: "Keep clear and professional."
+        "supplement_response": {
+            audience: "external",
+            recipient_role: "contractor",
+            tone_override: "",
+            purpose: "request suppliment support",
+            greeting: true,
+            closing: true,
+
+            length: "short",
+            format: "paragraph",
+            allow_softening: true,
+            allow_direct_request_language: true,
+            preserve_user_facts_verbatim: false,
+            must_include: ["under review"],
+            must_avoid: ["approved"],
+            special_instructions: "Keep concise",
         },
-        "email_contractor": { 
-            audience: "external", greeting: true, closing: true, 
-            length: "short", format: "paragraph", allow_softening: false,
-            must_include:  ["supporting documentation"], must_avoid: ["approved", "payment will be made"],
-            special_instructions: "Short, direct, professional." 
+        "coverage_analysis": {
+            audience: "internal",
+            recipient_role: "",
+            tone_override: "",
+            purpose: "internal coverage reasoning",
+            greeting: false,
+            closing: false,
+
+            length: "standard",
+            format: "paragraph",
+            allow_softening: true,
+            allow_direct_request_language: false,
+            preserve_user_facts_verbatim: false,
+            must_include: ["based on current facts"],
+            must_avoid: ["quoted policy language"],
+            special_instructions: "Remain conservative and objective.",
         },
-        "escalation_response": { 
-            audience: "internal", greeting: false, closing: false, 
-            length: "standard", format: "paragraph", allow_softening: false,
-            must_include: ["actions taken", "next step"], must_avoid:[],
-            special_instructions: "Internal escalation summary.", 
+        "denial_support": {
+            audience: "internal",
+            recipient_role: "",
+            tone_override: "",
+            purpose: "denial support drafting",
+            greeting: false,
+            closing: false,
+
+            length: "standard",
+            format: "paragraph",
+            allow_softening: true,
+            allow_direct_request_language: false,
+            preserve_user_facts_verbatim: false,
+            must_include: ["wear, tear, and deterioration"],
+            must_avoid: ["bad faith", "fraud"],
+            special_instructions: "Formal and neutral",
         },
-        "supplement_response": { 
-            audience: "external", greeting: true, closing: true, 
-            length: "short", format: "paragraph", allow_softening: false 
+        "claim_summary": {
+            audience: "internal",
+            recipient_role: "",
+            tone_override: "",
+            purpose: "quick status summary",
+            greeting: false,
+            closing: false,
+
+            length: "short",
+            format: "paragraph",
+            allow_softening: true,
+            allow_direct_request_language: false,
+            preserve_user_facts_verbatim: false,
+            must_include: ["next step"],
+            must_avoid: [],
+            special_instructions: "Quick handoff summary",
         },
-        "coverage_analysis": { 
-            audience: "internal", greeting: false, closing: false, 
-            length: "standard", format: "paragraph", allow_softening: false 
+        "xactanalysis_response": {
+            audience: "external_or_platform",
+            recipient_role: "vendor",
+            tone_override: "",
+            purpose: "Xact Analysis note",
+            greeting: false,
+            closing: false,
+
+            length: "short",
+            format: "paragraph",
+            allow_softening: true,
+            allow_direct_request_language: true,
+            preserve_user_facts_verbatim: false,
+            must_include: ["under review"],
+            must_avoid: ["approved"],
+            special_instructions: "Very short platform note",
         },
-        "denial_support": { 
-            audience: "internal", greeting: false, closing: false, 
-            length: "standard", format: "paragraph", allow_softening: false 
-        },
-        "claim_summary": { 
-            audience: "internal", greeting: false, closing: false, 
-            length: "short", format: "paragraph", allow_softening: false 
-        },
-        "xactanalysis_response": { 
-            audience: "external_or_platform", greeting: false, closing: false, 
-            length: "short", format: "paragraph", allow_softening: false 
-        },
-        "damage_evaluation": { 
-            audience: "internal", greeting: false, closing: false, 
-            length: "standard", format: "paragraph", allow_softening: false 
+        "damage_evaluation": {
+            audience: "internal",
+            recipient_role: "vendor",
+            tone_override: "",
+            purpose: "damage summary",
+            greeting: false,
+            closing: false,
+
+            length: "standard",
+            format: "paragraph",
+            allow_softening: false,
+            allow_direct_request_language: false,
+            preserve_user_facts_verbatim: false,
+            must_include: ["under review"],
+            must_avoid: ["coverage applies"],
+            special_instructions: "Objective internal damage summary only."
         }
     };
 
@@ -67,10 +186,11 @@ class PayloadBuilder {
 
         return {
             output_type: typeKey,
-            claim_role: role || "staff_adjuster",
-            jurisdiction: file.jurisdiction || "CT",
-            line_of_business: file.line_of_business || "homeowners",
-            
+            claim_role: role || "staff_adjuster", //// ----->  Role of Loggedin user
+
+            jurisdiction: file.jurisdiction || "CT", ///// ---->>>>>
+            line_of_business: file.line_of_business || "homeowners", //////------->>>> 
+
             claim_context: {
                 claim_number: file.claim_number,
                 date_of_loss: file.date_of_loss || "2026-01-28",
@@ -80,7 +200,8 @@ class PayloadBuilder {
                 insured_name: file.client_name,
                 property_address: file.address || "",
                 claim_stage: task_type || file.claim_stage || "general_review",
-                current_issue: inputText.substring(0, 75).replace(/\n/g, " ") + "..."
+
+                current_issue: inputText.substring(0, 75).replace(/\n/g, " ") + "..."  ///------>>
             },
 
             facts: {
@@ -97,13 +218,34 @@ class PayloadBuilder {
                 additional_facts: ""
             },
 
+            // const parseUserInput = (text) => {
+            //     return {
+            //         summary: text.split('#')[0].trim(),
+            //         insured_statement: text.match(/#Insured (.*?)($|#)/)?.[1] || "",
+            //         contractor_statement: text.match(/#Contractor (.*?)($|#)/)?.[1] || "",
+            //         next_steps: text.match(/#Next (.*?)($|#)/)?.[1] || ""
+            //     };
+            // };
+            
+            // facts: {
+            //     // Put everything into summary, and the AI will "read" it to find findings/statements
+            //     summary: inputText,
+            //     inspection_findings: "Extract from summary if present",
+            //     insured_statement: "Extract from summary if present",
+            //     contractor_statement: "Extract from summary if present",
+            //     next_steps: "Identify from summary",
+            //     // ... leave others as empty strings
+            // },
+
             communication_context: {
                 audience: config.audience,
-                sender_identity: role || "adjuster",
-                recipient_name: "manager",
-                recipient_role: config.audience === "external" ? "insured" : "internal_team",
-                purpose: `Generate ${typeKey.replace('_', ' ')}`,
-                tone_override: "",
+                sender_identity: "adjuster",
+
+                recipient_name: file.client_name, // must be different from file.client_name
+
+                recipient_role: config.recipient_role,
+                purpose: config.purpose,
+                tone_override: config.tone_override || "",
                 include_salutation: config.greeting,
                 include_closing: config.closing
             },
@@ -112,11 +254,33 @@ class PayloadBuilder {
                 length: config.length,
                 format_style: config.format,
                 allow_softening_language: config.allow_softening,
-                allow_direct_request_language: true,
-                preserve_user_facts_verbatim: false,
+                allow_direct_request_language: config.allow_direct_request_language,
+                preserve_user_facts_verbatim: config.preserve_user_facts_verbatim || false,
                 must_include: config.must_include,
                 must_avoid: config.must_avoid,
                 special_instructions: config.special_instructions
+            },
+
+            "compliance_flags": {
+                "weather_related": false,
+                "mitigation_involved": false,
+                "contents_involved": false,
+                "mold_or_odor_flag": false,
+                "emergency_repairs_flag": false,
+                "prior_damage_flag": false,
+                "coverage_sensitive": false,
+                "doi_sensitive": false,
+                "litigation_sensitive": false,
+                "high_escalation": false
+            },
+
+            "attachments_context": {
+                "photos_received": false,
+                "estimate_received": false,
+                "invoice_received": false,
+                "proof_of_loss_received": false,
+                "mitigation_docs_received": false,
+                "expert_report_received": false
             }
         };
     }
