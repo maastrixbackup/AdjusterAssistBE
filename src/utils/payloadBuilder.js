@@ -1,8 +1,15 @@
 
 class PayloadBuilder {
-    // 1. Unified Configuration Mapping based on Client Requirements
     static #TYPE_CONFIGS = {
         "file_note": {
+             // Communication Context
+            audience: "internal",
+            recipient_role: "",
+            tone_override: "",
+            purpose: "document vender call",
+            greeting: false,
+            closing: false,
+
             // Drafting Control
             length: "standard",
             format: "paragraph",
@@ -12,16 +19,15 @@ class PayloadBuilder {
             must_include: ["Next step"],
             must_avoid: [],
             special_instructions: "Keep Consise and file-ready",
-
-            // Communication Context
-            audience: "internal",
-            recipient_role: "",
-            tone_override: "",
-            purpose: "document vender call",
-            greeting: false,
-            closing: false,
         },
         "email_insured": {
+            audience: "external",
+            recipient_role: "insured",
+            tone_override: "",
+            purpose: "provide status update",
+            greeting: true,
+            closing: true,
+
             length: "standard",
             format: "paragraph",
             allow_softening: true,
@@ -30,15 +36,15 @@ class PayloadBuilder {
             must_include: [],
             must_avoid: ["coverage confirmed", "payment will be issued"],
             special_instructions: "Keep clear and professional.",
-
-            audience: "external",
-            recipient_role: "insured",
-            tone_override: "",
-            purpose: "provide status update",
-            greeting: true,
-            closing: true,
         },
         "email_contractor": {
+            audience: "external",
+            recipient_role: "contractor",
+            tone_override: "firm",
+            purpose: "request suppliment support",
+            greeting: true,
+            closing: true,
+
             length: "short",
             format: "paragraph",
             allow_softening: false,
@@ -47,15 +53,15 @@ class PayloadBuilder {
             must_include: ["supporting documentation"],
             must_avoid: ["approved", "payment will be made"],
             special_instructions: "Short, direct, professional.",
-
-            audience: "external",
-            recipient_role: "contractor",
-            tone_override: "firm",
-            purpose: "request suppliment support",
-            greeting: true,
-            closing: true,
         },
         "escalation_response": {
+            audience: "internal",
+            recipient_role: "supervisor",
+            tone_override: "",
+            purpose: "respond to escalation",
+            greeting: false,
+            closing: false,
+
             length: "standard",
             format: "paragraph",
             allow_softening: true,
@@ -64,37 +70,108 @@ class PayloadBuilder {
             must_include: ["actions taken", "next step"],
             must_avoid: [],
             special_instructions: "Internal escalation summary.",
-
-            audience: "internal",
-            recipient_role: "supervisor",
-            tone_override: "",
-            purpose: "respond to escalation",
-            greeting: false,
-            closing: false,
         },
         "supplement_response": {
-            audience: "external", greeting: true, closing: true,
-            length: "short", format: "paragraph", allow_softening: false
+            audience: "external",
+            recipient_role: "contractor",
+            tone_override: "",
+            purpose: "request suppliment support",
+            greeting: true,
+            closing: true,
+
+            length: "short",
+            format: "paragraph",
+            allow_softening: true,
+            allow_direct_request_language: true,
+            preserve_user_facts_verbatim: false,
+            must_include: ["under review"],
+            must_avoid: ["approved"],
+            special_instructions: "Keep concise",
         },
         "coverage_analysis": {
-            audience: "internal", greeting: false, closing: false,
-            length: "standard", format: "paragraph", allow_softening: false
+            audience: "internal",
+            recipient_role: "",
+            tone_override: "",
+            purpose: "internal coverage reasoning",
+            greeting: false,
+            closing: false,
+
+            length: "standard",
+            format: "paragraph",
+            allow_softening: true,
+            allow_direct_request_language: false,
+            preserve_user_facts_verbatim: false,
+            must_include: ["based on current facts"],
+            must_avoid: ["quoted policy language"],
+            special_instructions: "Remain conservative and objective.",
         },
         "denial_support": {
-            audience: "internal", greeting: false, closing: false,
-            length: "standard", format: "paragraph", allow_softening: false
+            audience: "internal",
+            recipient_role: "",
+            tone_override: "",
+            purpose: "denial support drafting",
+            greeting: false,
+            closing: false,
+
+            length: "standard",
+            format: "paragraph",
+            allow_softening: true,
+            allow_direct_request_language: false,
+            preserve_user_facts_verbatim: false,
+            must_include: ["wear, tear, and deterioration"],
+            must_avoid: ["bad faith", "fraud"],
+            special_instructions: "Formal and neutral",
         },
         "claim_summary": {
-            audience: "internal", greeting: false, closing: false,
-            length: "short", format: "paragraph", allow_softening: false
+            audience: "internal",
+            recipient_role: "",
+            tone_override: "",
+            purpose: "quick status summary",
+            greeting: false,
+            closing: false,
+
+            length: "short",
+            format: "paragraph",
+            allow_softening: true,
+            allow_direct_request_language: false,
+            preserve_user_facts_verbatim: false,
+            must_include: ["next step"],
+            must_avoid: [],
+            special_instructions: "Quick handoff summary",
         },
         "xactanalysis_response": {
-            audience: "external_or_platform", greeting: false, closing: false,
-            length: "short", format: "paragraph", allow_softening: false
+            audience: "external_or_platform",
+            recipient_role: "vendor",
+            tone_override: "",
+            purpose: "Xact Analysis note",
+            greeting: false,
+            closing: false,
+
+            length: "short",
+            format: "paragraph",
+            allow_softening: true,
+            allow_direct_request_language: true,
+            preserve_user_facts_verbatim: false,
+            must_include: ["under review"],
+            must_avoid: ["approved"],
+            special_instructions: "Very short platform note",
         },
         "damage_evaluation": {
-            audience: "internal", greeting: false, closing: false,
-            length: "standard", format: "paragraph", allow_softening: false
+            audience: "internal",
+            recipient_role: "vendor",
+            tone_override: "",
+            purpose: "damage summary",
+            greeting: false,
+            closing: false,
+
+            length: "standard",
+            format: "paragraph",
+            allow_softening: false,
+            allow_direct_request_language: false,
+            preserve_user_facts_verbatim: false,
+            must_include: ["under review"],
+            must_avoid:  ["coverage applies"], 
+            special_instructions: "Objective internal damage summary only."
         }
     };
 
@@ -109,10 +186,10 @@ class PayloadBuilder {
 
         return {
             output_type: typeKey,
-            claim_role: role || "staff_adjuster",
+            claim_role: role || "staff_adjuster", //// ----->  Role of Loggedin user
 
-            jurisdiction: file.jurisdiction || "CT",
-            line_of_business: file.line_of_business || "homeowners",
+            jurisdiction: file.jurisdiction || "CT", ///// ---->>>>>
+            line_of_business: file.line_of_business || "homeowners", //////------->>>> 
 
             claim_context: {
                 claim_number: file.claim_number,
