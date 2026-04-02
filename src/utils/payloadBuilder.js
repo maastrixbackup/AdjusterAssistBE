@@ -2,7 +2,7 @@
 class PayloadBuilder {
     static #TYPE_CONFIGS = {
         "file_note": {
-             // Communication Context
+            // Communication Context
             audience: "internal",
             recipient_role: "",
             tone_override: "",
@@ -170,7 +170,7 @@ class PayloadBuilder {
             allow_direct_request_language: false,
             preserve_user_facts_verbatim: false,
             must_include: ["under review"],
-            must_avoid:  ["coverage applies"], 
+            must_avoid: ["coverage applies"],
             special_instructions: "Objective internal damage summary only."
         }
     };
@@ -201,7 +201,7 @@ class PayloadBuilder {
                 property_address: file.address || "",
                 claim_stage: task_type || file.claim_stage || "general_review",
 
-                current_issue: inputText.substring(0, 75).replace(/\n/g, " ") + "..."
+                current_issue: inputText.substring(0, 75).replace(/\n/g, " ") + "..."  ///------>>
             },
 
             facts: {
@@ -217,6 +217,25 @@ class PayloadBuilder {
                 next_steps: "See generated draft for proposed actions.",
                 additional_facts: ""
             },
+
+            // const parseUserInput = (text) => {
+            //     return {
+            //         summary: text.split('#')[0].trim(),
+            //         insured_statement: text.match(/#Insured (.*?)($|#)/)?.[1] || "",
+            //         contractor_statement: text.match(/#Contractor (.*?)($|#)/)?.[1] || "",
+            //         next_steps: text.match(/#Next (.*?)($|#)/)?.[1] || ""
+            //     };
+            // };
+            
+            // facts: {
+            //     // Put everything into summary, and the AI will "read" it to find findings/statements
+            //     summary: inputText,
+            //     inspection_findings: "Extract from summary if present",
+            //     insured_statement: "Extract from summary if present",
+            //     contractor_statement: "Extract from summary if present",
+            //     next_steps: "Identify from summary",
+            //     // ... leave others as empty strings
+            // },
 
             communication_context: {
                 audience: config.audience,
