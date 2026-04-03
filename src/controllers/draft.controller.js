@@ -164,12 +164,12 @@ const createAIDraft = async (req, res) => {
         Subscription.incrementUsage(userId)
 
         /// Optional For TESTING AUTO SAVE
-        await Draft.create({
-            file_id: fileId,
-            user_id: userId,
-            draft_type: type,
-            content: aiResponse
-        });
+        // await Draft.create({
+        //     file_id: fileId,
+        //     user_id: userId,
+        //     draft_type: type,
+        //     content: aiResponse
+        // });
 
         res.status(200).json({
             success: true,
