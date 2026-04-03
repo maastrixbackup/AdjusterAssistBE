@@ -53,33 +53,6 @@ export const sendLoginEmail = async (email) => {
     }
 };
 
-
-export const sendResetEmail = async (email, resetLink) => {
-    try {
-        const content = `
-            <h2 style="color: #333; margin-top: 0;">Reset Your Password</h2>
-            <p>Hello,</p>
-            <p>We received a request to reset the password for your <strong>AdjusterAssist</strong> account. Click the button below to secure your account:</p>
-            <div style="text-align: center; margin: 35px 0;">
-                <a href="${resetLink}" style="background-color: #0F4C9C; color: white; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block;">Set New Password</a>
-            </div>
-            <p style="font-size: 14px; color: #666;">This link is valid for <strong>1 hour</strong>. If you didn't request this change, you can safely ignore this email.</p>
-        `;
-
-        const mailOptions = {
-            from: `"AdjusterAssist Support" <${process.env.EMAIL_USER}>`,
-            to: email,
-            subject: "Action Required: Reset Your Password",
-            html: emailLayout(content),
-        };
-
-        return await transporter.sendMail(mailOptions);
-    } catch (error) {
-        console.error("Nodemailer Error:", error.message);
-        throw new Error("Failed to send reset email");
-    }
-};
-
 export const sendSignupEmail = async (email) => {
     try {
         const content = `
@@ -108,6 +81,52 @@ export const sendSignupEmail = async (email) => {
     } catch (error) {
         console.error("Nodemailer Error:", error.message);
         throw new Error("Failed to send welcome email");
+    }
+};
+
+export const sendResetEmail = async (email, otp) => {
+    try {
+        const content = `
+            <div style="font-family: sans-serif; max-width: 500px; margin: 0 auto;">
+                <h2 style="color: #0F4C9C; margin-top: 0; font-size: 24px;">Reset Your Password</h2>
+                <p style="color: #334155; font-size: 16px; line-height: 1.5;">
+                    Hello, <br/><br/>
+                    We received a request to reset the password for your <strong>AdjusterAssist</strong> account. Use the verification code below to proceed:
+                </p>
+                
+                <div style="text-align: center; margin: 40px 0; background-color: #F8FAFC; padding: 30px; border-radius: 16px; border: 1px dashed #CBD5E1;">
+                    <span style="font-size: 36px; font-weight: 800; color: #0F4C9C; letter-spacing: 8px; display: block;">
+                        ${otp}
+                    </span>
+                    <p style="font-size: 12px; color: #94A3B8; margin-top: 10px; text-transform: uppercase; font-weight: bold;">
+                        Verification Code
+                    </p>
+                </div>
+
+                <p style="font-size: 14px; color: #64748B; line-height: 1.5;">
+                    This code is valid for <strong>10 minutes</strong>. 
+                    If you didn't request this change, you can safely ignore this email and your password will remain unchanged.
+                </p>
+                
+                <hr style="border: 0; border-top: 1px solid #E2E8F0; margin: 30px 0;" />
+                
+                <p style="font-size: 12px; color: #94A3B8; text-align: center;">
+                    &copy; 2026 AdjusterAssist. All rights reserved.
+                </p>
+            </div>
+        `;
+
+        const mailOptions = {
+            from: `"AdjusterAssist Support" <${process.env.EMAIL_USER}>`,
+            to: email,
+            subject: `${otp} is your AdjusterAssist reset code`,
+            html: emailLayout(content),
+        };
+
+        return await transporter.sendMail(mailOptions);
+    } catch (error) {
+        console.error("Nodemailer Error:", error.message);
+        throw new Error("Failed to send reset email");
     }
 };
 
