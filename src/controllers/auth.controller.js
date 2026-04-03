@@ -206,24 +206,34 @@ const verifyOTP = async (req, res) => {
 /**
  * Resets Password using OTP + Email
  */
+
 const resetPassword = async (req, res) => {
     const { email, otp, newPassword } = req.body;
+
     try {
+        // 1. Fetch user AND the specific OTP data
         const user = await User.findByEmail(email);
-        
-        if (!user || user.reset_token !== otp || new Date(user.reset_token_expires) < new Date()) {
-            return res.status(400).json({ success: false, message: "Invalid/Expired OTP or session" });
+
+        // 2. Strict validation: Must match Email, OTP, and not be expired
+        const isOtpValid = String(user.reset_token) === String(otp);
+        const isNotExpired = new Date(user.reset_token_expires) > new Date();
+
+        if (!user || !isOtpValid || !isNotExpired) {
+            return res.status(403).json({ 
+                success: false, 
+                message: "Security violation: Invalid or expired reset session." 
+            });
         }
 
+        // 3. Hash and Update
         const hashedPassword = await bcrypt.hash(newPassword, 12);
         
-        // Update password and NULL out the reset fields in DB
+        // 4. CRITICAL: Clear the OTP fields so they can't be used AGAIN
         await User.updatePassword(user.id, hashedPassword);
 
-        return res.status(200).json({ success: true, message: "Password updated successfully" });
+        return res.status(200).json({ success: true, message: "Password updated." });
     } catch (error) {
-        console.error("Reset Error:", error);
-        return res.status(500).json({ success: false, message: "Error updating password" });
+        return res.status(500).json({ success: false, message: "Server error." });
     }
 };
 

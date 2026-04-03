@@ -87,40 +87,61 @@ export const sendSignupEmail = async (email) => {
 export const sendResetEmail = async (email, otp) => {
     try {
         const content = `
-            <div style="font-family: sans-serif; max-width: 500px; margin: 0 auto;">
-                <h2 style="color: #0F4C9C; margin-top: 0; font-size: 24px;">Reset Your Password</h2>
-                <p style="color: #334155; font-size: 16px; line-height: 1.5;">
-                    Hello, <br/><br/>
-                    We received a request to reset the password for your <strong>AdjusterAssist</strong> account. Use the verification code below to proceed:
-                </p>
-                
-                <div style="text-align: center; margin: 40px 0; background-color: #F8FAFC; padding: 30px; border-radius: 16px; border: 1px dashed #CBD5E1;">
-                    <span style="font-size: 36px; font-weight: 800; color: #0F4C9C; letter-spacing: 8px; display: block;">
-                        ${otp}
-                    </span>
-                    <p style="font-size: 12px; color: #94A3B8; margin-top: 10px; text-transform: uppercase; font-weight: bold;">
-                        Verification Code
-                    </p>
-                </div>
+            <div style="background-color: #f9fafb; padding: 20px; font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+                <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 450px; background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.05); border: 1px solid #e5e7eb;">
+                    <tr>
+                        <td style="padding: 30px 30px 10px 30px; text-align: center;">
+                            <h1 style="color: #0F4C9C; margin: 0; font-size: 22px; font-weight: 700; letter-spacing: -0.5px;">AdjusterAssist</h1>
+                        </td>
+                    </tr>
+                    
+                    <tr>
+                        <td style="padding: 0 30px 20px 30px; text-align: center;">
+                            <h2 style="color: #111827; font-size: 18px; margin: 10px 0;">Verify your identity</h2>
+                            <p style="color: #4b5563; font-size: 15px; line-height: 24px; margin: 0;">
+                                To reset your password, please use the 6-digit verification code below.
+                            </p>
+                        </td>
+                    </tr>
 
-                <p style="font-size: 14px; color: #64748B; line-height: 1.5;">
-                    This code is valid for <strong>10 minutes</strong>. 
-                    If you didn't request this change, you can safely ignore this email and your password will remain unchanged.
-                </p>
-                
-                <hr style="border: 0; border-top: 1px solid #E2E8F0; margin: 30px 0;" />
-                
-                <p style="font-size: 12px; color: #94A3B8; text-align: center;">
-                    &copy; 2026 AdjusterAssist. All rights reserved.
-                </p>
+                    <tr>
+                        <td style="padding: 0 30px 30px 30px;">
+                            <div style="background-color: #f3f4f6; border-radius: 12px; padding: 25px; text-align: center;">
+                                <div style="font-size: 38px; font-weight: 800; color: #0F4C9C; letter-spacing: 10px; font-family: monospace;">
+                                    ${otp}
+                                </div>
+                                <div style="color: #9ca3af; font-size: 11px; font-weight: 600; text-transform: uppercase; margin-top: 8px; letter-spacing: 1px;">
+                                    Valid for 10 minutes
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+
+                    <tr>
+                        <td style="padding: 0 30px 30px 30px; text-align: center;">
+                            <p style="color: #9ca3af; font-size: 13px; line-height: 20px; margin: 0;">
+                                If you didn't request this, you can safely ignore this email. Your account security is our priority.
+                            </p>
+                        </td>
+                    </tr>
+
+                    <tr>
+                        <td style="background-color: #f9fafb; padding: 20px; text-align: center; border-top: 1px solid #e5e7eb;">
+                            <p style="color: #9ca3af; font-size: 11px; margin: 0;">
+                                &copy; 2026 AdjusterAssist Inc. <br>
+                                Automated Security Message
+                            </p>
+                        </td>
+                    </tr>
+                </table>
             </div>
         `;
 
         const mailOptions = {
             from: `"AdjusterAssist Support" <${process.env.EMAIL_USER}>`,
             to: email,
-            subject: `${otp} is your AdjusterAssist reset code`,
-            html: emailLayout(content),
+            subject: `${otp} is your verification code`,
+            html: emailLayout ? emailLayout(content) : content, // Handles if layout wrapper exists
         };
 
         return await transporter.sendMail(mailOptions);
