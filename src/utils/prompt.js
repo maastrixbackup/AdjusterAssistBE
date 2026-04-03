@@ -328,11 +328,150 @@ Writing requirements:
 - Focus on clarity, status, and what the insured should expect next
 - Do not use markdown, placeholders, transcript recap language, or AI-style filler
 
-  The output should read like a real adjuster response sent directly to an insured.`
+  The output should read like a real adjuster email response sent directly to an insured.`,
+
+    SUPPLEMENT_RESPONSE: `Draft a professional supplement review response regarding an additional estimate, revised scope submission, or supplemental documentation.
+
+Primary objective:
+- Clearly communicate supplemental review status while preserving scope and documentation control.
+
+Must include:
+- Acknowledgment that the supplemental estimate, revised scope, or supporting materials were received
+- Clear distinction between receipt and approval
+- Clear distinction between review and acceptance
+- Identification of what items, scope, or documentation remain pending or under review
+- Request for any missing support needed for continued evaluation
+
+Writing requirements:
+- Keep the response concise, task-focused, and scope-aware
+- Use direct, professional claim handling language suitable for insured, contractor, or vendor supplement communication
+- Clearly separate what has been submitted from what has been reviewed, accepted, or remains pending
+- Avoid implied approval, acceptance, or final scope agreement unless specifically supported by the provided facts
+- Maintain claim control throughout the response
+- Avoid unnecessary narrative, filler, argumentative language, or AI-style phrasing
+- Do not use markdown, placeholders, or transcript recap language
+
+Behavior notes:
+- Acknowledge receipt cleanly
+- Do not equate submission with acceptance
+- Request missing support in a clear and professional manner
+
+The output should read like a real adjuster supplement review response used in active claim handling.`,
+
+    COVERAGE_ANALYSIS: `Draft a professional internal coverage analysis based only on the provided claim facts, documented conditions, and current handling posture.
+
+Primary objective:
+- Provide a defensible, fact-driven internal coverage reasoning note that clearly supports the current claim position without overstating certainty.
+
+Must include:
+- A clear connection between the available facts and the current coverage position
+- Careful distinction between what has been established, what has not been established, and what remains pending or under review
+- Separation of covered, not established, excluded, or unresolved issues only where specifically supported by the provided facts
+- Conservative handling language where investigation, causation, scope, or damage relationship remains incomplete
+
+Writing requirements:
+- Keep the response highly objective, conservative, and fact-to-position oriented
+- Use internal claim file language appropriate for coverage evaluation and handling documentation
+- Avoid premature conclusions or unsupported certainty
+- If the investigation is incomplete, state that clearly and preserve pending review posture
+- Do not quote or paraphrase policy language unless exact policy language is provided in the input
+- Do not invent exclusions, limitations, authority findings, or causation conclusions
+- Carefully separate distinct issue categories such as roof conditions, interior resulting damage, pre-existing concerns, or unrelated damages where supported by the facts
+- Avoid unnecessary narrative, filler, argumentative language, or AI-style phrasing
+- Do not use markdown, placeholders, or transcript recap language
+
+Behavior notes:
+- Objective and defensible
+- No invented policy language
+- Careful separation of issue categories and claimed damage components
+
+The output should read like a real internal coverage analysis prepared by an experienced adjuster or examiner.`,
+
+    DENIAL_SUPPORT: `
+    Draft a professional internal denial support or partial denial support analysis based only on the provided claim facts, documented conditions, and current handling posture.
+
+Primary objective:
+- Provide a formal, neutral, and defensible internal summary supporting the current denial or partial denial position without exceeding the known facts.
+
+Must include:
+- The specific claimed issue, damage component, or disputed item being addressed
+- Clear separation between covered and non-covered aspects where that distinction is supported by the provided facts
+- A fact-based explanation of the current denial or partial denial position
+- Identification of any unsupported, unrelated, not-established, excluded, or unresolved components only where supported by the input
+
+Writing requirements:
+- Keep the response formal, careful, specific, and non-accusatory
+- Use internal claim handling language appropriate for denial support drafting and file documentation
+- Explain the handling position only from the provided facts and current file posture
+- Maintain a defensible tone and avoid overstatement or premature certainty
+- Do not quote, paraphrase, or insert policy language unless exact policy language is provided in the input
+- Do not imply fraud, concealment, misrepresentation, exaggeration, or intent unless explicitly supported by the user-provided facts
+- Avoid unnecessary narrative, filler, argumentative language, or AI-style phrasing
+- Do not use markdown, placeholders, or transcript recap language
+
+Behavior notes:
+- Formal
+- Neutral
+- Non-accusatory
+- No invented policy language
+
+  The output should read like a real internal denial support draft used by an adjuster or examiner for file handling, supervisory review, or letter development.`,
+
+    CLAIM_SUMMARY: `Draft a short internal claim summary based only on the provided claim facts and current handling posture.
+
+Primary objective:
+- Provide a concise, organized status overview suitable for quick file review, diary reference, management visibility, or handoff to another handler.
+
+Must include when supported by the provided facts:
+- The current issue, dispute, concern, or key file development
+- The present claim status or handling posture
+- Any pending item, outstanding support, or unresolved issue
+- The next handling step
+
+Writing requirements:
+- Keep the response short, internal, and operational
+- Use clear claim file language suitable for quick management review or adjuster handoff
+- Prioritize clarity and usefulness over detail
+- Avoid unnecessary narrative, over-explanation, filler, or conversational language
+- Maintain a professional and neutral tone
+- Do not use markdown, placeholders, or transcript recap language
+
+Behavior notes:
+- Short
+- Internal
+- Handoff-friendly
+
+  The output should read like a real internal claim summary prepared for file review or handoff.`,
+
+    DAMAGE_EVALUATION: `Draft a professional internal damage evaluation summary based only on the supplied claim facts, documented conditions, and any inspection-based findings provided.
+
+Primary objective:
+- Provide an objective, defensible summary of the damages actually described without extending beyond the available findings.
+
+Must include:
+- A concise summary of the damages, affected areas, materials, or conditions actually described
+- Clear distinction between visible, reported, observed, documented, or otherwise supported conditions where appropriate
+- Careful limitation of the evaluation to the findings and descriptions supplied in the input
+
+Writing requirements:
+- Keep the response objective, factual, and inspection-based only where such findings are actually provided
+- Do not exaggerate the extent of damage, repair need, material impact, or scope implications
+- Do not make coverage conclusions, authority conclusions, payment commitments, or scope approvals
+- Do not infer hidden damage, code-required replacement, or causation beyond what is specifically supported by the input
+- Use internal claim handling language suitable for file documentation, estimate support, or evaluation reference
+- Avoid unnecessary narrative, filler, argumentative language, or AI-style phrasing
+- Do not use markdown, placeholders, or transcript recap language
+
+Behavior notes:
+- Objective
+- No coverage conclusion
+- Limited to supplied findings
+
+  The output should read like a real internal damage evaluation summary used in active claim handling.`
   };
 
+
   return instructions[style] || `
-Deliver the final response strictly as a professional business communication.
-Use concise, claim-professional language with no placeholders or markdown.
-`;
+      Deliver the final response strictly as a professional business communication.
+      Use concise, claim-professional language with no placeholders or markdown.`;
 };
