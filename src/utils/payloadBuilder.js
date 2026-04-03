@@ -206,42 +206,23 @@ class PayloadBuilder {
 
             facts: {
                 summary: inputText,
-                inspection_findings: "",
-                insured_statement: "",
-                contractor_statement: "",
+                inspection_findings: "Extract from summary if present",
+                insured_statement: "Extract from summary if present" || inputText.match(/#Insured (.*?)($|#)/)?.[1] || "",
+                contractor_statement: "Extract from summary if present" || text.match(/#Contractor (.*?)($|#)/)?.[1] || "",
                 vendor_statement: "",
                 document_review: "System generated based on adjuster notes.",
                 coverage_position: "Pending further verification.",
                 estimate_status: "",
                 payment_status: "",
-                next_steps: "See generated draft for proposed actions.",
+                next_steps: "Identify from summary" || text.match(/#Next (.*?)($|#)/)?.[1] || "",
                 additional_facts: ""
             },
-
-            // const parseUserInput = (text) => {
-            //     return {
-            //         summary: text.split('#')[0].trim(),
-            //         insured_statement: text.match(/#Insured (.*?)($|#)/)?.[1] || "",
-            //         contractor_statement: text.match(/#Contractor (.*?)($|#)/)?.[1] || "",
-            //         next_steps: text.match(/#Next (.*?)($|#)/)?.[1] || ""
-            //     };
-            // };
             
-            // facts: {
-            //     // Put everything into summary, and the AI will "read" it to find findings/statements
-            //     summary: inputText,
-            //     inspection_findings: "Extract from summary if present",
-            //     insured_statement: "Extract from summary if present",
-            //     contractor_statement: "Extract from summary if present",
-            //     next_steps: "Identify from summary",
-            //     // ... leave others as empty strings
-            // },
-
             communication_context: {
                 audience: config.audience,
                 sender_identity: "adjuster",
 
-                recipient_name: file.client_name, // must be different from file.client_name
+                recipient_name: "Extract from summary if present", // must be different from file.client_name
 
                 recipient_role: config.recipient_role,
                 purpose: config.purpose,
