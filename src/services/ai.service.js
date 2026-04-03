@@ -20,8 +20,8 @@ const generateAIDraft = async (type, userInput, task_type) => {
 
         // 3. Apply Trigger-Based Guardrails (New Feature)
         const guardrailInjection = getAppliedGuardrails(userInput);
-        console.log(`GUARDRAILS INJECTION: ${guardrailInjection}`)
-        
+        console.log(guardrailInjection)
+
         // 4. Construct the Layered System Message
         const systemMessage = `
             ${adjusterPrompt}

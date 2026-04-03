@@ -163,7 +163,7 @@ const createAIDraft = async (req, res) => {
 
         Subscription.incrementUsage(userId)
 
-        /// Optional For TESTING AUTO SAVE
+        // / Optional For TESTING AUTO SAVE
         // await Draft.create({
         //     file_id: fileId,
         //     user_id: userId,
