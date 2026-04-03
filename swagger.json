@@ -157,7 +157,8 @@
     },
     "/api/v1/auth/reset-password": {
       "post": {
-        "summary": "Reset user password",
+        "summary": "Reset user password using OTP",
+        "description": "Updates the user's password after verifying the email and the 6-digit OTP code.",
         "tags": [
           "Auth"
         ],
@@ -168,17 +169,27 @@
               "schema": {
                 "type": "object",
                 "required": [
-                  "token",
+                  "email",
+                  "otp",
                   "newPassword"
                 ],
                 "properties": {
-                  "token": {
+                  "email": {
                     "type": "string",
-                    "example": "reset-token"
+                    "format": "email",
+                    "example": "adjuster@example.com",
+                    "description": "The email address of the account being reset"
+                  },
+                  "otp": {
+                    "type": "string",
+                    "example": "326301",
+                    "description": "The 6-digit verification code sent via email"
                   },
                   "newPassword": {
                     "type": "string",
-                    "example": "newPassword123"
+                    "format": "password",
+                    "example": "SecurePass2026!",
+                    "description": "The new password for the account"
                   }
                 }
               }
@@ -187,10 +198,16 @@
         },
         "responses": {
           "200": {
-            "description": "Password reset successful"
+            "description": "Password reset successful. OTP has been invalidated."
           },
           "400": {
-            "description": "Invalid or expired token"
+            "description": "Invalid or expired OTP code"
+          },
+          "403": {
+            "description": "Security violation: Invalid reset session"
+          },
+          "404": {
+            "description": "User not found"
           }
         }
       }

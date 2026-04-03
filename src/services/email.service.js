@@ -15,59 +15,101 @@ transporter.verify((error) => {
 });
 
 
-// Common Styles for Reuse
+// Common Styles for Modern Mobile-Responsive Layout
 export const emailLayout = (content) => `
-    <div style="background-color: #f4f7f9; padding: 40px 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
-        <div style="max-width: 600px; margin: auto; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.05);">
-            <div style="background-color: #0F4C9C; padding: 30px; text-align: center;">
-                <h1 style="color: white; margin: 0; font-size: 24px; letter-spacing: 1px;">AdjusterAssist</h1>
-            </div>
-            <div style="padding: 40px; line-height: 1.6; color: #444;">
-                ${content}
-            </div>
-            <div style="background-color: #f8f9fa; padding: 20px; text-align: center; border-top: 1px solid #eee;">
-                <p style="margin: 0; font-size: 12px; color: #888;">&copy; 2026 AdjusterAssist Platform. All rights reserved.</p>
-                <p style="margin: 5px 0 0; font-size: 12px; color: #888;">This is an automated message, please do not reply.</p>
-            </div>
-        </div>
+    <div style="background-color: #f8fafc; padding: 20px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+        <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 480px; background-color: #ffffff; border-radius: 20px; overflow: hidden; box-shadow: 0 10px 25px rgba(0,0,0,0.03); border: 1px solid #edf2f7;">
+            <tr>
+                <td style="background: linear-gradient(135deg, #0F4C9C 0%, #1e3a8a 100%); padding: 40px 20px; text-align: center;">
+                    <h1 style="color: #ffffff; margin: 0; font-size: 26px; font-weight: 800; letter-spacing: -0.5px;">AdjusterAssist</h1>
+                    <p style="color: #bfdbfe; margin: 5px 0 0; font-size: 13px; font-weight: 500;">Professional Claims Documentation</p>
+                </td>
+            </tr>
+            <tr>
+                <td style="padding: 40px 30px; line-height: 1.6; color: #334155;">
+                    ${content}
+                </td>
+            </tr>
+            <tr>
+                <td style="background-color: #f1f5f9; padding: 25px; text-align: center;">
+                    <p style="margin: 0; font-size: 11px; color: #94a3b8; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">&copy; 2026 AdjusterAssist Platform</p>
+                    <div style="margin-top: 10px;">
+                        <a href="#" style="color: #0F4C9C; text-decoration: none; font-size: 11px; margin: 0 10px;">Help Center</a>
+                        <a href="#" style="color: #0F4C9C; text-decoration: none; font-size: 11px; margin: 0 10px;">Privacy Policy</a>
+                    </div>
+                </td>
+            </tr>
+        </table>
     </div>
 `;
 
+/**
+ * Sends a security notification when a user logs in
+ */
 export const sendLoginEmail = async (email) => {
     try {
         const content = `
-            <h2 style="color: #333; margin-top: 0;">Welcome Back!</h2>
-            <p>Your AdjusterAssist account was just accessed. If this was you, you can safely ignore this email. If you suspect any unauthorized access, please reset your password immediately.</p>
+            <div style="text-align: center;">
+                <div style="background-color: #f0fdf4; color: #166534; display: inline-block; padding: 8px 16px; border-radius: 20px; font-size: 12px; font-weight: 700; margin-bottom: 20px;">SECURITY ALERT</div>
+                <h2 style="color: #1e293b; margin: 0 0 15px 0; font-size: 22px;">New login detected</h2>
+                <p style="color: #64748b; font-size: 15px; margin-bottom: 25px;">Your account was recently accessed. If this was you, no action is required.</p>
+                
+                <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; text-align: left; margin-bottom: 25px;">
+                    <p style="margin: 0; font-size: 11px; color: #94a3b8; text-transform: uppercase;">Timestamp</p>
+                    <p style="margin: 4px 0 0 0; font-size: 14px; color: #1e293b; font-weight: 600;">${new Date().toLocaleString('en-US', { timeZone: 'UTC' })} (UTC)</p>
+                </div>
+
+                <p style="color: #94a3b8; font-size: 13px;">Not you? Secure your account immediately.</p>
+            </div>
         `;
+
         const mailOptions = {
             from: `"AdjusterAssist Security" <${process.env.EMAIL_USER}>`,
             to: email,
-            subject: "Login Notification",
+            subject: "Security Notification: New Login",
             html: emailLayout(content),
         };
-        return await transporter.sendMail(mailOptions);
 
+        return await transporter.sendMail(mailOptions);
     } catch (error) {
-        console.error("Nodemailer Error:", error.message);
-        throw new Error("Failed to send login notification email");
+        console.error("Login email failed:", error.message);
+        throw new Error("Failed to send login notification");
     }
 };
 
-export const sendSignupEmail = async (email) => {
+/**
+ * Sends a welcome email to new users
+ */
+export const sendSignupEmail = async (email, name) => {
     try {
         const content = `
-            <h2 style="color: #333; margin-top: 0;">Welcome to the Team!</h2>
-            <p>Your <strong>AdjusterAssist</strong> account is now active. We are thrilled to help you streamline your claim processing and drafting workflow.</p>
-            <p>With AdjusterAssist, you can:</p>
-            <ul style="padding-left: 20px; color: #555;">
-                <li>Create dedicated <strong>File Workspaces</strong> for every claim.</li>
-                <li>Generate AI-powered demand letters and file notes.</li>
-                <li>Manage your drafting history securely.</li>
-            </ul>
-            <div style="text-align: center; margin: 35px 0;">
-                <a href="${process.env.FRONTEND_URL || '#'}" style="background-color: #28a745; color: white; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block;">Launch Dashboard</a>
+            <h2 style="color: #1e293b; margin-top: 0; font-size: 24px;">Welcome, ${name}!</h2>
+            <p style="color: #64748b; font-size: 16px;">Ready to transform your claims workflow? AdjusterAssist is now at your fingertips.</p>
+            
+            <div style="margin: 30px 0;">
+                <table border="0" cellpadding="0" cellspacing="0" width="100%">
+                    <tr>
+                        <td style="padding-bottom: 15px;">
+                            <span style="color: #0F4C9C; font-size: 18px; margin-right: 10px;">&bull;</span>
+                            <span style="font-size: 15px; color: #334155;"><strong>File Workspaces:</strong> Dedicated claim hubs.</span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding-bottom: 15px;">
+                            <span style="color: #0F4C9C; font-size: 18px; margin-right: 10px;">&bull;</span>
+                            <span style="font-size: 15px; color: #334155;"><strong>AI Drafting:</strong> Professional letters in seconds.</span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <span style="color: #0F4C9C; font-size: 18px; margin-right: 10px;">&bull;</span>
+                            <span style="font-size: 15px; color: #334155;"><strong>Secure History:</strong> Full audit trails.</span>
+                        </td>
+                    </tr>
+                </table>
             </div>
-            <p>If you have any questions, simply visit our help center or contact support.</p>
+
+            
         `;
 
         const mailOptions = {
@@ -79,10 +121,11 @@ export const sendSignupEmail = async (email) => {
 
         return await transporter.sendMail(mailOptions);
     } catch (error) {
-        console.error("Nodemailer Error:", error.message);
+        console.error("Signup email failed:", error.message);
         throw new Error("Failed to send welcome email");
     }
 };
+
 
 export const sendResetEmail = async (email, otp) => {
     try {
