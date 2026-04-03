@@ -157,7 +157,8 @@
     },
     "/api/v1/auth/reset-password": {
       "post": {
-        "summary": "Reset user password",
+        "summary": "Reset user password using OTP",
+        "description": "Updates the user's password after verifying the email and the 6-digit OTP code.",
         "tags": [
           "Auth"
         ],
@@ -168,17 +169,27 @@
               "schema": {
                 "type": "object",
                 "required": [
-                  "token",
+                  "email",
+                  "otp",
                   "newPassword"
                 ],
                 "properties": {
-                  "token": {
+                  "email": {
                     "type": "string",
-                    "example": "reset-token"
+                    "format": "email",
+                    "example": "adjuster@example.com",
+                    "description": "The email address of the account being reset"
+                  },
+                  "otp": {
+                    "type": "string",
+                    "example": "326301",
+                    "description": "The 6-digit verification code sent via email"
                   },
                   "newPassword": {
                     "type": "string",
-                    "example": "newPassword123"
+                    "format": "password",
+                    "example": "SecurePass2026!",
+                    "description": "The new password for the account"
                   }
                 }
               }
@@ -187,10 +198,16 @@
         },
         "responses": {
           "200": {
-            "description": "Password reset successful"
+            "description": "Password reset successful. OTP has been invalidated."
           },
           "400": {
-            "description": "Invalid or expired token"
+            "description": "Invalid or expired OTP code"
+          },
+          "403": {
+            "description": "Security violation: Invalid reset session"
+          },
+          "404": {
+            "description": "User not found"
           }
         }
       }
@@ -306,7 +323,8 @@
     },
     "/api/v1/files/new": {
       "post": {
-        "summary": "Create new file",
+        "summary": "Create new workspace (File)",
+        "description": "Initializes a claim workspace with mandatory insurance carrier metadata.",
         "tags": [
           "Files"
         ],
@@ -324,20 +342,56 @@
                 "required": [
                   "claim_number",
                   "client_name",
-                  "policy_number"
+                  "address",
+                  "date_of_loss",
+                  "reported_date",
+                  "loss_type",
+                  "jurisdiction",
+                  "line_of_business",
+                  "claim_stage"
                 ],
                 "properties": {
                   "claim_number": {
                     "type": "string",
-                    "example": "CLM-2026-001"
+                    "example": "CLM-2026-0987"
                   },
                   "client_name": {
                     "type": "string",
-                    "example": "John Smith"
+                    "example": "James Helton"
                   },
-                  "policy_number": {
+                  "address": {
                     "type": "string",
-                    "example": "POL-99"
+                    "example": "123 Maple St, Hartford, CT"
+                  },
+                  "policy_form": {
+                    "type": "string",
+                    "example": "HO-3"
+                  },
+                  "date_of_loss": {
+                    "type": "string",
+                    "format": "date",
+                    "example": "2026-01-28"
+                  },
+                  "reported_date": {
+                    "type": "string",
+                    "format": "date",
+                    "example": "2026-01-29"
+                  },
+                  "loss_type": {
+                    "type": "string",
+                    "example": "water"
+                  },
+                  "jurisdiction": {
+                    "type": "string",
+                    "example": "CT"
+                  },
+                  "line_of_business": {
+                    "type": "string",
+                    "example": "homeowners"
+                  },
+                  "claim_stage": {
+                    "type": "string",
+                    "example": "mitigation_review"
                   }
                 }
               }
@@ -346,20 +400,20 @@
         },
         "responses": {
           "201": {
-            "description": "File created successfully"
+            "description": "Workspace created successfully"
           },
           "400": {
-            "description": "Validation error"
+            "description": "Validation error or Duplicate Claim Number"
           },
           "401": {
-            "description": "Unauthorized"
+            "description": "Unauthorized - Valid JWT required"
           }
         }
       }
     },
     "/api/v1/files/my-files": {
       "get": {
-        "summary": "Get user files",
+        "summary": "Get all workspaces for current adjuster",
         "tags": [
           "Files"
         ],
@@ -370,17 +424,35 @@
         ],
         "responses": {
           "200": {
-            "description": "Files fetched successfully"
-          },
-          "401": {
-            "description": "Unauthorized"
+            "description": "Files fetched successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "count": {
+                      "type": "integer"
+                    },
+                    "files": {
+                      "type": "array",
+                      "items": {
+                        "type": "object"
+                      }
+                    }
+                  }
+                }
+              }
+            }
           }
         }
       }
     },
     "/api/v1/files/{fileId}/drafts": {
       "get": {
-        "summary": "Get drafts for a file",
+        "summary": "Get all AI-generated drafts for a specific file",
         "tags": [
           "Files"
         ],
@@ -402,13 +474,13 @@
         ],
         "responses": {
           "200": {
-            "description": "Drafts fetched successfully"
+            "description": "Drafts history retrieved"
           },
           "401": {
             "description": "Unauthorized"
           },
           "404": {
-            "description": "File not found"
+            "description": "Workspace not found"
           }
         }
       }
@@ -630,6 +702,7 @@
     "/api/v1/files/update/{fileId}": {
       "put": {
         "summary": "Update workspace details",
+        "description": "Updates any field for a specific claim workspace. All carrier-specific fields are supported.",
         "tags": [
           "Files"
         ],
@@ -643,6 +716,7 @@
             "name": "fileId",
             "in": "path",
             "required": true,
+            "description": "The unique ID of the claim file",
             "schema": {
               "type": "integer"
             }
@@ -654,7 +728,36 @@
               "schema": {
                 "type": "object",
                 "properties": {
+                  "claim_number": {
+                    "type": "string"
+                  },
                   "client_name": {
+                    "type": "string"
+                  },
+                  "address": {
+                    "type": "string"
+                  },
+                  "policy_form": {
+                    "type": "string"
+                  },
+                  "date_of_loss": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "reported_date": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "loss_type": {
+                    "type": "string"
+                  },
+                  "jurisdiction": {
+                    "type": "string"
+                  },
+                  "line_of_business": {
+                    "type": "string"
+                  },
+                  "claim_stage": {
                     "type": "string"
                   },
                   "status": {
@@ -671,7 +774,26 @@
         },
         "responses": {
           "200": {
-            "description": "Updated"
+            "description": "Workspace updated successfully",
+            "content": {
+              "application/json": {
+                "example": {
+                  "success": true,
+                  "message": "Workspace updated successfully",
+                  "file": {
+                    "id": 1,
+                    "claim_number": "CLM-001",
+                    "status": "active"
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Unauthorized to update this workspace"
+          },
+          "404": {
+            "description": "Workspace not found"
           }
         }
       }
@@ -679,6 +801,7 @@
     "/api/v1/files/delete/{fileId}": {
       "delete": {
         "summary": "Delete a workspace",
+        "description": "Permanently removes a workspace and all associated data.",
         "tags": [
           "Files"
         ],
@@ -699,7 +822,21 @@
         ],
         "responses": {
           "200": {
-            "description": "Deleted"
+            "description": "Workspace and all associated drafts deleted successfully",
+            "content": {
+              "application/json": {
+                "example": {
+                  "success": true,
+                  "message": "Workspace deleted successfully"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Workspace not found"
           }
         }
       }
