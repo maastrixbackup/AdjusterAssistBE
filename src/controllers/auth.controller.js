@@ -190,7 +190,7 @@ const verifyOTP = async (req, res) => {
         const isNotExpired = new Date(user.reset_token_expires) > new Date();
 
         if (!isOtpValid) {
-            return res.status(400).json({ success: false, message: "OTP characters do not match" });
+            return res.status(400).json({ success: false, message: "Invalid OTP" });
         }
 
         if (!isNotExpired) {
