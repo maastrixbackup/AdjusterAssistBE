@@ -193,7 +193,8 @@ class PayloadBuilder {
             sender_identity:{
                 name: userInfo?.sender_name || "Adjuster Name",
                 email: userInfo?.sender_email || "email",
-                role: userInfo?.sender_designation || "Carrier Adjuster"
+                role: userInfo?.sender_designation || "Carrier Adjuster",
+                company: userInfo?.sender_company || "AdjusterAssist™"
             },
 
             jurisdiction: file.jurisdiction || "CT", ///// ---->>>>>
@@ -231,8 +232,8 @@ class PayloadBuilder {
                 sender_identity: "adjuster",
 
                 recipient_name: "Extract from summary if present", // must be different from file.client_name
-
                 recipient_role: config.recipient_role || "supervisor",
+
                 purpose: config.purpose,
                 tone_override: config.tone_override || "",
                 include_salutation: config.greeting,

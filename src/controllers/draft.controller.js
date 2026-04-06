@@ -154,7 +154,8 @@ const createAIDraft = async (req, res) => {
             userInfo: {
                 sender_name: userProfile.name,
                 sender_email: userProfile.email,
-                sender_designation: userProfile.role
+                sender_designation: userProfile.role,
+                sender_company: userProfile.company || "AdjusterAssist™"
             }
         });
 
@@ -171,7 +172,7 @@ const createAIDraft = async (req, res) => {
 
         // 5. PARSE AI RESPONSE for Next Steps (New Feature)
         let mainContent = aiResponse;
-        let nextAction = "Proceed with claim review"; // Default fallback
+        let nextAction = "Proceed with claim review"; 
 
         // Use a case-insensitive regex to split the string at "Next step:"
         const parts = aiResponse.split(/Next steps?:\s*/i);
@@ -219,6 +220,89 @@ const createAIDraft = async (req, res) => {
     } catch (error) {
         console.error("AI Controller Error:", error);
         res.status(500).json({ success: false, message: "Generation failed" });
+    }
+};
+
+const nextStepDrafting = async (req, res) => {
+    const userId = req.user.id;
+    try {
+        const { 
+            fileId, 
+            previousOutput,      // The content the AI just generated
+            suggestedNextStep,  // The "Next Step" string we extracted earlier
+            task_type           // e.g., "Insured Email" or "Coverage Follow-up"
+        } = req.body;
+
+        const userProfile = await UserModel.findById(userId);
+        
+        const file = await File.findById(fileId);
+        console.log("FILE DATA FOR NEXT STEP:", file);
+        if (!file) return res.status(404).json({ message: "Workspace not found" });
+
+       
+        const continuationContext = {
+            previous_action_taken: previousOutput,
+            current_task_to_perform: suggestedNextStep,
+            claim_details: file, // Pass full file data for accuracy
+            sender_identity: {
+                name: userProfile?.name || "Adjuster",
+                designation: userProfile?.designation || "Claims Professional",
+                company: userProfile?.company || "AdjusterAssist™"
+            }
+        };
+
+        const contextString = `
+            SYSTEM: You are continuing a claims workflow.
+            PREVIOUS OUTPUT: ${continuationContext.previous_action_taken}
+            YOUR NEXT TASK: ${continuationContext.current_task_to_perform}
+            
+            INSTRUCTION: Based on the previous output and the claim data provided, generate the full professional draft for this next step. 
+            Do not repeat the previous output. Focus only on completing the new task.
+            Include a "Next step:" line at the end for the subsequent action.
+        `;
+
+        // 4. GENERATE THE NEW DRAFT
+        const aiResponse = await aiService.generateAIDraft(
+            "WORKFLOW_CONTINUATION", 
+            contextString, 
+            task_type
+        );
+
+        // 5. SPLIT CONTENT & NEW NEXT STEP
+        let mainContent = aiResponse;
+        let newNextStep = "Review claim file";
+        const parts = aiResponse.split(/Next steps?:\s*/i);
+        if (parts.length > 1) {
+            mainContent = parts[0].trim();
+            newNextStep = parts[1].trim();
+        }
+
+        // 6. LOG TO SUPABASE (This adds to the Workspace Timeline)
+        const { data: logData, error: logError } = await supabase
+            .from('ai_logs')
+            .insert([{
+                file_id: parseInt(fileId),
+                user_id: parseInt(userId),
+                input_text: `System Generated: ${suggestedNextStep}`, // Auto-input
+                output_text: mainContent,
+                output_type: task_type,
+                suggested_next_step: newNextStep || null,
+            }])
+            .select();
+
+        // 7. SUCCESS RESPONSE
+        res.status(200).json({
+            success: true,
+            data: {
+                content: aiResponse,
+                next_step: newNextStep,
+                log_id: logData ? logData[0].id : null
+            }
+        });
+
+    } catch (error) {
+        console.error("Next Step Engine Error:", error);
+        res.status(500).json({ success: false, message: "Failed to generate the next workflow step." });
     }
 };
 
@@ -312,6 +396,7 @@ module.exports = {
     getRecentDrafts,
     deleteDraft,
     createAIDraft,
+    nextStepDrafting,
     saveGeneratedDraft,
     AllDrafts,
     updateDraft
