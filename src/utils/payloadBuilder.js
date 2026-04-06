@@ -180,13 +180,22 @@ class PayloadBuilder {
      * @param {Object} file - Database record from Supabase
      * @param {Object} input - { output_type, role, inputText, task_type }
      */
-    static build(file, { output_type, role, inputText, task_type }) {
+    static build(file, { output_type, role, inputText, task_type, userInfo }) {
+
+        // console.log(userInfo);
+
         const typeKey = output_type?.toLowerCase() || "file_note";
         const config = this.#TYPE_CONFIGS[typeKey] || this.#TYPE_CONFIGS.file_note;
 
         return {
             output_type: typeKey,
             claim_role: role || "staff_adjuster", //// ----->  Role of Loggedin user
+            sender_identity:{
+                name: userInfo?.sender_name || "Adjuster Name",
+                email: userInfo?.sender_email || "email",
+                role: userInfo?.sender_designation || "Carrier Adjuster",
+                company: userInfo?.sender_company || "AdjusterAssist™"
+            },
 
             jurisdiction: file.jurisdiction || "CT", ///// ---->>>>>
             line_of_business: file.line_of_business || "homeowners", //////------->>>> 
@@ -219,12 +228,12 @@ class PayloadBuilder {
             },
             
             communication_context: {
-                audience: config.audience,
+                audience: config.audience || "internal",
                 sender_identity: "adjuster",
 
                 recipient_name: "Extract from summary if present", // must be different from file.client_name
+                recipient_role: config.recipient_role || "supervisor",
 
-                recipient_role: config.recipient_role,
                 purpose: config.purpose,
                 tone_override: config.tone_override || "",
                 include_salutation: config.greeting,
@@ -232,14 +241,14 @@ class PayloadBuilder {
             },
 
             drafting_controls: {
-                length: config.length,
-                format_style: config.format,
-                allow_softening_language: config.allow_softening,
-                allow_direct_request_language: config.allow_direct_request_language,
+                length: config.length || "standard",
+                format_style: config.format || "paragraph",
+                allow_softening_language: config.allow_softening || false,
+                allow_direct_request_language: config.allow_direct_request_language || false,
                 preserve_user_facts_verbatim: config.preserve_user_facts_verbatim || false,
-                must_include: config.must_include,
-                must_avoid: config.must_avoid,
-                special_instructions: config.special_instructions
+                must_include: config.must_include || [],
+                must_avoid: config.must_avoid || [],
+                special_instructions: config.special_instructions || ""
             },
 
             "compliance_flags": {

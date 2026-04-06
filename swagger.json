@@ -16,7 +16,7 @@
   },
   "servers": [
     {
-      "url": "https://adjusterassistbe.onrender.com",
+      "url": "https://adjusterassist-backend.onrender.com",
       "description": "Production server"
     },
     {

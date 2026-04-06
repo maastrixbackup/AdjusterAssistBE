@@ -4,6 +4,8 @@ const Draft = require("../models/draft.model");
 const File = require("../models/file.model");
 const aiService = require("../services/ai.service");
 const PayloadBuilder = require("../utils/payloadBuilder");
+const supabase = require("../config/supabase");
+const UserModel = require("../models/user");
 
 /**
  * 1. Test Draft: Uses static responses to simulate AI for testing UI
@@ -133,7 +135,7 @@ const deleteDraft = async (req, res) => {
  * 6. Create AI Draft: The core logic for OpenAI/Groq generation
  */
 const createAIDraft = async (req, res) => {
-    const userId = req.user.id;
+    const userId = req.user.id; // Assuming this is the Supabase Auth UUID
     try {
         const { type, role, userInput, fileId, task_type } = req.body;
 
@@ -141,47 +143,166 @@ const createAIDraft = async (req, res) => {
         const file = await File.findById(fileId);
         if (!file) return res.status(404).json({ message: "Workspace not found" });
 
+        const userProfile = await UserModel.findById(userId);
+
         // 2. CONSTRUCT: Create the massive JSON payload automatically
         const fullPayload = PayloadBuilder.build(file, {
             output_type: type,
             role: role,
             inputText: userInput,
-            task_type: task_type
+            task_type: task_type,
+            userInfo: {
+                sender_name: userProfile.name,
+                sender_email: userProfile.email,
+                sender_designation: userProfile.role,
+                sender_company: userProfile.company || "AdjusterAssist™"
+            }
         });
 
-        // 3. TRANSFORM: Convert that JSON into the string the AI actually reads
-        // (Using the mapper we discussed earlier)
+        // 3. TRANSFORM: Context mapping
         const contextEnhancedInput = JSON.stringify(fullPayload);
-        console.log("PAYLOAD:", contextEnhancedInput)
+        // console.log("PAYLOAD:", contextEnhancedInput);
 
-        // 4. GENERATE
+        // 4. GENERATE AI RESPONSE
         const aiResponse = await aiService.generateAIDraft(
             type,
             contextEnhancedInput,
             task_type
         );
 
-        Subscription.incrementUsage(userId)
+        // 5. PARSE AI RESPONSE for Next Steps (New Feature)
+        let mainContent = aiResponse;
+        let nextAction = "Proceed with claim review"; 
 
-        // / Optional For TESTING AUTO SAVE
-        // await Draft.create({
-        //     file_id: fileId,
-        //     user_id: userId,
-        //     draft_type: type,
-        //     content: aiResponse
-        // });
+        // Use a case-insensitive regex to split the string at "Next step:"
+        const parts = aiResponse.split(/Next steps?:\s*/i);
 
+        if (parts.length > 1) {
+            // Everything before "Next step:" goes to the editor
+            mainContent = parts[0].trim();
+            // Everything after "Next step:" goes to the Next Step Panel
+            nextAction = parts[1].trim();
+        }
+        // -------------------------
+
+        // 6. STORE IN SUPABASE AI_LOGS
+        const { data: logData, error: logError } = await supabase
+            .from('ai_logs')
+            .insert([{
+                file_id: parseInt(fileId), 
+                user_id: userId || null,
+                input_text: userInput,
+                input_type: 'text', // add voice/ocr later
+                output_text: typeof aiResponse === 'object' ? aiResponse.content : aiResponse,
+                output_type: type,
+                suggested_next_step: nextAction || null,
+            }])
+            .select();
+
+        if (logError) {
+            console.error("Supabase Logging Error:", logError.message);
+            // We don't block the response even if logging fails, but it's good to track
+        }
+
+        // 7. TRACK USAGE
+        await Subscription.incrementUsage(userId);
+
+        // 8. FINAL RESPONSE
         res.status(200).json({
             success: true,
             data: {
                 content: aiResponse,
-                payload_sent: fullPayload
+                // payload_sent: fullPayload,
+                log_id: logData ? logData[0].id : null
             }
         });
 
     } catch (error) {
         console.error("AI Controller Error:", error);
         res.status(500).json({ success: false, message: "Generation failed" });
+    }
+};
+
+const nextStepDrafting = async (req, res) => {
+    const userId = req.user.id;
+    try {
+        const { 
+            fileId, 
+            previousOutput,      // The content the AI just generated
+            suggestedNextStep,  // The "Next Step" string we extracted earlier
+            task_type           // e.g., "Insured Email" or "Coverage Follow-up"
+        } = req.body;
+
+        const userProfile = await UserModel.findById(userId);
+        
+        const file = await File.findById(fileId);
+        console.log("FILE DATA FOR NEXT STEP:", file);
+        if (!file) return res.status(404).json({ message: "Workspace not found" });
+
+       
+        const continuationContext = {
+            previous_action_taken: previousOutput,
+            current_task_to_perform: suggestedNextStep,
+            claim_details: file, // Pass full file data for accuracy
+            sender_identity: {
+                name: userProfile?.name || "Adjuster",
+                designation: userProfile?.designation || "Claims Professional",
+                company: userProfile?.company || "AdjusterAssist™"
+            }
+        };
+
+        const contextString = `
+            SYSTEM: You are continuing a claims workflow.
+            PREVIOUS OUTPUT: ${continuationContext.previous_action_taken}
+            YOUR NEXT TASK: ${continuationContext.current_task_to_perform}
+            
+            INSTRUCTION: Based on the previous output and the claim data provided, generate the full professional draft for this next step. 
+            Do not repeat the previous output. Focus only on completing the new task.
+            Include a "Next step:" line at the end for the subsequent action.
+        `;
+
+        // 4. GENERATE THE NEW DRAFT
+        const aiResponse = await aiService.generateAIDraft(
+            "WORKFLOW_CONTINUATION", 
+            contextString, 
+            task_type
+        );
+
+        // 5. SPLIT CONTENT & NEW NEXT STEP
+        let mainContent = aiResponse;
+        let newNextStep = "Review claim file";
+        const parts = aiResponse.split(/Next steps?:\s*/i);
+        if (parts.length > 1) {
+            mainContent = parts[0].trim();
+            newNextStep = parts[1].trim();
+        }
+
+        // 6. LOG TO SUPABASE (This adds to the Workspace Timeline)
+        const { data: logData, error: logError } = await supabase
+            .from('ai_logs')
+            .insert([{
+                file_id: parseInt(fileId),
+                user_id: parseInt(userId),
+                input_text: `System Generated: ${suggestedNextStep}`, // Auto-input
+                output_text: mainContent,
+                output_type: task_type,
+                suggested_next_step: newNextStep || null,
+            }])
+            .select();
+
+        // 7. SUCCESS RESPONSE
+        res.status(200).json({
+            success: true,
+            data: {
+                content: aiResponse,
+                next_step: newNextStep,
+                log_id: logData ? logData[0].id : null
+            }
+        });
+
+    } catch (error) {
+        console.error("Next Step Engine Error:", error);
+        res.status(500).json({ success: false, message: "Failed to generate the next workflow step." });
     }
 };
 
@@ -275,6 +396,7 @@ module.exports = {
     getRecentDrafts,
     deleteDraft,
     createAIDraft,
+    nextStepDrafting,
     saveGeneratedDraft,
     AllDrafts,
     updateDraft
