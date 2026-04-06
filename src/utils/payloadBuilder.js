@@ -227,12 +227,12 @@ class PayloadBuilder {
             },
             
             communication_context: {
-                audience: config.audience,
+                audience: config.audience || "internal",
                 sender_identity: "adjuster",
 
                 recipient_name: "Extract from summary if present", // must be different from file.client_name
 
-                recipient_role: config.recipient_role,
+                recipient_role: config.recipient_role || "supervisor",
                 purpose: config.purpose,
                 tone_override: config.tone_override || "",
                 include_salutation: config.greeting,
@@ -240,14 +240,14 @@ class PayloadBuilder {
             },
 
             drafting_controls: {
-                length: config.length,
-                format_style: config.format,
-                allow_softening_language: config.allow_softening,
-                allow_direct_request_language: config.allow_direct_request_language,
+                length: config.length || "standard",
+                format_style: config.format || "paragraph",
+                allow_softening_language: config.allow_softening || false,
+                allow_direct_request_language: config.allow_direct_request_language || false,
                 preserve_user_facts_verbatim: config.preserve_user_facts_verbatim || false,
-                must_include: config.must_include,
-                must_avoid: config.must_avoid,
-                special_instructions: config.special_instructions
+                must_include: config.must_include || [],
+                must_avoid: config.must_avoid || [],
+                special_instructions: config.special_instructions || ""
             },
 
             "compliance_flags": {

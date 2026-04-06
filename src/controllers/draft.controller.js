@@ -188,10 +188,10 @@ const createAIDraft = async (req, res) => {
         const { data: logData, error: logError } = await supabase
             .from('ai_logs')
             .insert([{
-                file_id: parseInt(fileId), // Ensure matches the 'Integer' column in DB
+                file_id: parseInt(fileId), 
                 user_id: userId || null,
                 input_text: userInput,
-                input_type: 'text', // Can be dynamic if you add voice/ocr later
+                input_type: 'text', // add voice/ocr later
                 output_text: typeof aiResponse === 'object' ? aiResponse.content : aiResponse,
                 output_type: type,
                 suggested_next_step: nextAction || null,
