@@ -180,13 +180,21 @@ class PayloadBuilder {
      * @param {Object} file - Database record from Supabase
      * @param {Object} input - { output_type, role, inputText, task_type }
      */
-    static build(file, { output_type, role, inputText, task_type }) {
+    static build(file, { output_type, role, inputText, task_type, userInfo }) {
+
+        // console.log(userInfo);
+
         const typeKey = output_type?.toLowerCase() || "file_note";
         const config = this.#TYPE_CONFIGS[typeKey] || this.#TYPE_CONFIGS.file_note;
 
         return {
             output_type: typeKey,
             claim_role: role || "staff_adjuster", //// ----->  Role of Loggedin user
+            sender_identity:{
+                name: userInfo?.sender_name || "Adjuster Name",
+                email: userInfo?.sender_email || "email",
+                role: userInfo?.sender_designation || "Carrier Adjuster"
+            },
 
             jurisdiction: file.jurisdiction || "CT", ///// ---->>>>>
             line_of_business: file.line_of_business || "homeowners", //////------->>>> 

@@ -5,6 +5,7 @@ const File = require("../models/file.model");
 const aiService = require("../services/ai.service");
 const PayloadBuilder = require("../utils/payloadBuilder");
 const supabase = require("../config/supabase");
+const UserModel = require("../models/user");
 
 /**
  * 1. Test Draft: Uses static responses to simulate AI for testing UI
@@ -142,17 +143,24 @@ const createAIDraft = async (req, res) => {
         const file = await File.findById(fileId);
         if (!file) return res.status(404).json({ message: "Workspace not found" });
 
+        const userProfile = await UserModel.findById(userId);
+
         // 2. CONSTRUCT: Create the massive JSON payload automatically
         const fullPayload = PayloadBuilder.build(file, {
             output_type: type,
             role: role,
             inputText: userInput,
-            task_type: task_type
+            task_type: task_type,
+            userInfo: {
+                sender_name: userProfile.name,
+                sender_email: userProfile.email,
+                sender_designation: userProfile.role
+            }
         });
 
         // 3. TRANSFORM: Context mapping
         const contextEnhancedInput = JSON.stringify(fullPayload);
-        console.log("PAYLOAD:", contextEnhancedInput);
+        // console.log("PAYLOAD:", contextEnhancedInput);
 
         // 4. GENERATE AI RESPONSE
         const aiResponse = await aiService.generateAIDraft(
@@ -160,7 +168,7 @@ const createAIDraft = async (req, res) => {
             contextEnhancedInput,
             task_type
         );
-        
+
         // 5. PARSE AI RESPONSE for Next Steps (New Feature)
         let mainContent = aiResponse;
         let nextAction = "Proceed with claim review"; // Default fallback
@@ -203,7 +211,7 @@ const createAIDraft = async (req, res) => {
             success: true,
             data: {
                 content: aiResponse,
-                payload_sent: fullPayload,
+                // payload_sent: fullPayload,
                 log_id: logData ? logData[0].id : null
             }
         });
