@@ -4,6 +4,7 @@ const Draft = require("../models/draft.model");
 const File = require("../models/file.model");
 const aiService = require("../services/ai.service");
 const PayloadBuilder = require("../utils/payloadBuilder");
+const supabase = require("../config/supabase");
 
 /**
  * 1. Test Draft: Uses static responses to simulate AI for testing UI
@@ -133,7 +134,7 @@ const deleteDraft = async (req, res) => {
  * 6. Create AI Draft: The core logic for OpenAI/Groq generation
  */
 const createAIDraft = async (req, res) => {
-    const userId = req.user.id;
+    const userId = req.user.id; // Assuming this is the Supabase Auth UUID
     try {
         const { type, role, userInput, fileId, task_type } = req.body;
 
@@ -149,33 +150,47 @@ const createAIDraft = async (req, res) => {
             task_type: task_type
         });
 
-        // 3. TRANSFORM: Convert that JSON into the string the AI actually reads
-        // (Using the mapper we discussed earlier)
+        // 3. TRANSFORM: Context mapping
         const contextEnhancedInput = JSON.stringify(fullPayload);
-        console.log("PAYLOAD:", contextEnhancedInput)
+        console.log("PAYLOAD:", contextEnhancedInput);
 
-        // 4. GENERATE
+        // 4. GENERATE AI RESPONSE
         const aiResponse = await aiService.generateAIDraft(
             type,
             contextEnhancedInput,
             task_type
         );
 
-        Subscription.incrementUsage(userId)
 
-        // / Optional For TESTING AUTO SAVE
-        // await Draft.create({
-        //     file_id: fileId,
-        //     user_id: userId,
-        //     draft_type: type,
-        //     content: aiResponse
-        // });
+        // 6. STORE IN SUPABASE AI_LOGS
+        const { data: logData, error: logError } = await supabase
+            .from('ai_logs')
+            .insert([{
+                file_id: parseInt(fileId), // Ensure matches the 'Integer' column in DB
+                user_id: userId || null, 
+                input_text: userInput,
+                input_type: 'text', // Can be dynamic if you add voice/ocr later
+                output_text: typeof aiResponse === 'object' ? aiResponse.content : aiResponse,
+                output_type: type, 
+                suggested_next_step: "nextStep"
+            }])
+            .select();
 
+        if (logError) {
+            console.error("Supabase Logging Error:", logError.message);
+            // We don't block the response even if logging fails, but it's good to track
+        }
+
+        // 7. TRACK USAGE
+        await Subscription.incrementUsage(userId);
+
+        // 8. FINAL RESPONSE
         res.status(200).json({
             success: true,
             data: {
                 content: aiResponse,
-                payload_sent: fullPayload
+                payload_sent: fullPayload,
+                log_id: logData ? logData[0].id : null 
             }
         });
 
