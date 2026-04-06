@@ -160,19 +160,33 @@ const createAIDraft = async (req, res) => {
             contextEnhancedInput,
             task_type
         );
+        
+        // 5. PARSE AI RESPONSE for Next Steps (New Feature)
+        let mainContent = aiResponse;
+        let nextAction = "Proceed with claim review"; // Default fallback
 
+        // Use a case-insensitive regex to split the string at "Next step:"
+        const parts = aiResponse.split(/Next steps?:\s*/i);
+
+        if (parts.length > 1) {
+            // Everything before "Next step:" goes to the editor
+            mainContent = parts[0].trim();
+            // Everything after "Next step:" goes to the Next Step Panel
+            nextAction = parts[1].trim();
+        }
+        // -------------------------
 
         // 6. STORE IN SUPABASE AI_LOGS
         const { data: logData, error: logError } = await supabase
             .from('ai_logs')
             .insert([{
                 file_id: parseInt(fileId), // Ensure matches the 'Integer' column in DB
-                user_id: userId || null, 
+                user_id: userId || null,
                 input_text: userInput,
                 input_type: 'text', // Can be dynamic if you add voice/ocr later
                 output_text: typeof aiResponse === 'object' ? aiResponse.content : aiResponse,
-                output_type: type, 
-                suggested_next_step: "nextStep"
+                output_type: type,
+                suggested_next_step: nextAction || null,
             }])
             .select();
 
@@ -190,7 +204,7 @@ const createAIDraft = async (req, res) => {
             data: {
                 content: aiResponse,
                 payload_sent: fullPayload,
-                log_id: logData ? logData[0].id : null 
+                log_id: logData ? logData[0].id : null
             }
         });
 
