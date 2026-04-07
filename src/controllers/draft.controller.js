@@ -176,7 +176,7 @@ const createAIDraft = async (req, res) => {
 
         // 5. PARSE AI RESPONSE for Next Steps (New Feature)
         let mainContent = aiResponse;
-        let nextAction = "Proceed with claim review"; 
+        let nextAction = "Proceed with claim review";
 
         // Use a case-insensitive regex to split the string at "Next step:"
         const parts = aiResponse.split(/Next steps?:\s*/i);
@@ -193,7 +193,7 @@ const createAIDraft = async (req, res) => {
         const { data: logData, error: logError } = await supabase
             .from('ai_logs')
             .insert([{
-                file_id: parseInt(fileId), 
+                file_id: parseInt(fileId),
                 user_id: userId || null,
                 input_text: userInput,
                 input_type: 'text', // add voice/ocr later
@@ -218,7 +218,8 @@ const createAIDraft = async (req, res) => {
                 content: aiResponse,
                 output_format: detectedType,
                 next_step: nextAction,
-                // payload_sent: fullPayload,
+                // Pull the actual DB timestamp from the inserted row
+                created_at: logData ? logData[0].created_at : new Date().toISOString(),
                 log_id: logData ? logData[0].id : null
             }
         });
@@ -232,20 +233,20 @@ const createAIDraft = async (req, res) => {
 const nextStepDrafting = async (req, res) => {
     const userId = req.user.id;
     try {
-        const { 
-            fileId, 
+        const {
+            fileId,
             previousOutput,      // The content the AI just generated
             suggestedNextStep,  // The "Next Step" string we extracted earlier
             task_type           // e.g., "Insured Email" or "Coverage Follow-up"
         } = req.body;
 
         const userProfile = await UserModel.findById(userId);
-        
+
         const file = await File.findById(fileId);
         console.log("FILE DATA FOR NEXT STEP:", file);
         if (!file) return res.status(404).json({ message: "Workspace not found" });
 
-       
+
         const continuationContext = {
             previous_action_taken: previousOutput,
             current_task_to_perform: suggestedNextStep,
@@ -269,8 +270,8 @@ const nextStepDrafting = async (req, res) => {
 
         // 4. GENERATE THE NEW DRAFT
         const aiResponse = await aiService.generateAIDraft(
-            "WORKFLOW_CONTINUATION", 
-            contextString, 
+            "WORKFLOW_CONTINUATION",
+            contextString,
             task_type
         );
 
@@ -383,7 +384,8 @@ const updateDraft = async (req, res) => {
         return res.status(200).json({
             success: true,
             message: "Draft updated successfully",
-            data: updatedDraft
+            data: updatedDraft,
+            created_at: new Date().toISOString() 
         });
 
     } catch (error) {
