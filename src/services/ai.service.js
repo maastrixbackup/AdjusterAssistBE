@@ -13,24 +13,29 @@ const openai = new OpenAI({
 export const generateAIDraft = async (type, userInput, task_type, image) => {
     try {
         // 1. Identify the Task Logic
-        const taskInstruction = taskSpecificPrompts[task_type?.toLowerCase()] || 
-                                "Draft a professional response based on the provided notes.";
+        const taskInstruction = taskSpecificPrompts[task_type?.toLowerCase()] ||
+            "Draft a professional response based on the provided notes.";
 
         // 2. Identify the Formatting Requirements
         const formatStyle = getFormatInstruction(type);
 
         // 3. Apply Trigger-Based Guardrails
         const guardrailInjection = getAppliedGuardrails(userInput);
-        
+
+        const userMessageContent = [
+            { type: "text", text: `Context/Input: ${userInput}` }
+        ];
+
         if (image) {
-            userInput.push({
+            userMessageContent.push({
                 type: "image_url",
                 image_url: {
                     url: `data:image/jpeg;base64,${image}`,
-                    detail: "low" // Optimized for cost/speed
+                    detail: "low"
                 }
             });
         }
+        // console.log("User Message Content:", userMessageContent);
 
         // 4. Construct the Layered System Message
         const systemMessage = `
@@ -41,12 +46,12 @@ export const generateAIDraft = async (type, userInput, task_type, image) => {
         `;
 
         const completion = await openai.chat.completions.create({
-            model: "gpt-4o", 
+            model: "gpt-4o",
             messages: [
                 { role: "system", content: systemMessage },
-                { role: "user", content: `Context/Input: ${userInput}` }
+                { role: "user", content: `Context/Input: ${userMessageContent}` }
             ],
-            temperature: 0.5, 
+            temperature: 0.5,
         });
 
         return completion.choices[0].message.content;
@@ -73,11 +78,11 @@ export const generateFastClassification = async (systemPrompt, userInput) => {
 
         // Use the SDK path correctly (no .data) and clean the output
         const content = response.choices[0].message.content.trim();
-        return content.replace(/['".]/g, ""); 
-        
+        return content.replace(/['".]/g, "");
+
     } catch (error) {
         console.error("Fast Classification AI Error:", error);
         // Fallback rule as per Enterprise Spec
-        return "file_note"; 
+        return "file_note";
     }
 };

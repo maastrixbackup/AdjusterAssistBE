@@ -139,8 +139,8 @@ const createAIDraft = async (req, res) => {
     const userId = req.user.id; // Assuming this is the Supabase Auth UUID
     try {
         const { role, userInput, fileId, task_type, image } = req.body;
-        
-        console.log(image);
+
+        // console.log(image);
 
         // 1. Get the Workspace data from DB
         const file = await File.findById(fileId);
