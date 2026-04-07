@@ -6,6 +6,7 @@ const aiService = require("../services/ai.service");
 const PayloadBuilder = require("../utils/payloadBuilder");
 const supabase = require("../config/supabase");
 const UserModel = require("../models/user");
+const { default: classifierService } = require("../services/classifierService");
 
 /**
  * 1. Test Draft: Uses static responses to simulate AI for testing UI
@@ -137,17 +138,20 @@ const deleteDraft = async (req, res) => {
 const createAIDraft = async (req, res) => {
     const userId = req.user.id; // Assuming this is the Supabase Auth UUID
     try {
-        const { type, role, userInput, fileId, task_type } = req.body;
+        const { role, userInput, fileId, task_type } = req.body;
 
         // 1. Get the Workspace data from DB
         const file = await File.findById(fileId);
         if (!file) return res.status(404).json({ message: "Workspace not found" });
 
+        const detectedType = await classifierService.classify(userInput);
+        console.log("DETECTED TYPE:", detectedType);
+
         const userProfile = await UserModel.findById(userId);
 
         // 2. CONSTRUCT: Create the massive JSON payload automatically
         const fullPayload = PayloadBuilder.build(file, {
-            output_type: type,
+            output_type: detectedType,
             role: role,
             inputText: userInput,
             task_type: task_type,
@@ -165,7 +169,7 @@ const createAIDraft = async (req, res) => {
 
         // 4. GENERATE AI RESPONSE
         const aiResponse = await aiService.generateAIDraft(
-            type,
+            detectedType,
             contextEnhancedInput,
             task_type
         );
@@ -194,7 +198,7 @@ const createAIDraft = async (req, res) => {
                 input_text: userInput,
                 input_type: 'text', // add voice/ocr later
                 output_text: typeof aiResponse === 'object' ? aiResponse.content : aiResponse,
-                output_type: type,
+                output_type: detectedType,
                 suggested_next_step: nextAction || null,
             }])
             .select();
@@ -212,6 +216,8 @@ const createAIDraft = async (req, res) => {
             success: true,
             data: {
                 content: aiResponse,
+                output_format: detectedType,
+                next_step: nextAction,
                 // payload_sent: fullPayload,
                 log_id: logData ? logData[0].id : null
             }
