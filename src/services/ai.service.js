@@ -10,7 +10,7 @@ const openai = new OpenAI({
 /**
  * Heavy generation for the final professional draft
  */
-export const generateAIDraft = async (type, userInput, task_type) => {
+export const generateAIDraft = async (type, userInput, task_type, image) => {
     try {
         // 1. Identify the Task Logic
         const taskInstruction = taskSpecificPrompts[task_type?.toLowerCase()] || 
@@ -21,6 +21,16 @@ export const generateAIDraft = async (type, userInput, task_type) => {
 
         // 3. Apply Trigger-Based Guardrails
         const guardrailInjection = getAppliedGuardrails(userInput);
+        
+        if (image) {
+            userInput.push({
+                type: "image_url",
+                image_url: {
+                    url: `data:image/jpeg;base64,${image}`,
+                    detail: "low" // Optimized for cost/speed
+                }
+            });
+        }
 
         // 4. Construct the Layered System Message
         const systemMessage = `
@@ -31,7 +41,7 @@ export const generateAIDraft = async (type, userInput, task_type) => {
         `;
 
         const completion = await openai.chat.completions.create({
-            model: "gpt-4-turbo", 
+            model: "gpt-4o", 
             messages: [
                 { role: "system", content: systemMessage },
                 { role: "user", content: `Context/Input: ${userInput}` }

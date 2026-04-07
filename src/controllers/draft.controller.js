@@ -138,7 +138,9 @@ const deleteDraft = async (req, res) => {
 const createAIDraft = async (req, res) => {
     const userId = req.user.id; // Assuming this is the Supabase Auth UUID
     try {
-        const { role, userInput, fileId, task_type } = req.body;
+        const { role, userInput, fileId, task_type, image } = req.body;
+        
+        console.log(image);
 
         // 1. Get the Workspace data from DB
         const file = await File.findById(fileId);
@@ -171,7 +173,8 @@ const createAIDraft = async (req, res) => {
         const aiResponse = await aiService.generateAIDraft(
             detectedType,
             contextEnhancedInput,
-            task_type
+            task_type,
+            image
         );
 
         // 5. PARSE AI RESPONSE for Next Steps (New Feature)
@@ -205,7 +208,6 @@ const createAIDraft = async (req, res) => {
 
         if (logError) {
             console.error("Supabase Logging Error:", logError.message);
-            // We don't block the response even if logging fails, but it's good to track
         }
 
         // 7. TRACK USAGE
@@ -237,8 +239,15 @@ const nextStepDrafting = async (req, res) => {
             fileId,
             previousOutput,      // The content the AI just generated
             suggestedNextStep,  // The "Next Step" string we extracted earlier
-            task_type           // e.g., "Insured Email" or "Coverage Follow-up"
+            output_format           // e.g., "Insured Email" or "Coverage Follow-up"
         } = req.body;
+
+        console.log("Received Next Step Drafting Request:", {
+            fileId,
+            previousOutput,
+            suggestedNextStep,
+            output_format
+        });
 
         const userProfile = await UserModel.findById(userId);
 
@@ -272,7 +281,7 @@ const nextStepDrafting = async (req, res) => {
         const aiResponse = await aiService.generateAIDraft(
             "WORKFLOW_CONTINUATION",
             contextString,
-            task_type
+            output_format
         );
 
         // 5. SPLIT CONTENT & NEW NEXT STEP
