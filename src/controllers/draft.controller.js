@@ -6,6 +6,7 @@ const aiService = require("../services/ai.service");
 const PayloadBuilder = require("../utils/payloadBuilder");
 const supabase = require("../config/supabase");
 const UserModel = require("../models/user");
+const { default: classifierService } = require("../services/classifierService");
 
 /**
  * 1. Test Draft: Uses static responses to simulate AI for testing UI
@@ -137,17 +138,22 @@ const deleteDraft = async (req, res) => {
 const createAIDraft = async (req, res) => {
     const userId = req.user.id; // Assuming this is the Supabase Auth UUID
     try {
-        const { type, role, userInput, fileId, task_type } = req.body;
+        const { role, userInput, fileId, task_type, image } = req.body;
+
+        // console.log(image);
 
         // 1. Get the Workspace data from DB
         const file = await File.findById(fileId);
         if (!file) return res.status(404).json({ message: "Workspace not found" });
 
+        const detectedType = await classifierService.classify(userInput);
+        console.log("DETECTED TYPE:", detectedType);
+
         const userProfile = await UserModel.findById(userId);
 
         // 2. CONSTRUCT: Create the massive JSON payload automatically
         const fullPayload = PayloadBuilder.build(file, {
-            output_type: type,
+            output_type: detectedType,
             role: role,
             inputText: userInput,
             task_type: task_type,
@@ -165,14 +171,15 @@ const createAIDraft = async (req, res) => {
 
         // 4. GENERATE AI RESPONSE
         const aiResponse = await aiService.generateAIDraft(
-            type,
+            detectedType,
             contextEnhancedInput,
-            task_type
+            task_type,
+            image
         );
 
         // 5. PARSE AI RESPONSE for Next Steps (New Feature)
         let mainContent = aiResponse;
-        let nextAction = "Proceed with claim review"; 
+        let nextAction = "Proceed with claim review";
 
         // Use a case-insensitive regex to split the string at "Next step:"
         const parts = aiResponse.split(/Next steps?:\s*/i);
@@ -189,19 +196,18 @@ const createAIDraft = async (req, res) => {
         const { data: logData, error: logError } = await supabase
             .from('ai_logs')
             .insert([{
-                file_id: parseInt(fileId), 
+                file_id: parseInt(fileId),
                 user_id: userId || null,
                 input_text: userInput,
                 input_type: 'text', // add voice/ocr later
                 output_text: typeof aiResponse === 'object' ? aiResponse.content : aiResponse,
-                output_type: type,
+                output_type: detectedType,
                 suggested_next_step: nextAction || null,
             }])
             .select();
 
         if (logError) {
             console.error("Supabase Logging Error:", logError.message);
-            // We don't block the response even if logging fails, but it's good to track
         }
 
         // 7. TRACK USAGE
@@ -212,7 +218,10 @@ const createAIDraft = async (req, res) => {
             success: true,
             data: {
                 content: aiResponse,
-                // payload_sent: fullPayload,
+                output_format: detectedType,
+                next_step: nextAction,
+                // Pull the actual DB timestamp from the inserted row
+                created_at: logData ? logData[0].created_at : new Date().toISOString(),
                 log_id: logData ? logData[0].id : null
             }
         });
@@ -226,20 +235,27 @@ const createAIDraft = async (req, res) => {
 const nextStepDrafting = async (req, res) => {
     const userId = req.user.id;
     try {
-        const { 
-            fileId, 
+        const {
+            fileId,
             previousOutput,      // The content the AI just generated
             suggestedNextStep,  // The "Next Step" string we extracted earlier
-            task_type           // e.g., "Insured Email" or "Coverage Follow-up"
+            output_format           // e.g., "Insured Email" or "Coverage Follow-up"
         } = req.body;
 
+        console.log("Received Next Step Drafting Request:", {
+            fileId,
+            previousOutput,
+            suggestedNextStep,
+            output_format
+        });
+
         const userProfile = await UserModel.findById(userId);
-        
+
         const file = await File.findById(fileId);
         console.log("FILE DATA FOR NEXT STEP:", file);
         if (!file) return res.status(404).json({ message: "Workspace not found" });
 
-       
+
         const continuationContext = {
             previous_action_taken: previousOutput,
             current_task_to_perform: suggestedNextStep,
@@ -263,9 +279,9 @@ const nextStepDrafting = async (req, res) => {
 
         // 4. GENERATE THE NEW DRAFT
         const aiResponse = await aiService.generateAIDraft(
-            "WORKFLOW_CONTINUATION", 
-            contextString, 
-            task_type
+            "WORKFLOW_CONTINUATION",
+            contextString,
+            output_format
         );
 
         // 5. SPLIT CONTENT & NEW NEXT STEP
@@ -309,7 +325,7 @@ const nextStepDrafting = async (req, res) => {
 
 const saveGeneratedDraft = async (req, res) => {
     try {
-        let { fileId, type, content } = req.body;
+        let { fileId, output_format, content } = req.body;
         const userId = req.user.id;
 
         // 1. If no workspace provided, create a generic one
@@ -326,7 +342,7 @@ const saveGeneratedDraft = async (req, res) => {
         const savedDraft = await Draft.create({
             file_id: fileId,
             user_id: userId,
-            draft_type: type,
+            draft_type: output_format,
             content: content
         });
 
@@ -377,7 +393,8 @@ const updateDraft = async (req, res) => {
         return res.status(200).json({
             success: true,
             message: "Draft updated successfully",
-            data: updatedDraft
+            data: updatedDraft,
+            created_at: new Date().toISOString() 
         });
 
     } catch (error) {
