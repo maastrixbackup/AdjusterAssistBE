@@ -316,7 +316,7 @@ const nextStepDrafting = async (req, res) => {
 
 const saveGeneratedDraft = async (req, res) => {
     try {
-        let { fileId, type, content } = req.body;
+        let { fileId, output_format, content } = req.body;
         const userId = req.user.id;
 
         // 1. If no workspace provided, create a generic one
@@ -333,7 +333,7 @@ const saveGeneratedDraft = async (req, res) => {
         const savedDraft = await Draft.create({
             file_id: fileId,
             user_id: userId,
-            draft_type: type,
+            draft_type: output_format,
             content: content
         });
 
