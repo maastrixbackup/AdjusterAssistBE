@@ -11,8 +11,8 @@ const openai = new OpenAI({
  * Heavy generation for the final professional draft
  */
 export const generateAIDraft = async (type, userInput, image) => {
+    console.log("Generating AI Draft with input:", { type, userInput, hasImage: !!image });
     try {
-
         // 2. Identify the Formatting Requirements
         const formatStyle = getFormatInstruction(type);
 
