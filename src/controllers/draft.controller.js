@@ -184,9 +184,7 @@ const createAIDraft = async (req, res) => {
         const nextStepMatch = aiResponse.match(/next steps?:\s*(.*)/i);
 
         if (suggestionMatch) {
-            // Split by '|' and clean up each suggestion
             dynamicSuggestions = suggestionMatch[1].split('|').map(s => s.trim());
-            // Remove the suggestions block from the main editor content
             mainContent = mainContent.split(/suggestions:/i)[0].trim();
         } else if (nextStepMatch) {
             // Fallback for single next step format
@@ -195,7 +193,6 @@ const createAIDraft = async (req, res) => {
         }
 
         // 5. PARSE AI RESPONSE for Next Steps (New Feature)
-        // let mainContent = aiResponse;
         let nextAction = "Proceed with claim review";
 
         // Use a case-insensitive regex to split the string at "Next step:"
@@ -204,7 +201,7 @@ const createAIDraft = async (req, res) => {
         if (parts.length > 1) {
             // Everything before "Next step:" goes to the editor
             mainContent = parts[0].trim();
-            // Everything after "Next step:" goes to the Next Step Panel
+            // Everything after "Next step:"
             nextAction = parts[1].trim();
         }
         // -------------------------
@@ -239,7 +236,7 @@ const createAIDraft = async (req, res) => {
                 next_step: nextAction,
                 suggestions: dynamicSuggestions,
                 created_at: logData ? logData[0].created_at : new Date().toISOString(),
-                log_id: logData ? logData[0].id : null
+                // log_id: logData ? logData[0].id : null
             }
         });
 
@@ -302,9 +299,9 @@ const generateNextStepDraft = async (req, res) => {
             .insert([{
                 file_id: parseInt(fileId),
                 user_id: userId || null,
-                input_text: `Workflow Chain: ${output_format} -> ${targetType}`,
+                input_text: `Workflow Chain: ${output_format} -> ${targetType} : ${userInput}`,
                 input_type: 'workflow_continuation',
-                output_text: mainContent,
+                output_text: aiResponse,
                 output_type: targetType,
                 suggested_next_step: futureAction,
             }])
@@ -317,11 +314,11 @@ const generateNextStepDraft = async (req, res) => {
         res.status(200).json({
             success: true,
             data: {
-                content: mainContent,
+                content: aiResponse,
                 output_format: targetType,
                 next_step: futureAction,
                 created_at: logData ? logData[0].created_at : new Date().toISOString(),
-                log_id: logData ? logData[0].id : null
+                // log_id: logData ? logData[0].id : null
             }
         });
 
