@@ -1,6 +1,6 @@
 import OpenAI from "openai";
-import { adjusterPrompt, taskSpecificPrompts, getFormatInstruction } from "../utils/prompt.js"; // Added .js extension
-import { getAppliedGuardrails } from "../utils/guardrails.js"; // Added .js extension
+import { adjusterPrompt, getFormatInstruction } from "../utils/prompt.js"; 
+import { getAppliedGuardrails } from "../utils/guardrails.js"; 
 
 // Initialize OpenAI once
 const openai = new OpenAI({
