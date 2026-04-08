@@ -138,9 +138,9 @@ const deleteDraft = async (req, res) => {
 const createAIDraft = async (req, res) => {
     const userId = req.user.id; // Assuming this is the Supabase Auth UUID
     try {
-        const { role, userInput, fileId, task_type, image } = req.body;
+        const { role, userInput, fileId, image } = req.body;
 
-        // console.log(image);
+        // console.log(image); 
 
         // 1. Get the Workspace data from DB
         const file = await File.findById(fileId);
@@ -156,7 +156,6 @@ const createAIDraft = async (req, res) => {
             output_type: detectedType,
             role: role,
             inputText: userInput,
-            task_type: task_type,
             userInfo: {
                 sender_name: userProfile.name,
                 sender_email: userProfile.email,
@@ -173,7 +172,6 @@ const createAIDraft = async (req, res) => {
         const aiResponse = await aiService.generateAIDraft(
             detectedType,
             contextEnhancedInput,
-            task_type,
             image
         );
 
@@ -199,7 +197,7 @@ const createAIDraft = async (req, res) => {
                 file_id: parseInt(fileId),
                 user_id: userId || null,
                 input_text: userInput,
-                input_type: 'text', // add voice/ocr later
+                input_type: 'text', 
                 output_text: typeof aiResponse === 'object' ? aiResponse.content : aiResponse,
                 output_type: detectedType,
                 suggested_next_step: nextAction || null,
@@ -220,7 +218,6 @@ const createAIDraft = async (req, res) => {
                 content: aiResponse,
                 output_format: detectedType,
                 next_step: nextAction,
-                // Pull the actual DB timestamp from the inserted row
                 created_at: logData ? logData[0].created_at : new Date().toISOString(),
                 log_id: logData ? logData[0].id : null
             }

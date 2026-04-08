@@ -10,11 +10,8 @@ const openai = new OpenAI({
 /**
  * Heavy generation for the final professional draft
  */
-export const generateAIDraft = async (type, userInput, task_type, image) => {
+export const generateAIDraft = async (type, userInput, image) => {
     try {
-        // 1. Identify the Task Logic
-        const taskInstruction = taskSpecificPrompts[task_type?.toLowerCase()] ||
-            "Draft a professional response based on the provided notes.";
 
         // 2. Identify the Formatting Requirements
         const formatStyle = getFormatInstruction(type);
@@ -22,10 +19,17 @@ export const generateAIDraft = async (type, userInput, task_type, image) => {
         // 3. Apply Trigger-Based Guardrails
         const guardrailInjection = getAppliedGuardrails(userInput);
 
+        // 4. Build the Content Array
+        // We initialize this with the text. 
+        // Note: We keep the text separate from the image object.
         const userMessageContent = [
-            { type: "text", text: `Context/Input: ${userInput}` }
+            { 
+                type: "text", 
+                text: `Here is the context and user notes for the assignment: ${userInput}` 
+            }
         ];
 
+        // 5. Conditionally add the image (Optional)
         if (image) {
             userMessageContent.push({
                 type: "image_url",
@@ -35,12 +39,10 @@ export const generateAIDraft = async (type, userInput, task_type, image) => {
                 }
             });
         }
-        // console.log("User Message Content:", userMessageContent);
 
-        // 4. Construct the Layered System Message
+        // 6. Construct the Layered System Message
         const systemMessage = `
             ${adjusterPrompt}
-            CURRENT ASSIGNMENT (THE LOGIC): ${taskInstruction}
             ${guardrailInjection}
             OUTPUT REQUIREMENT (THE FORMAT): ${formatStyle}
         `;
@@ -49,7 +51,7 @@ export const generateAIDraft = async (type, userInput, task_type, image) => {
             model: "gpt-4o",
             messages: [
                 { role: "system", content: systemMessage },
-                { role: "user", content: `Context/Input: ${userMessageContent}` }
+                { role: "user", content: userMessageContent } 
             ],
             temperature: 0.5,
         });
