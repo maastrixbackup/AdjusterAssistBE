@@ -5,10 +5,10 @@ const {
     createAIDraft, 
     getRecentDrafts, 
     saveGeneratedDraft,
+    generateNextStepDraft,
     AllDrafts,
     deleteDraft,
     updateDraft,
-    nextStepDrafting
 } = require("../controllers/draft.controller");
 
 const authMiddleware = require("../middlewares/auth.middleware");
@@ -24,7 +24,7 @@ router.get("/", async(req, res) => {
 // router.post("/generate-test", authMiddleware, checkUsageLimit, testDraft);
 
 router.post("/generate", authMiddleware, checkUsageLimit, createAIDraft);
-router.post('/generate-next-step', authMiddleware, checkUsageLimit, nextStepDrafting);
+router.post('/generate-next-step', authMiddleware, checkUsageLimit, generateNextStepDraft);
 
 router.delete("/delete/:draftId", authMiddleware, deleteDraft);
 router.post("/save", authMiddleware, saveGeneratedDraft);
