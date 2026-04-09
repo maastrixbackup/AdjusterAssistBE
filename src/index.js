@@ -75,6 +75,7 @@ app.use("/api/v1/user", userRoutes);
 app.use("/api/v1/subscriptions", subscriptionRoutes);
 app.use("/api/v1/drafts", draftRoutes);
 app.use("/api/v1/files", fileRoutes);
+app.use("/api/v1", require('./services/speechToText')); 
 app.use("/api/v1/notifications", notificationsRoutes);
 
 module.exports = app;
