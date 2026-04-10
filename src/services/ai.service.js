@@ -1,6 +1,6 @@
 import OpenAI from "openai";
-import { adjusterPrompt, getFormatInstruction } from "../utils/prompt.js"; 
-import { getAppliedGuardrails } from "../utils/guardrails.js"; 
+import { adjusterPrompt, getFormatInstruction } from "../utils/prompt.js";
+import { getAppliedGuardrails } from "../utils/guardrails.js";
 
 // Initialize OpenAI once
 const openai = new OpenAI({
@@ -12,38 +12,36 @@ const openai = new OpenAI({
  */
 export const generateAIDraft = async (type, userInput, image) => {
     console.log("Generating AI Draft with input:", { type, userInput, hasImage: !!image });
-    try {
-        // 2. Identify the Formatting Requirements
-        const formatStyle = getFormatInstruction(type);
 
-        // 3. Apply Trigger-Based Guardrails
+    try {
+        const formatStyle = getFormatInstruction(type);
         const guardrailInjection = getAppliedGuardrails(userInput);
 
-        // 4. Build the Content Array
-        // We initialize this with the text. 
-        // Note: We keep the text separate from the image object.
         const userMessageContent = [
-            { 
-                type: "text", 
-                text: `Here is the context and user notes for the assignment: ${userInput}` 
+            {
+                type: "text",
+                text: `Here is the context and user notes for the assignment: ${userInput}`
             }
         ];
 
-        // 5. Conditionally add the image (Optional)
+        // FIX: Check if image exists BEFORE calling .replace()
         if (image) {
+            // Clean the base64 string only if it's not null
+            const cleanedImage = image.replace(/^data:image\/\w+;base64,/, "");
+
             userMessageContent.push({
                 type: "image_url",
                 image_url: {
-                    url: `data:image/jpeg;base64,${image}`,
-                    detail: "low"
+                    url: `data:image/jpeg;base64,${cleanedImage}`,
+                    detail: "auto"
                 }
             });
         }
 
-        // 6. Construct the Layered System Message
         const systemMessage = `
             ${adjusterPrompt}
             ${guardrailInjection}
+            VISION INSTRUCTION: If an image is provided, analyze it. If not, ignore this.
             OUTPUT REQUIREMENT (THE FORMAT): ${formatStyle}
         `;
 
@@ -51,7 +49,7 @@ export const generateAIDraft = async (type, userInput, image) => {
             model: "gpt-4o",
             messages: [
                 { role: "system", content: systemMessage },
-                { role: "user", content: userMessageContent } 
+                { role: "user", content: userMessageContent }
             ],
             temperature: 0.5,
         });
