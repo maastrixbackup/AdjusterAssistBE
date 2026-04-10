@@ -194,7 +194,7 @@ class PayloadBuilder {
                 name: userInfo?.sender_name || "Adjuster Name",
                 email: userInfo?.sender_email || "email",
                 role: userInfo?.sender_designation || "Carrier Adjuster",
-                company: userInfo?.sender_company || "AdjusterAssist™"
+                // company: userInfo?.sender_company || "AdjusterAssist™"
             },
 
             jurisdiction: file.jurisdiction || "CT", ///// ---->>>>>
