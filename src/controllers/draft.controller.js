@@ -8,6 +8,7 @@ const supabase = require("../config/supabase");
 const UserModel = require("../models/user");
 const { default: classifierService } = require("../services/classifierService");
 const { getMandatoryNextStep } = require("../utils/workflowMatrix");
+const { storeBase64Image } = require("../services/storageService");
 
 /**
  * 1. Test Draft: Uses static responses to simulate AI for testing UI
@@ -141,7 +142,8 @@ const createAIDraft = async (req, res) => {
     try {
         const {userInput, fileId, image } = req.body;
         console.log("Received AI Draft Request:", { userInput, fileId, hasImage: !!image });
-        // console.log(image); 
+        console.log(image); 
+        // await storeBase64Image(image, 'photos');
 
         // 1. Get the Workspace data from DB
         const file = await File.findById(fileId);
@@ -217,6 +219,7 @@ const createAIDraft = async (req, res) => {
                 output_text: typeof aiResponse === 'object' ? aiResponse.content : aiResponse,
                 output_type: detectedType,
                 suggested_next_step: nextAction || null,
+                input_image: image || null
             }])
             .select();
 

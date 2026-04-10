@@ -1,6 +1,6 @@
 import OpenAI from "openai";
-import { adjusterPrompt, getFormatInstruction } from "../utils/prompt.js"; 
-import { getAppliedGuardrails } from "../utils/guardrails.js"; 
+import { adjusterPrompt, getFormatInstruction } from "../utils/prompt.js";
+import { getAppliedGuardrails } from "../utils/guardrails.js";
 
 // Initialize OpenAI once
 const openai = new OpenAI({
@@ -12,16 +12,11 @@ const openai = new OpenAI({
  */
 export const generateAIDraft = async (type, userInput, image) => {
     console.log("Generating AI Draft with input:", { type, userInput, hasImage: !!image });
+    
     try {
-        // 2. Identify the Formatting Requirements
         const formatStyle = getFormatInstruction(type);
-
-        // 3. Apply Trigger-Based Guardrails
         const guardrailInjection = getAppliedGuardrails(userInput);
 
-        // 4. Build the Content Array
-        // We initialize this with the text. 
-        // Note: We keep the text separate from the image object.
         const userMessageContent = [
             { 
                 type: "text", 
@@ -29,21 +24,24 @@ export const generateAIDraft = async (type, userInput, image) => {
             }
         ];
 
-        // 5. Conditionally add the image (Optional)
+        // FIX: Check if image exists BEFORE calling .replace()
         if (image) {
+            // Clean the base64 string only if it's not null
+            const cleanedImage = image.replace(/^data:image\/\w+;base64,/, "");
+            
             userMessageContent.push({
                 type: "image_url",
                 image_url: {
-                    url: `data:image/jpeg;base64,${image}`,
-                    detail: "low"
+                    url: `data:image/jpeg;base64,${cleanedImage}`,
+                    detail: "auto"
                 }
             });
         }
 
-        // 6. Construct the Layered System Message
         const systemMessage = `
             ${adjusterPrompt}
             ${guardrailInjection}
+            VISION INSTRUCTION: If an image is provided, analyze it. If not, ignore this.
             OUTPUT REQUIREMENT (THE FORMAT): ${formatStyle}
         `;
 
