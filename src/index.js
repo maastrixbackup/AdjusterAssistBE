@@ -38,7 +38,7 @@ app.get("/", (req, res) => {
 });
 
 
-app.post('/api/notifications/test-send', async (req, res) => {
+app.post('/api/v1/notifications/test-send', async (req, res) => {
   const { userId } = req.body;
   console.log("Testing notification for User ID:", userId); // DEBUG 1
 

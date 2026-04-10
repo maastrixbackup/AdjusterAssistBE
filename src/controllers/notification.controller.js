@@ -1,8 +1,9 @@
-const supabase = require('../config/supabase'); // Your Supabase init file
+const supabase = require('../config/supabase'); 
 
 exports.saveToken = async (req, res) => {
   try {
-    const { userId, pushToken } = req.body;
+    const userId = req.user.id;
+    const { pushToken } = req.body;
 
     if (!userId || !pushToken) {
       return res.status(400).json({ error: "UserId and Token are required" });

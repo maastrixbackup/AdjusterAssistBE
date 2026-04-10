@@ -12,15 +12,15 @@ const openai = new OpenAI({
  */
 export const generateAIDraft = async (type, userInput, image) => {
     console.log("Generating AI Draft with input:", { type, userInput, hasImage: !!image });
-    
+
     try {
         const formatStyle = getFormatInstruction(type);
         const guardrailInjection = getAppliedGuardrails(userInput);
 
         const userMessageContent = [
-            { 
-                type: "text", 
-                text: `Here is the context and user notes for the assignment: ${userInput}` 
+            {
+                type: "text",
+                text: `Here is the context and user notes for the assignment: ${userInput}`
             }
         ];
 
@@ -28,7 +28,7 @@ export const generateAIDraft = async (type, userInput, image) => {
         if (image) {
             // Clean the base64 string only if it's not null
             const cleanedImage = image.replace(/^data:image\/\w+;base64,/, "");
-            
+
             userMessageContent.push({
                 type: "image_url",
                 image_url: {
@@ -49,7 +49,7 @@ export const generateAIDraft = async (type, userInput, image) => {
             model: "gpt-4o",
             messages: [
                 { role: "system", content: systemMessage },
-                { role: "user", content: userMessageContent } 
+                { role: "user", content: userMessageContent }
             ],
             temperature: 0.5,
         });
