@@ -1,7 +1,7 @@
 const STATIC_RESPONSES = require("../utils/sample_response");
 const Subscription = require("../models/subscription.model");
-const Draft = require("../models/draft.model");
-const File = require("../models/file.model");
+const Message = require("../models/message.model");
+const File = require("../models/workspace.model");
 const aiService = require("../services/ai.service");
 const PayloadBuilder = require("../utils/payloadBuilder");
 const supabase = require("../config/supabase");
@@ -11,7 +11,7 @@ const { getMandatoryNextStep } = require("../utils/workflowMatrix");
 const { storeBase64Image } = require("../services/storageService");
 
 /**
- * 1. Test Draft: Uses static responses to simulate AI for testing UI
+ * 1. Test Message: Uses static responses to simulate AI for testing UI
  */
 const testDraft = async (req, res) => {
     try {
@@ -32,7 +32,7 @@ const testDraft = async (req, res) => {
 
         res.status(200).json({
             success: true,
-            message: "Draft generated successfully (Test Mode).",
+            message: "Message generated successfully (Test Mode).",
             data: {
                 content: responseText,
                 fileId: fileId,
@@ -40,11 +40,56 @@ const testDraft = async (req, res) => {
             }
         });
     } catch (error) {
-        console.error("Test Draft Error:", error.message);
+        console.error("Test Message Error:", error.message);
         res.status(500).json({ success: false, message: "Generation failed." });
     }
 };
 
+const testCreateMessage = async (req, res) => {
+  try {
+    const { workspace_id, user_input, image_input_url } = req.body;
+    const userId = req.user.id;
+
+    // 1. Simulate AI Classification and Logic (Internal)
+    // In production, this data comes from your OpenAI/Workflow engine
+    const aiSimulatedResponse = "AI drafts a short insured update while keeping claim context visible.";
+    const classification = "email_insured";
+    const nextStep = "Confirm document review timing";
+    const actions = ["Edit Email", "Send Now", "Create File Note"];
+
+    // 2. Save the entire interaction as ONE single row
+    const turnResult = await Message.create({
+      workspace_id,
+      user_id: userId,
+      user_input: user_input,
+      image_input_url: image_input_url || null, 
+      ai_response: aiSimulatedResponse,
+      content_type: classification, 
+      claim_state: 'document_collection_pending',
+      next_step_suggestion: nextStep,
+      quick_actions: actions,
+      activity_type: 'communication_sent',
+      metadata: {
+        engine_version: "1.0.0",
+        confidence_score: 0.95
+      }
+    });
+
+    // 3. Return the single object to the frontend
+    console.log("Test Create Message Result:", turnResult.id);
+    return res.status(201).json({
+      success: true,
+      data: turnResult
+    });
+
+  } catch (error) {
+    console.error("Interaction Creation Error:", error);
+    return res.status(500).json({ 
+      success: false, 
+      error: error.message 
+    });
+  }
+};
 /**
  * 2. Get File Drafts: Fetches all drafts for a specific workspace
  */
@@ -56,7 +101,7 @@ const getFileDrafts = async (req, res) => {
             return res.status(400).json({ success: false, message: "File ID is required" });
         }
 
-        const drafts = await Draft.findByFileId(fileId);
+        const drafts = await Message.findByFileId(fileId);
 
         res.status(200).json({
             success: true,
@@ -75,7 +120,7 @@ const getFileDrafts = async (req, res) => {
 const AllDrafts = async (req, res) => {
     try {
         const userId = req.user.id;
-        const drafts = await Draft.findAllByUser(userId);
+        const drafts = await Message.findAllByUser(userId);
         res.status(200).json({
             success: true,
             count: drafts.length,
@@ -95,7 +140,7 @@ const getRecentDrafts = async (req, res) => {
         const userId = req.user.id;
         const limit = parseInt(req.query.limit) || 2;
 
-        const recentDrafts = await Draft.findRecent(userId, limit);
+        const recentDrafts = await Message.findRecent(userId, limit);
 
         res.status(200).json({
             success: true,
@@ -109,16 +154,16 @@ const getRecentDrafts = async (req, res) => {
 };
 
 /**
- * 5. Delete Draft: Secure deletion
+ * 5. Delete Message: Secure deletion
  */
 const deleteDraft = async (req, res) => {
     try {
         const { draftId } = req.params;
         const userId = req.user.id;
 
-        const draft = await Draft.findById(draftId);
+        const draft = await Message.findById(draftId);
         if (!draft) {
-            return res.status(404).json({ success: false, message: "Draft not found" });
+            return res.status(404).json({ success: false, message: "Message not found" });
         }
 
         // Security check: Ensure user owns the draft
@@ -126,22 +171,22 @@ const deleteDraft = async (req, res) => {
             return res.status(403).json({ success: false, message: "Unauthorized deletion" });
         }
 
-        await Draft.deleteById(draftId);
-        res.status(200).json({ success: true, message: "Draft deleted successfully" });
+        await Message.deleteById(draftId);
+        res.status(200).json({ success: true, message: "Message deleted successfully" });
     } catch (error) {
-        console.error("Delete Draft Error:", error.message);
+        console.error("Delete Message Error:", error.message);
         res.status(500).json({ success: false, message: "Error deleting draft" });
     }
 };
 
 /**
- * 6. Create AI Draft: The core logic for OpenAI/Groq generation
+ * 6. Create AI Message: The core logic for OpenAI/Groq generation
  */
 const createAIDraft = async (req, res) => {
     const userId = req.user.id;
     try {
         const {userInput, fileId, image } = req.body;
-        console.log("Received AI Draft Request:", { userInput, fileId, hasImage: !!image });
+        console.log("Received AI Message Request:", { userInput, fileId, hasImage: !!image });
         console.log(image); 
         // await storeBase64Image(image, 'photos');
 
@@ -177,6 +222,7 @@ const createAIDraft = async (req, res) => {
             contextEnhancedInput,
             image
         );
+        console.log("AI RESPONSE:", aiResponse);
 
         let mainContent = aiResponse.toLowerCase();
         let dynamicSuggestions = ["Review claim file"]; // Default fallback
@@ -346,8 +392,8 @@ const saveGeneratedDraft = async (req, res) => {
             fileId = newFile.id;
         }
 
-        // 2. Persist the Draft using the Supabase model
-        const savedDraft = await Draft.create({
+        // 2. Persist the Message using the Supabase model
+        const savedDraft = await Message.create({
             file_id: fileId,
             user_id: userId,
             draft_type: output_format,
@@ -356,14 +402,14 @@ const saveGeneratedDraft = async (req, res) => {
 
         res.status(201).json({
             success: true,
-            message: "Draft saved to workspace.",
+            message: "Message saved to workspace.",
             data: {
                 draftId: savedDraft.id,
                 fileId: fileId
             }
         });
     } catch (error) {
-        console.error("Save Draft Error:", error.message);
+        console.error("Save Message Error:", error.message);
         res.status(500).json({ success: false, message: "Save failed." });
     }
 };
@@ -374,12 +420,12 @@ const updateDraft = async (req, res) => {
         const { content, output_format } = req.body;
         const userId = req.user.id;
         // 1. First, verify the draft exists and belongs to this user
-        const existingDraft = await Draft.findById(draftId);
+        const existingDraft = await Message.findById(draftId);
 
         if (!existingDraft) {
             return res.status(404).json({
                 success: false,
-                message: "Draft not found."
+                message: "Message not found."
             });
         }
 
@@ -396,11 +442,11 @@ const updateDraft = async (req, res) => {
             draft_type: draft_type || existingDraft.draft_type
         };
 
-        const updatedDraft = await Draft.updateById(draftId, updatedData);
+        const updatedDraft = await Message.updateById(draftId, updatedData);
 
         return res.status(200).json({
             success: true,
-            message: "Draft updated successfully",
+            message: "Message updated successfully",
             data: updatedDraft,
             created_at: new Date().toISOString() 
         });
@@ -417,6 +463,7 @@ const updateDraft = async (req, res) => {
 
 module.exports = {
     testDraft,
+    testCreateMessage,
     getFileDrafts,
     getRecentDrafts,
     deleteDraft,

@@ -4,9 +4,9 @@ require('dotenv').config();
 
 const authRoutes = require('./routes/auth.routes');
 const userRoutes = require('./routes/user.routes');
-const draftRoutes = require('./routes/draft.routes');
+const draftRoutes = require('./routes/message.route');
 const subscriptionRoutes = require('./routes/subscription.routes');
-const fileRoutes = require('./routes/file.routes');
+const fileRoutes = require('./routes/workspace.routes');
 const notificationsRoutes = require('./routes/notifications.routes')
 
 const swaggerUi = require("swagger-ui-express");

@@ -9,7 +9,8 @@ const {
     AllDrafts,
     deleteDraft,
     updateDraft,
-} = require("../controllers/draft.controller");
+    testCreateMessage,
+} = require("../controllers/message.controller");
 
 const authMiddleware = require("../middlewares/auth.middleware");
 const checkUsageLimit = require("../middlewares/usageLimit");
@@ -20,7 +21,7 @@ router.get("/", async(req, res) => {
 });
 
 
-
+router.post("/test", authMiddleware, testCreateMessage);
 // router.post("/generate-test", authMiddleware, checkUsageLimit, testDraft);
 
 router.post("/generate", authMiddleware, checkUsageLimit, createAIDraft);
