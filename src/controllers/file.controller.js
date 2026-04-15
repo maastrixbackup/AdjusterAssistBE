@@ -1,4 +1,4 @@
-const File = require("../models/file.model");
+const File = require("../models/workspace.model");
 
 /**
  * Creates a new Workspace (File) - All fields are now mandatory

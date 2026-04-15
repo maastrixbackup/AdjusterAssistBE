@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const {createFile, getMyFiles, updateFile, deleteFile} = require("../controllers/file.controller");
-const {getFileDrafts} = require("../controllers/draft.controller");
+const {getFileDrafts} = require("../controllers/message.controller");
 const authMiddleware = require("../middlewares/auth.middleware");
 
 router.get("/", async(req, res)=>{
