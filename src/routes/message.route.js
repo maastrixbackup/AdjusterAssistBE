@@ -32,6 +32,6 @@ router.post("/save", authMiddleware, saveGeneratedDraft);
 router.get("/recent", authMiddleware, getRecentDrafts);
 router.get("/history", authMiddleware, AllDrafts); 
 
-router.put("/update/:draftId", authMiddleware, updateDraft)
+router.patch("/update/:draftId", authMiddleware, updateDraft)
 
 module.exports = router;

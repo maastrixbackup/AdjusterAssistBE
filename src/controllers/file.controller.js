@@ -88,6 +88,37 @@ const getMyFiles = async (req, res) => {
     }
 };
 
+const getFileById = async (req, res) => {
+    try {
+        const { fileId } = req.params;
+        const userId = parseInt(req.user.id);
+        const file = await File.findById(fileId);
+
+        if (!file) {
+            return res.status(404).json({
+                success: false,
+                message: "Workspace not found"
+            });
+        }
+        if (parseInt(file.user_id) !== userId) {
+            return res.status(403).json({
+                success: false,
+                message: "Unauthorized to access this workspace"
+            });
+        }
+        res.status(200).json({
+            success: true,
+            file
+        });
+    } catch (error) {
+        console.error("Get File By ID Error:", error.message);
+        res.status(500).json({
+            success: false,
+            message: "Error fetching workspace details"
+        });
+    }
+};
+
 /**
  * Updates an existing workspace
  */
@@ -163,5 +194,6 @@ module.exports = {
     createFile,
     getMyFiles,
     updateFile,
-    deleteFile
+    deleteFile,
+    getFileById
 };

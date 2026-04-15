@@ -415,52 +415,45 @@ const saveGeneratedDraft = async (req, res) => {
 };
 
 const updateDraft = async (req, res) => {
-    try {
-        const { draftId } = req.params;
-        const { content, output_format } = req.body;
-        const userId = req.user.id;
-        // 1. First, verify the draft exists and belongs to this user
-        const existingDraft = await Message.findById(draftId);
+  try {
+    const { draftId } = req.params;
+    const userId = req.user.id; 
 
-        if (!existingDraft) {
-            return res.status(404).json({
-                success: false,
-                message: "Message not found."
-            });
-        }
+    const updateData = req.body;
 
-        if (existingDraft.user_id !== userId) {
-            return res.status(403).json({
-                success: false,
-                message: "Unauthorized: You do not have permission to edit this draft."
-            });
-        }
+    const existingMessage = await Message.findById(draftId);
 
-        // 2. Perform the update
-        const updatedData = {
-            content: content || existingDraft.content,
-            draft_type: draft_type || existingDraft.draft_type
-        };
-
-        const updatedDraft = await Message.updateById(draftId, updatedData);
-
-        return res.status(200).json({
-            success: true,
-            message: "Message updated successfully",
-            data: updatedDraft,
-            created_at: new Date().toISOString() 
-        });
-
-    } catch (error) {
-        console.error("Error in updateDraft controller:", error);
-        return res.status(500).json({
-            success: false,
-            message: "Internal server error",
-            error: error.message
-        });
+    if (!existingMessage) {
+      return res.status(404).json({
+        success: false,
+        message: "Interaction not found."
+      });
     }
-};
 
+    if (existingMessage.user_id !== userId) {
+      return res.status(403).json({
+        success: false,
+        message: "Unauthorized: You do not own this interaction."
+      });
+    }
+
+ 
+    const updatedTurn = await Message.updateById(draftId, updateData);
+
+    return res.status(200).json({
+      success: true,
+      message: "Interaction updated successfully.",
+      data: updatedTurn
+    });
+
+  } catch (error) {
+    console.error("Update Draft Error:", error);
+    return res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+};
 module.exports = {
     testDraft,
     testCreateMessage,
