@@ -4,8 +4,8 @@ import path from 'path';
 
 // Initialize Supabase Client
 const supabase = createClient(
-  process.env.SUPABASE_URL, 
-  process.env.SUPABASE_SERVICE_ROLE_KEY 
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
 const BUCKET_NAME = 'claims-attachments';
@@ -17,6 +17,7 @@ export const supabaseStorage = {
    * @returns {Promise<Array<string>>} - Array of public URLs
    */
   async uploadAttachments(files) {
+    fileId = 21
     if (!files || files.length === 0) return [];
 
     const uploadPromises = files.map(async (file) => {
@@ -25,7 +26,7 @@ export const supabaseStorage = {
         const fileExt = path.extname(file.originalname);
         const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}${fileExt}`;
         const filePath = `${fileId}/${fileName}`;
-        
+
         // 2. Read file from local disk (where Multer saved it)
         const fileBuffer = fs.readFileSync(file.path);
 
@@ -49,8 +50,8 @@ export const supabaseStorage = {
 
         return publicUrl;
       } catch (err) {
-          console.error(`Upload failed for ${file.originalname}:`, err.message);
-          return null;
+        console.error(`Upload failed for ${file.originalname}:`, err.message);
+        return null;
       }
     });
 

@@ -221,7 +221,7 @@ const createAIDraft = async (req, res) => {
             workspace_id: fileId,
             user_id: userId,
             user_input: userInput,
-            image_input_url: primaryImageUrl, 
+            image_input_url: primaryImageUrl || null, 
             ai_response: aiResponse,
             content_type: detectedType,
             claim_state: file.claim_stage || 'document_collection_pending',
@@ -246,7 +246,7 @@ const createAIDraft = async (req, res) => {
                 output_text: aiResponse,
                 output_type: detectedType,
                 suggested_next_step: nextAction,
-                input_image: attachmentUrls 
+                input_image: attachmentUrls || null 
             }])
             .select();
 
