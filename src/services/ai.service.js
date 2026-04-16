@@ -1,6 +1,7 @@
 import OpenAI from "openai";
 import { adjusterPrompt, getFormatInstruction } from "../utils/prompt.js";
 import { getAppliedGuardrails } from "../utils/guardrails.js";
+import fs from 'fs';
 
 // Initialize OpenAI once
 const openai = new OpenAI({
@@ -10,48 +11,59 @@ const openai = new OpenAI({
 /**
  * Heavy generation for the final professional draft
  */
-export const generateAIDraft = async (type, userInput, image) => {
-    console.log("Generating AI Draft with input:", { type, userInput, hasImage: !!image });
+export const generateAIDraft = async (type, userInput, files = []) => {
+    console.log("Generating AI Draft with input:", { 
+        type, 
+        fileCount: files.length 
+    });
 
     try {
         const formatStyle = getFormatInstruction(type);
         const guardrailInjection = getAppliedGuardrails(userInput);
 
+        // 1. Initialize message content with the text prompt
         const userMessageContent = [
             {
                 type: "text",
-                text: `Here is the context and user notes for the assignment: ${userInput}`
+                text: `Context and user notes: ${userInput}`
             }
         ];
 
-        // FIX: Check if image exists BEFORE calling .replace()
-        if (image) {
-            // Clean the base64 string only if it's not null
-            const cleanedImage = image.replace(/^data:image\/\w+;base64,/, "");
+        // 2. Process Files
+        for (const file of files) {
+            // HANDLE IMAGES: Convert temporary disk paths to Base64 for OpenAI Vision
+            if (file.mimetype.startsWith('image/')) {
+                const imageBase64 = fs.readFileSync(file.path, { encoding: 'base64' });
+                userMessageContent.push({
+                    type: "image_url",
+                    image_url: {
+                        url: `data:${file.mimetype};base64,${imageBase64}`,
+                        detail: "auto"
+                    }
+                });
+            } 
 
-            userMessageContent.push({
-                type: "image_url",
-                image_url: {
-                    url: `data:image/jpeg;base64,${cleanedImage}`,
-                    detail: "auto"
-                }
-            });
+            if (file.mimetype === 'application/pdf') {
+                userMessageContent[0].text += `\n[Note: A PDF named ${file.originalname} was attached for context. Please assume standard insurance documentation details apply.]`;
+            }
         }
 
         const systemMessage = `
             ${adjusterPrompt}
             ${guardrailInjection}
-            VISION INSTRUCTION: If an image is provided, analyze it. If not, ignore this.
+            VISION INSTRUCTION: Analyze all provided images (damage photos, receipts, etc.). 
+            If no images are provided, rely strictly on text context.
             OUTPUT REQUIREMENT (THE FORMAT): ${formatStyle}
         `;
 
+        // 3. Call the Model (gpt-4o is the best multimodal choice)
         const completion = await openai.chat.completions.create({
-            model: "gpt-4o",
+            model: "gpt-4o", 
             messages: [
                 { role: "system", content: systemMessage },
                 { role: "user", content: userMessageContent }
             ],
-            temperature: 0.5,
+            temperature: 0.4, // Slightly lower for more consistent insurance drafting
         });
 
         return completion.choices[0].message.content;

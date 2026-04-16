@@ -151,21 +151,29 @@ const deleteDraft = async (req, res) => {
 const createAIDraft = async (req, res) => {
     const userId = req.user.id;
     try {
-        const { userInput, fileId, image } = req.body;
-        console.log("Received AI Message Request:", { userInput, fileId, hasImage: !!image });
-        console.log(image);
-        // await storeBase64Image(image, 'photos');
+        // 1. Get Text Fields from req.body and Files from req.files
+        const { userInput, fileId } = req.body;
+        const files = req.files || []; 
 
-        // 1. Get the Workspace data from DB
+        console.log("Received AI Request:", { 
+            userInput, 
+            fileId, 
+            fileCount: files.length 
+        });
+
+        // 2. Validate Workspace
         const file = await File.findById(fileId);
         if (!file) return res.status(404).json({ message: "Workspace not found" });
 
-        const detectedType = await classifierService.classify(userInput);
-        console.log("DETECTED TYPE:", detectedType);
+        // 3. Process Files (Separate images from PDFs for your AI service)
+        const images = files.filter(f => f.mimetype.startsWith('image/')).map(f => f.path);
+        const pdfs = files.filter(f => f.mimetype === 'application/pdf').map(f => f.path);
 
+        // 4. Classification and Profile
+        const detectedType = await classifierService.classify(userInput);
         const userProfile = await UserModel.findById(userId);
 
-        // 2. CONSTRUCT: Create the massive JSON payload automatically
+        // 5. Construct Payload
         const fullPayload = PayloadBuilder.build(file, {
             output_type: detectedType,
             role: userProfile.role,
@@ -175,56 +183,39 @@ const createAIDraft = async (req, res) => {
                 sender_email: userProfile.email,
                 sender_designation: userProfile.role,
                 sender_company: userProfile.company || "AdjusterAssist™"
-            }
+            },
+            attachments: { images, pdfs } // Pass file paths to builder if needed
         });
 
-        // 3. TRANSFORM: Context mapping
-        const contextEnhancedInput = JSON.stringify(fullPayload);
-        // console.log("PAYLOAD:", contextEnhancedInput);
-
-        // 4. GENERATE AI RESPONSE
+        // 6. Generate AI Response 
+        // Note: Updated aiService to handle array of files instead of single base64
         const aiResponse = await aiService.generateAIDraft(
             detectedType,
-            contextEnhancedInput,
-            image
+            JSON.stringify(fullPayload),
+            files // Pass the full file objects to your AI service (OpenAI Vision/Whisper/etc)
         );
-        console.log("AI RESPONSE:", aiResponse);
 
-        
-        let mainContent = aiResponse.toLowerCase();
-        let dynamicSuggestions = ["Review claim file"]; // Default fallback
+        // 7. Parse AI Response (Suggestions & Next Steps)
+        let mainContent = aiResponse;
+        let nextAction = "Proceed with claim review";
+        let dynamicSuggestions = ["Review claim file"];
 
-        // Use regex to find the Suggestions line
         const suggestionMatch = aiResponse.match(/suggestions:\s*(.*)/i);
         const nextStepMatch = aiResponse.match(/next steps?:\s*(.*)/i);
 
         if (suggestionMatch) {
             dynamicSuggestions = suggestionMatch[1].split('|').map(s => s.trim());
-            mainContent = mainContent.split(/suggestions:/i)[0].trim();
-        } else if (nextStepMatch) {
-            // Fallback for single next step format
-            dynamicSuggestions = [nextStepMatch[1].trim()];
-            mainContent = mainContent.split(/next steps?:/i)[0].trim();
+        }
+        if (nextStepMatch) {
+            nextAction = nextStepMatch[1].trim();
         }
 
-        // 5. PARSE AI RESPONSE for Next Steps (New Feature)
-        let nextAction = "Proceed with claim review";
-
-        // Use a case-insensitive regex to split the string at "Next step:"
-        const parts = aiResponse.split(/next steps?:\s*/i);
-
-        if (parts.length > 1) {
-            // Everything before "Next step:" goes to the editor
-            mainContent = parts[0].trim();
-            // Everything after "Next step:"
-            nextAction = parts[1].trim();
-        }
-
+        // 8. Save Interaction (Using your interaction model)
         const turnResult = await Message.create({
             workspace_id: fileId,
             user_id: userId,
             user_input: userInput,
-            image_input_url: image || null,
+            image_input_url: images.length > 0 ? images[0] : null, 
             ai_response: aiResponse,
             content_type: detectedType,
             claim_state: file.claim_stage || 'document_collection_pending',
@@ -232,39 +223,31 @@ const createAIDraft = async (req, res) => {
             quick_actions: dynamicSuggestions,
             activity_type: 'communication_sent',
             metadata: {
-                engine_version: "1.0.0",
-                confidence_score: 0.95,
-                model: "gpt-4.0"
+                file_count: files.length,
+                engine_version: "1.1.0",
+                model: "gpt-4-turbo"
             }
         });
-        if (!turnResult) {
-            console.error("Failed to save AI interaction to database.");
-        }
 
-        // -------------------------
-
-        // 6. STORE IN SUPABASE AI_LOGS
+        // 9. Log to Supabase
         const { data: logData, error: logError } = await supabase
             .from('ai_logs')
             .insert([{
                 file_id: parseInt(fileId),
-                user_id: userId || null,
+                user_id: userId,
                 input_text: userInput,
-                input_type: image ? 'image+text' : 'text',
-                output_text: typeof aiResponse === 'object' ? aiResponse.content : aiResponse,
+                input_type: files.length > 0 ? 'multipart' : 'text',
+                output_text: aiResponse,
                 output_type: detectedType,
-                suggested_next_step: nextAction || null,
-                input_image: image || null
+                suggested_next_step: nextAction,
+                input_image: images[0] || null // Logging first image as reference
             }])
             .select();
-        if (logError) {
-            console.error("Supabase Logging Error:", logError.message);
-        }
 
-        // 7. TRACK USAGE
+        // 10. Increment Usage
         await Subscription.incrementUsage(userId);
 
-        // 8. FINAL RESPONSE
+        // 11. Final Response
         res.status(200).json({
             success: true,
             data: {
@@ -272,8 +255,7 @@ const createAIDraft = async (req, res) => {
                 output_format: detectedType,
                 next_step: nextAction,
                 suggestions: dynamicSuggestions,
-                created_at: logData ? logData[0].created_at : new Date().toISOString(),
-                // log_id: logData ? logData[0].id : null
+                created_at: logData ? logData[0].created_at : new Date().toISOString()
             }
         });
 
