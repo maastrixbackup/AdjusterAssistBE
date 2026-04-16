@@ -14,6 +14,8 @@ const {
 
 const authMiddleware = require("../middlewares/auth.middleware");
 const checkUsageLimit = require("../middlewares/usageLimit");
+const multer = require('multer');
+const upload = multer({ dest: 'uploads/' });
 
 // Health Check
 router.get("/", async(req, res) => {
@@ -22,9 +24,8 @@ router.get("/", async(req, res) => {
 
 
 router.post("/test", authMiddleware, testCreateMessage);
-// router.post("/generate-test", authMiddleware, checkUsageLimit, testDraft);
 
-router.post("/generate", authMiddleware, checkUsageLimit, createAIDraft);
+router.post("/generate", authMiddleware, checkUsageLimit, upload.array('attachments'), createAIDraft);
 router.post('/generate-next-step', authMiddleware, checkUsageLimit, generateNextStepDraft);
 
 router.delete("/delete/:draftId", authMiddleware, deleteDraft);
