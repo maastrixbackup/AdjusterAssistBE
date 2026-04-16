@@ -46,49 +46,49 @@ const testDraft = async (req, res) => {
 };
 
 const testCreateMessage = async (req, res) => {
-  try {
-    const { workspace_id, user_input, image_input_url } = req.body;
-    const userId = req.user.id;
+    try {
+        const { workspace_id, user_input, image_input_url } = req.body;
+        const userId = req.user.id;
 
-    // 1. Simulate AI Classification and Logic (Internal)
-    // In production, this data comes from your OpenAI/Workflow engine
-    const aiSimulatedResponse = "AI drafts a short insured update while keeping claim context visible.";
-    const classification = "email_insured";
-    const nextStep = "Confirm document review timing";
-    const actions = ["Edit Email", "Send Now", "Create File Note"];
+        // 1. Simulate AI Classification and Logic (Internal)
+        // In production, this data comes from your OpenAI/Workflow engine
+        const aiSimulatedResponse = "AI drafts a short insured update while keeping claim context visible.";
+        const classification = "email_insured";
+        const nextStep = "Confirm document review timing";
+        const actions = ["Edit Email", "Send Now", "Create File Note"];
 
-    // 2. Save the entire interaction as ONE single row
-    const turnResult = await Message.create({
-      workspace_id,
-      user_id: userId,
-      user_input: user_input,
-      image_input_url: image_input_url || null, 
-      ai_response: aiSimulatedResponse,
-      content_type: classification, 
-      claim_state: 'document_collection_pending',
-      next_step_suggestion: nextStep,
-      quick_actions: actions,
-      activity_type: 'communication_sent',
-      metadata: {
-        engine_version: "1.0.0",
-        confidence_score: 0.95
-      }
-    });
+        // 2. Save the entire interaction as ONE single row
+        const turnResult = await Message.create({
+            workspace_id,
+            user_id: userId,
+            user_input: user_input,
+            image_input_url: image_input_url || null,
+            ai_response: aiSimulatedResponse,
+            content_type: classification,
+            claim_state: 'document_collection_pending',
+            next_step_suggestion: nextStep,
+            quick_actions: actions,
+            activity_type: 'communication_sent',
+            metadata: {
+                engine_version: "1.0.0",
+                confidence_score: 0.95
+            }
+        });
 
-    // 3. Return the single object to the frontend
-    console.log("Test Create Message Result:", turnResult.id);
-    return res.status(201).json({
-      success: true,
-      data: turnResult
-    });
+        // 3. Return the single object to the frontend
+        console.log("Test Create Message Result:", turnResult.id);
+        return res.status(201).json({
+            success: true,
+            data: turnResult
+        });
 
-  } catch (error) {
-    console.error("Interaction Creation Error:", error);
-    return res.status(500).json({ 
-      success: false, 
-      error: error.message 
-    });
-  }
+    } catch (error) {
+        console.error("Interaction Creation Error:", error);
+        return res.status(500).json({
+            success: false,
+            error: error.message
+        });
+    }
 };
 /**
  * 2. Get File Drafts: Fetches all drafts for a specific workspace
@@ -185,9 +185,9 @@ const deleteDraft = async (req, res) => {
 const createAIDraft = async (req, res) => {
     const userId = req.user.id;
     try {
-        const {userInput, fileId, image } = req.body;
+        const { userInput, fileId, image } = req.body;
         console.log("Received AI Message Request:", { userInput, fileId, hasImage: !!image });
-        console.log(image); 
+        console.log(image);
         // await storeBase64Image(image, 'photos');
 
         // 1. Get the Workspace data from DB
@@ -224,6 +224,7 @@ const createAIDraft = async (req, res) => {
         );
         console.log("AI RESPONSE:", aiResponse);
 
+        
         let mainContent = aiResponse.toLowerCase();
         let dynamicSuggestions = ["Review claim file"]; // Default fallback
 
@@ -252,6 +253,28 @@ const createAIDraft = async (req, res) => {
             // Everything after "Next step:"
             nextAction = parts[1].trim();
         }
+
+        const turnResult = await Message.create({
+            workspace_id: fileId,
+            user_id: userId,
+            user_input: userInput,
+            image_input_url: image || null,
+            ai_response: aiResponse,
+            content_type: detectedType,
+            claim_state: file.claim_stage || 'document_collection_pending',
+            next_step_suggestion: nextAction,
+            quick_actions: dynamicSuggestions,
+            activity_type: 'communication_sent',
+            metadata: {
+                engine_version: "1.0.0",
+                confidence_score: 0.95,
+                model: "gpt-4.0"
+            }
+        });
+        if (!turnResult) {
+            console.error("Failed to save AI interaction to database.");
+        }
+
         // -------------------------
 
         // 6. STORE IN SUPABASE AI_LOGS
@@ -261,14 +284,13 @@ const createAIDraft = async (req, res) => {
                 file_id: parseInt(fileId),
                 user_id: userId || null,
                 input_text: userInput,
-                input_type: 'text', 
+                input_type: image ? 'image+text' : 'text',
                 output_text: typeof aiResponse === 'object' ? aiResponse.content : aiResponse,
                 output_type: detectedType,
                 suggested_next_step: nextAction || null,
                 input_image: image || null
             }])
             .select();
-
         if (logError) {
             console.error("Supabase Logging Error:", logError.message);
         }
@@ -307,10 +329,10 @@ const generateNextStepDraft = async (req, res) => {
         if (!file) return res.status(404).json({ message: "Workspace not found" });
         const userProfile = await UserModel.findById(userId);
 
-       
+
         const nextStepPayload = PayloadBuilder.build(file, {
             output_type: targetType,
-            role: userProfile.role || "Adjuster", 
+            role: userProfile.role || "Adjuster",
             inputText: `CONTEXT: User previously generated a ${output_format}. 
                         PREVIOUS CONTENT: ${previousResponse} 
                         ORIGINAL USER NOTES: ${userInput}
@@ -330,7 +352,7 @@ const generateNextStepDraft = async (req, res) => {
         const aiResponse = await aiService.generateAIDraft(
             targetType,
             contextEnhancedInput,
-            null 
+            null
         );
 
         // 5. PARSE: Split content from the new suggested next step
@@ -415,44 +437,44 @@ const saveGeneratedDraft = async (req, res) => {
 };
 
 const updateDraft = async (req, res) => {
-  try {
-    const { draftId } = req.params;
-    const userId = req.user.id; 
+    try {
+        const { draftId } = req.params;
+        const userId = req.user.id;
 
-    const updateData = req.body;
+        const updateData = req.body;
 
-    const existingMessage = await Message.findById(draftId);
+        const existingMessage = await Message.findById(draftId);
 
-    if (!existingMessage) {
-      return res.status(404).json({
-        success: false,
-        message: "Interaction not found."
-      });
+        if (!existingMessage) {
+            return res.status(404).json({
+                success: false,
+                message: "Interaction not found."
+            });
+        }
+
+        if (existingMessage.user_id !== userId) {
+            return res.status(403).json({
+                success: false,
+                message: "Unauthorized: You do not own this interaction."
+            });
+        }
+
+
+        const updatedTurn = await Message.updateById(draftId, updateData);
+
+        return res.status(200).json({
+            success: true,
+            message: "Interaction updated successfully.",
+            data: updatedTurn
+        });
+
+    } catch (error) {
+        console.error("Update Draft Error:", error);
+        return res.status(500).json({
+            success: false,
+            error: error.message
+        });
     }
-
-    if (existingMessage.user_id !== userId) {
-      return res.status(403).json({
-        success: false,
-        message: "Unauthorized: You do not own this interaction."
-      });
-    }
-
- 
-    const updatedTurn = await Message.updateById(draftId, updateData);
-
-    return res.status(200).json({
-      success: true,
-      message: "Interaction updated successfully.",
-      data: updatedTurn
-    });
-
-  } catch (error) {
-    console.error("Update Draft Error:", error);
-    return res.status(500).json({
-      success: false,
-      error: error.message
-    });
-  }
 };
 module.exports = {
     testDraft,
