@@ -246,7 +246,7 @@ const createAIDraft = async (req, res) => {
                 output_text: aiResponse,
                 output_type: detectedType,
                 suggested_next_step: nextAction,
-                input_image: attachmentUrls || null 
+                input_image: null 
             }])
             .select();
 

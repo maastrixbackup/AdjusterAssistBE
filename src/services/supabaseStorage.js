@@ -17,7 +17,7 @@ export const supabaseStorage = {
    * @returns {Promise<Array<string>>} - Array of public URLs
    */
   async uploadAttachments(files) {
-    fileId = 21
+    // fileId = 21
     if (!files || files.length === 0) return [];
 
     const uploadPromises = files.map(async (file) => {
@@ -25,7 +25,7 @@ export const supabaseStorage = {
         // 1. Prepare unique file path: folder/timestamp-name.ext
         const fileExt = path.extname(file.originalname);
         const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}${fileExt}`;
-        const filePath = `${fileId}/${fileName}`;
+        const filePath = `file/${fileName}`;
 
         // 2. Read file from local disk (where Multer saved it)
         const fileBuffer = fs.readFileSync(file.path);
