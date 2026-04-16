@@ -22,7 +22,6 @@ router.get("/", async(req, res) => {
 
 
 router.post("/test", authMiddleware, testCreateMessage);
-// router.post("/generate-test", authMiddleware, checkUsageLimit, testDraft);
 
 router.post("/generate", authMiddleware, checkUsageLimit, createAIDraft);
 router.post('/generate-next-step', authMiddleware, checkUsageLimit, generateNextStepDraft);

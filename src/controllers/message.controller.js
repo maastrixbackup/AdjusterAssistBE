@@ -10,40 +10,6 @@ const { default: classifierService } = require("../services/classifierService");
 const { getMandatoryNextStep } = require("../utils/workflowMatrix");
 const { storeBase64Image } = require("../services/storageService");
 
-/**
- * 1. Test Message: Uses static responses to simulate AI for testing UI
- */
-const testDraft = async (req, res) => {
-    try {
-        const { type, fileId } = req.body;
-        const userId = req.user.id;
-
-        if (!fileId) {
-            return res.status(400).json({ success: false, message: "File ID required." });
-        }
-
-        let responseText = STATIC_RESPONSES[type?.toUpperCase()] || null;
-        if (!responseText) {
-            return res.status(400).json({ success: false, message: "Invalid type." });
-        }
-
-        // Use Supabase model to increment usage
-        await Subscription.incrementUsage(userId);
-
-        res.status(200).json({
-            success: true,
-            message: "Message generated successfully (Test Mode).",
-            data: {
-                content: responseText,
-                fileId: fileId,
-                type: type
-            }
-        });
-    } catch (error) {
-        console.error("Test Message Error:", error.message);
-        res.status(500).json({ success: false, message: "Generation failed." });
-    }
-};
 
 const testCreateMessage = async (req, res) => {
     try {
@@ -477,7 +443,6 @@ const updateDraft = async (req, res) => {
     }
 };
 module.exports = {
-    testDraft,
     testCreateMessage,
     getFileDrafts,
     getRecentDrafts,
