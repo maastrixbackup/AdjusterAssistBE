@@ -162,7 +162,7 @@ const createAIDraft = async (req, res) => {
             fileCount: files.length 
         });
 
-        const attachmentUrls = await supabaseStorage.uploadAttachments(rawFiles);
+        const attachmentUrls = await supabaseStorage.uploadAttachments(files);
         const primaryImageUrl = attachmentUrls.find(url => 
             url.match(/\.(jpeg|jpg|png|gif)$/i)
         ) || null;
