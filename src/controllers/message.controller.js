@@ -9,6 +9,7 @@ const UserModel = require("../models/user");
 const { default: classifierService } = require("../services/classifierService");
 const { getMandatoryNextStep } = require("../utils/workflowMatrix");
 const { storeBase64Image } = require("../services/storageService");
+const { supabaseStorage } = require("../services/supabaseStorage");
 
 
 const testCreateMessage = async (req, res) => {
@@ -161,6 +162,11 @@ const createAIDraft = async (req, res) => {
             fileCount: files.length 
         });
 
+        const attachmentUrls = await supabaseStorage.uploadAttachments(rawFiles);
+        const primaryImageUrl = attachmentUrls.find(url => 
+            url.match(/\.(jpeg|jpg|png|gif)$/i)
+        ) || null;
+
         // 2. Validate Workspace
         const file = await File.findById(fileId);
         if (!file) return res.status(404).json({ message: "Workspace not found" });
@@ -184,7 +190,7 @@ const createAIDraft = async (req, res) => {
                 sender_designation: userProfile.role,
                 sender_company: userProfile.company || "AdjusterAssist™"
             },
-            attachments: { images, pdfs } // Pass file paths to builder if needed
+            attachments: { images, pdfs } 
         });
 
         // 6. Generate AI Response 
@@ -192,7 +198,7 @@ const createAIDraft = async (req, res) => {
         const aiResponse = await aiService.generateAIDraft(
             detectedType,
             JSON.stringify(fullPayload),
-            files // Pass the full file objects to your AI service (OpenAI Vision/Whisper/etc)
+            files 
         );
 
         // 7. Parse AI Response (Suggestions & Next Steps)
@@ -215,7 +221,7 @@ const createAIDraft = async (req, res) => {
             workspace_id: fileId,
             user_id: userId,
             user_input: userInput,
-            image_input_url: images.length > 0 ? images[0] : null, 
+            image_input_url: primaryImageUrl, 
             ai_response: aiResponse,
             content_type: detectedType,
             claim_state: file.claim_stage || 'document_collection_pending',
@@ -240,7 +246,7 @@ const createAIDraft = async (req, res) => {
                 output_text: aiResponse,
                 output_type: detectedType,
                 suggested_next_step: nextAction,
-                input_image: images[0] || null // Logging first image as reference
+                input_image: attachmentUrls 
             }])
             .select();
 

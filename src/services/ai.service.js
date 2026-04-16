@@ -31,8 +31,8 @@ export const generateAIDraft = async (type, userInput, files = []) => {
 
         // 2. Process Files
         for (const file of files) {
-            // HANDLE IMAGES: Convert temporary disk paths to Base64 for OpenAI Vision
             if (file.mimetype.startsWith('image/')) {
+                console.log("IMAGE ATTACHED")
                 const imageBase64 = fs.readFileSync(file.path, { encoding: 'base64' });
                 userMessageContent.push({
                     type: "image_url",
@@ -44,6 +44,7 @@ export const generateAIDraft = async (type, userInput, files = []) => {
             } 
 
             if (file.mimetype === 'application/pdf') {
+                console.log("PDF ATTACHED")
                 userMessageContent[0].text += `\n[Note: A PDF named ${file.originalname} was attached for context. Please assume standard insurance documentation details apply.]`;
             }
         }
