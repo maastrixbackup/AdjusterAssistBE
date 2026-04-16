@@ -162,10 +162,10 @@ const createAIDraft = async (req, res) => {
             fileCount: files.length 
         });
 
-        const attachmentUrls = await supabaseStorage.uploadAttachments(files);
-        const primaryImageUrl = attachmentUrls.find(url => 
-            url.match(/\.(jpeg|jpg|png|gif)$/i)
-        ) || null;
+        // const attachmentUrls = await supabaseStorage.uploadAttachments(files);
+        // const primaryImageUrl = attachmentUrls.find(url => 
+        //     url.match(/\.(jpeg|jpg|png|gif)$/i)
+        // ) || null;
 
         // 2. Validate Workspace
         const file = await File.findById(fileId);
@@ -221,7 +221,7 @@ const createAIDraft = async (req, res) => {
             workspace_id: fileId,
             user_id: userId,
             user_input: userInput,
-            image_input_url: primaryImageUrl || null, 
+            image_input_url: images || null, 
             ai_response: aiResponse,
             content_type: detectedType,
             claim_state: file.claim_stage || 'document_collection_pending',
@@ -246,7 +246,7 @@ const createAIDraft = async (req, res) => {
                 output_text: aiResponse,
                 output_type: detectedType,
                 suggested_next_step: nextAction,
-                input_image: null 
+                input_image: images 
             }])
             .select();
 
