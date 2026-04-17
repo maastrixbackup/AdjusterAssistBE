@@ -126,9 +126,7 @@ const getRecentDrafts = async (req, res) => {
     }
 };
 
-/**
- * 5. Delete Message: Secure deletion
- */
+
 const deleteDraft = async (req, res) => {
     try {
         const { draftId } = req.params;
@@ -151,7 +149,6 @@ const deleteDraft = async (req, res) => {
         res.status(500).json({ success: false, message: "Error deleting draft" });
     }
 };
-
 
 const createAIDraft = async (req, res) => {
     const userId = req.user.id;
@@ -216,7 +213,7 @@ const createAIDraft = async (req, res) => {
         );
 
         // 4. Parsing Logic
-        let nextAction = "Continue monitoring the claim.";
+        let nextAction = "Continue monitoring the claim and proceed with the next action once additional information is received.";
         let dynamicSuggestions = ["Review file", "Contact insured"];
 
         const nextStepMatch = aiRawResponse.match(/(?:next\s*steps?|recommended\s*action):\s*(.*)/i);
@@ -460,6 +457,7 @@ const updateDraft = async (req, res) => {
         });
     }
 };
+
 module.exports = {
     testCreateMessage,
     getFileDrafts,
