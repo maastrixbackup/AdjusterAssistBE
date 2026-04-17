@@ -195,7 +195,7 @@ const createAIDraft = async (req, res) => {
             files
         );
 
-        let nextAction = "Proceed with standard claim review.";
+        let nextAction = "Continue monitoring the claim and proceed with the next action once additional information is received.";
         let dynamicSuggestions = ["Review file", "Contact insured"];
 
         // Matches "Next step", "Next steps", "NEXT STEP:", etc.
@@ -238,6 +238,7 @@ const createAIDraft = async (req, res) => {
             user_id: userId,
             input_text: userInput,
             input_type: primaryImageUrl ? 'image+text' : 'text',
+            ai_response: aiRawResponse,
             output_text: cleanMainContent,
             output_type: detectedType,
             suggested_next_step: nextAction,
