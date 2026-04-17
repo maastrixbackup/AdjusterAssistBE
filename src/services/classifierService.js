@@ -5,7 +5,8 @@ class ClassifierService {
     this.OUTPUT_TYPES = [
       'file_note', 'email_insured', 'email_contractor', 
       'escalation_response', 'supplement_response', 'coverage_analysis', 
-      'denial_support', 'claim_summary', 'xactanalysis_response', 'damage_evaluation'
+      'denial_support', 'claim_summary', 'xactanalysis_response', 'damage_evaluation',
+      'attorney_response'
     ];
   }
 
@@ -25,7 +26,9 @@ class ClassifierService {
         return 'supplement_response';
     }
 
-    // if (text.includes("escalation"))
+    if (text.includes("into a file note format")) return 'file_note'
+    if (text.includes("into a attorney response format")) return 'attorney_response'
+    if (text.includes("into a email format")) return 'email_insured'
 
     return null; 
   }
@@ -46,6 +49,7 @@ class ClassifierService {
       - claim_summary: A high-level recap of the whole file.
       - xactanalysis_response: Short, technical operational notes.
       - damage_evaluation: Findings from a physical inspection (roof, kitchen, etc).
+      - attorney_response: Formal, defensible response to attorneys; no liability or coverage admissions.
 
       CONFLICT RESOLUTION RULES:
       1. If there is an external audience (Insured/Contractor) -> Prioritize EMAIL.
