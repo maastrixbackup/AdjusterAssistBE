@@ -1,37 +1,39 @@
-import { createClient } from '@supabase/supabase-js';
-import fs from 'fs';
-import path from 'path';
-
-// Initialize Supabase Client
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-);
+import supabase from "../config/supabase.js";
+import fs from "fs";
+import path from "path"
 
 const BUCKET_NAME = 'claims-attachments';
 
 export const supabaseStorage = {
   /**
-   * Uploads multiple files to Supabase and returns an array of public URLs
-   * @param {Array} files - The req.files array from Multer
+   * Uploads files to categorized folders and preserves extensions
+   * @param {Array} files - Multer files array
    * @returns {Promise<Array<string>>} - Array of public URLs
    */
   async uploadAttachments(files) {
-    // fileId = 21
     if (!files || files.length === 0) return [];
 
     const uploadPromises = files.map(async (file) => {
       try {
-        // 1. Prepare unique file path: folder/timestamp-name.ext
+        // 1. Identify File Type for Folder Organization
+        const isImage = file.mimetype.startsWith('image/');
+        const isPDF = file.mimetype === 'application/pdf';
+        
+        // Organize into folders: 'images/', 'docs/', or 'others/'
+        let folder = 'others';
+        if (isImage) folder = 'images';
+        else if (isPDF) folder = 'docs';
+
+        // 2. Preserve Original Extension
+        // Multer removes extensions from file.path, so we grab it from originalname
         const fileExt = path.extname(file.originalname);
         const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}${fileExt}`;
-        const filePath = `file/${fileName}`;
+        const filePath = `${folder}/${fileName}`;
 
-        // 2. Read file from local disk (where Multer saved it)
+        // 3. Read and Upload
         const fileBuffer = fs.readFileSync(file.path);
 
-        // 3. Upload to Supabase
-        const { data, error } = await supabase.storage
+        const { error } = await supabase.storage
           .from(BUCKET_NAME)
           .upload(filePath, fileBuffer, {
             contentType: file.mimetype,
@@ -45,17 +47,16 @@ export const supabaseStorage = {
           .from(BUCKET_NAME)
           .getPublicUrl(filePath);
 
-        // 5. Clean up local file (Delete from your 8GB PC disk)
-        fs.unlinkSync(file.path);
-
         return publicUrl;
       } catch (err) {
-        console.error(`Upload failed for ${file.originalname}:`, err.message);
+        console.error(`Supabase Upload Error [${file.originalname}]:`, err.message);
         return null;
       }
+      // Note: We handle fs.unlinkSync in the controller's .finally() block 
+      // to ensure AI service can read the file before it's deleted.
     });
 
-    const urls = await Promise.all(uploadPromises);
-    return urls.filter(url => url !== null); // Remove failed uploads
+    const results = await Promise.all(uploadPromises);
+    return results.filter(url => url !== null);
   }
 };
