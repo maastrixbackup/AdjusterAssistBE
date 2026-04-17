@@ -284,7 +284,7 @@ const createAIDraft = async (req, res) => {
                 output_format: detectedType,
                 next_step_suggestion: nextAction,
                 quick_actions: dynamicSuggestions,
-                attachment_count: attachmentUrls.length,
+                attachments: attachmentUrls,
                 created_at: turnResult.created_at
             }
         });
