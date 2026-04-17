@@ -36,9 +36,6 @@ export const supabaseStorage = {
       } catch (err) {
         console.error(`Supabase Upload Error [${file.originalname}]:`, err.message);
         return null;
-      } finally {
-        // Always delete local file to save your 8GB RAM PC disk space
-        if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
       }
     });
 

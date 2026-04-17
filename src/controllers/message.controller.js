@@ -11,6 +11,9 @@ const { getMandatoryNextStep } = require("../utils/workflowMatrix");
 const { storeBase64Image } = require("../services/storageService");
 const { supabaseStorage } = require("../services/supabaseStorage");
 
+import fs from 'fs';
+import path from 'path';
+
 
 const testCreateMessage = async (req, res) => {
     try {
@@ -255,6 +258,9 @@ const createAIDraft = async (req, res) => {
         }]);
 
         await Subscription.incrementUsage(userId);
+        files.forEach(file => {
+            if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
+        });
 
         // 7. Final Response for Frontend
         res.status(200).json({
@@ -272,6 +278,9 @@ const createAIDraft = async (req, res) => {
         });
 
     } catch (error) {
+        files.forEach(file => {
+            if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
+        });
         console.error("AI Controller Error:", error);
         res.status(500).json({ success: false, message: "Generation failed" });
     }
