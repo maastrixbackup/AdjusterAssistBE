@@ -152,62 +152,57 @@ const deleteDraft = async (req, res) => {
 const createAIDraft = async (req, res) => {
     const userId = req.user.id;
     try {
-        // 1. Get Text Fields from req.body and Files from req.files
         const { userInput, fileId } = req.body;
-        const files = req.files || []; 
+        const files = req.files || [];
 
-        console.log("Received AI Request:", { 
-            userInput, 
-            fileId, 
-            fileCount: files.length 
-        });
+        let attachmentUrls = [];
+        try {
+            attachmentUrls = await supabaseStorage.uploadAttachments(files);
+        } catch (storageErr) {
+            console.error("Non-critical Storage Error:", storageErr.message);
+        }
 
-        // const attachmentUrls = await supabaseStorage.uploadAttachments(files);
-        // const primaryImageUrl = attachmentUrls.find(url => 
-        //     url.match(/\.(jpeg|jpg|png|gif)$/i)
-        // ) || null;
+        const primaryImageUrl = attachmentUrls.find(url =>
+            url.match(/\.(jpeg|jpg|png|gif)$/i)
+        ) || null;
 
-        // 2. Validate Workspace
+        // 2. Context & Classification
         const file = await File.findById(fileId);
         if (!file) return res.status(404).json({ message: "Workspace not found" });
 
-        // 3. Process Files (Separate images from PDFs for your AI service)
-        const images = files.filter(f => f.mimetype.startsWith('image/')).map(f => f.path);
-        const pdfs = files.filter(f => f.mimetype === 'application/pdf').map(f => f.path);
-
-        // 4. Classification and Profile
         const detectedType = await classifierService.classify(userInput);
         const userProfile = await UserModel.findById(userId);
 
-        // 5. Construct Payload
+        // 3. AI Generation
         const fullPayload = PayloadBuilder.build(file, {
             output_type: detectedType,
             role: userProfile.role,
             inputText: userInput,
             userInfo: {
                 sender_name: userProfile.name,
-                sender_email: userProfile.email,
                 sender_designation: userProfile.role,
                 sender_company: userProfile.company || "AdjusterAssist™"
             },
-            attachments: { images, pdfs } 
+            attachments: {
+                images: files.filter(f => f.mimetype.startsWith('image/')).map(f => f.path),
+                pdfs: files.filter(f => f.mimetype === 'application/pdf').map(f => f.path)
+            }
         });
 
-        // 6. Generate AI Response 
-        // Note: Updated aiService to handle array of files instead of single base64
-        const aiResponse = await aiService.generateAIDraft(
+        const aiRawResponse = await aiService.generateAIDraft(
             detectedType,
             JSON.stringify(fullPayload),
-            files 
+            files
         );
 
-        // 7. Parse AI Response (Suggestions & Next Steps)
-        let mainContent = aiResponse;
-        let nextAction = "Proceed with claim review";
-        let dynamicSuggestions = ["Review claim file"];
+        let nextAction = "Proceed with standard claim review.";
+        let dynamicSuggestions = ["Review file", "Contact insured"];
 
-        const suggestionMatch = aiResponse.match(/suggestions:\s*(.*)/i);
-        const nextStepMatch = aiResponse.match(/next steps?:\s*(.*)/i);
+        // Matches "Next step", "Next steps", "NEXT STEP:", etc.
+        const nextStepMatch = aiRawResponse.match(/(?:next\s*steps?|recommended\s*action):\s*(.*)/i);
+
+        // Matches "Suggestions", "Suggested Actions", "Quick Actions", etc.
+        const suggestionMatch = aiRawResponse.match(/(?:suggestions|quick\s*actions|suggested\s*actions):\s*(.*)/i);
 
         if (suggestionMatch) {
             dynamicSuggestions = suggestionMatch[1].split('|').map(s => s.trim());
@@ -216,52 +211,53 @@ const createAIDraft = async (req, res) => {
             nextAction = nextStepMatch[1].trim();
         }
 
-        // 8. Save Interaction (Using your interaction model)
+        // Clean the main content (Remove "Suggestions:" and "Next Steps:" blocks)
+        let cleanMainContent = aiRawResponse
+            // .replace(/suggestions:[\s\S]*$/i, '')
+            .replace(/next steps?:[\s\S]*$/i, '')
+            .trim();
+
+        // 5. Save to Persistent Interaction Table
         const turnResult = await Message.create({
             workspace_id: fileId,
             user_id: userId,
             user_input: userInput,
-            image_input_url: images || null, 
-            ai_response: aiResponse,
+            image_input_url: primaryImageUrl,
+            ai_response: cleanMainContent, // Cleaned content
             content_type: detectedType,
-            claim_state: file.claim_stage || 'document_collection_pending',
+            claim_state: file.claim_stage || 'review_pending',
             next_step_suggestion: nextAction,
             quick_actions: dynamicSuggestions,
-            activity_type: 'communication_sent',
-            metadata: {
-                file_count: files.length,
-                engine_version: "1.1.0",
-                model: "gpt-4-turbo"
-            }
+            activity_type: 'ai_generation',
+            metadata: { model: "gpt-4o", attachment_count: attachmentUrls.length }
         });
 
-        // 9. Log to Supabase
-        const { data: logData, error: logError } = await supabase
-            .from('ai_logs')
-            .insert([{
-                file_id: parseInt(fileId),
-                user_id: userId,
-                input_text: userInput,
-                input_type: files.length > 0 ? 'multipart' : 'text',
-                output_text: aiResponse,
-                output_type: detectedType,
-                suggested_next_step: nextAction,
-                input_image: images 
-            }])
-            .select();
+        // 6. Log to ai_logs
+        await supabase.from('ai_logs').insert([{
+            file_id: parseInt(fileId),
+            user_id: userId,
+            input_text: userInput,
+            input_type: primaryImageUrl ? 'image+text' : 'text',
+            output_text: cleanMainContent,
+            output_type: detectedType,
+            suggested_next_step: nextAction,
+            input_image: primaryImageUrl
+        }]);
 
-        // 10. Increment Usage
         await Subscription.incrementUsage(userId);
 
-        // 11. Final Response
+        // 7. Final Response for Frontend
         res.status(200).json({
             success: true,
             data: {
-                content: aiResponse,
+                id: turnResult.id,
+                user_input: userInput,
+                ai_response: cleanMainContent,
                 output_format: detectedType,
-                next_step: nextAction,
-                suggestions: dynamicSuggestions,
-                created_at: logData ? logData[0].created_at : new Date().toISOString()
+                next_step_suggestion: nextAction,
+                quick_actions: dynamicSuggestions,
+                image_input_url: primaryImageUrl,
+                created_at: turnResult.created_at
             }
         });
 
@@ -270,6 +266,7 @@ const createAIDraft = async (req, res) => {
         res.status(500).json({ success: false, message: "Generation failed" });
     }
 };
+
 
 const generateNextStepDraft = async (req, res) => {
     const userId = req.user.id;

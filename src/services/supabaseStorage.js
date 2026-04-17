@@ -11,27 +11,15 @@ const supabase = createClient(
 const BUCKET_NAME = 'claims-attachments';
 
 export const supabaseStorage = {
-  /**
-   * Uploads multiple files to Supabase and returns an array of public URLs
-   * @param {Array} files - The req.files array from Multer
-   * @returns {Promise<Array<string>>} - Array of public URLs
-   */
   async uploadAttachments(files) {
-    // fileId = 21
     if (!files || files.length === 0) return [];
 
     const uploadPromises = files.map(async (file) => {
+      let filePath = `file/${Date.now()}-${path.basename(file.path)}`;
       try {
-        // 1. Prepare unique file path: folder/timestamp-name.ext
-        const fileExt = path.extname(file.originalname);
-        const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}${fileExt}`;
-        const filePath = `file/${fileName}`;
-
-        // 2. Read file from local disk (where Multer saved it)
         const fileBuffer = fs.readFileSync(file.path);
 
-        // 3. Upload to Supabase
-        const { data, error } = await supabase.storage
+        const { error } = await supabase.storage
           .from(BUCKET_NAME)
           .upload(filePath, fileBuffer, {
             contentType: file.mimetype,
@@ -40,22 +28,21 @@ export const supabaseStorage = {
 
         if (error) throw error;
 
-        // 4. Get Public URL
         const { data: { publicUrl } } = supabase.storage
           .from(BUCKET_NAME)
           .getPublicUrl(filePath);
 
-        // 5. Clean up local file (Delete from your 8GB PC disk)
-        fs.unlinkSync(file.path);
-
         return publicUrl;
       } catch (err) {
-        console.error(`Upload failed for ${file.originalname}:`, err.message);
+        console.error(`Supabase Upload Error [${file.originalname}]:`, err.message);
         return null;
+      } finally {
+        // Always delete local file to save your 8GB RAM PC disk space
+        if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
       }
     });
 
-    const urls = await Promise.all(uploadPromises);
-    return urls.filter(url => url !== null); // Remove failed uploads
+    const results = await Promise.all(uploadPromises);
+    return results.filter(url => url !== null);
   }
 };
