@@ -152,15 +152,15 @@ const deleteDraft = async (req, res) => {
     }
 };
 
-/**
- * 6. Create AI Message: The core logic for OpenAI/Groq generation
- */
+
 const createAIDraft = async (req, res) => {
     const userId = req.user.id;
+    const files = req.files || [];
+
     try {
         const { userInput, fileId } = req.body;
-        const files = req.files || [];
 
+        // 1. Storage - Isolated (Non-blocking)
         let attachmentUrls = [];
         try {
             attachmentUrls = await supabaseStorage.uploadAttachments(files);
@@ -168,34 +168,31 @@ const createAIDraft = async (req, res) => {
             console.error("Non-critical Storage Error:", storageErr.message);
         }
 
-        // attachmentUrls = await supabaseStorage.uploadAttachments(files);
-        // console.log(attachmentUrls)
-
-        // This will now WORK because we preserved the extensions!
         const primaryImageUrl = attachmentUrls.find(url =>
-            url.toLowerCase().match(/\.(jpeg|jpg|png|gif)$/)
+            url.toLowerCase().match(/\.(jpeg|jpg|png|gif|webp)$/)
         ) || null;
 
         const documentUrl = attachmentUrls.find(url =>
             url.toLowerCase().match(/\.(pdf|docx|doc|txt|rtf|csv|xlsx|xls)$/)
         ) || null;
 
-        // 1. Analyzing Prev messages
-        const previousMessages = await Message.findByFileId(fileId);
-        const recentHistory = previousMessages.slice(-5);
+        // 2. Thread History & Context
+        let conversationContext = "";
+        try {
+            const previousMessages = await Message.findByFileId(fileId);
+            conversationContext = previousMessages.slice(-5).map(msg => (
+                `User: ${msg.user_input}\nAI: ${msg.ai_response}`
+            )).join('\n\n');
+        } catch (e) { console.error("History fetch failed:", e.message); }
 
-        const conversationContext = recentHistory.map(msg => (
-            `User: ${msg.user_input}\nAI: ${msg.ai_response}`
-        )).join('\n\n');
-
-        // 2. Context & Classification
         const file = await File.findById(fileId);
         if (!file) return res.status(404).json({ message: "Workspace not found" });
 
-        const detectedType = await classifierService.classify(userInput);
-        const userProfile = await UserModel.findById(userId);
+        // Safely get profile and classification
+        const userProfile = await UserModel.findById(userId) || { name: "Adjuster", role: "Field Adjuster" };
+        const detectedType = await classifierService.classify(userInput).catch(() => 'general_note');
 
-        // 3. AI Generation
+        // 3. AI Generation (The Core Task)
         const fullPayload = PayloadBuilder.build(file, {
             conversationHistory: conversationContext,
             output_type: detectedType,
@@ -218,65 +215,66 @@ const createAIDraft = async (req, res) => {
             files
         );
 
-        let nextAction = "Continue monitoring the claim and proceed with the next action once additional information is received.";
+        // 4. Parsing Logic
+        let nextAction = "Continue monitoring the claim.";
         let dynamicSuggestions = ["Review file", "Contact insured"];
 
-        // Matches "Next step", "Next steps", "NEXT STEP:", etc.
         const nextStepMatch = aiRawResponse.match(/(?:next\s*steps?|recommended\s*action):\s*(.*)/i);
-
-        // Matches "Suggestions", "Suggested Actions", "Quick Actions", etc.
         const suggestionMatch = aiRawResponse.match(/(?:suggestions|quick\s*actions|suggested\s*actions):\s*(.*)/i);
 
-        if (suggestionMatch) {
-            dynamicSuggestions = suggestionMatch[1].split('|').map(s => s.trim());
-        }
-        if (nextStepMatch) {
-            nextAction = nextStepMatch[1].trim();
-        }
+        if (suggestionMatch) dynamicSuggestions = suggestionMatch[1].split('|').map(s => s.trim());
+        if (nextStepMatch) nextAction = nextStepMatch[1].trim();
 
-        // Clean the main content (Remove "Suggestions:" and "Next Steps:" blocks)
-        let cleanMainContent = aiRawResponse
-            // .replace(/suggestions:[\s\S]*$/i, '')
-            .replace(/next steps?:[\s\S]*$/i, '')
+        const cleanMainContent = aiRawResponse
+            .replace(/(?:next\s*steps?|recommended\s*action):[\s\S]*$/i, '')
+            .replace(/(?:suggestions|quick\s*actions|suggested\s*actions):[\s\S]*$/i, '')
             .trim();
 
-        // 5. Save to Persistent Interaction Table
-        const turnResult = await Message.create({
-            workspace_id: fileId,
-            user_id: userId,
-            user_input: userInput,
-            image_input_url: primaryImageUrl,
-            doccuments_url:documentUrl,
-            ai_response: cleanMainContent, // Cleaned content
-            content_type: detectedType,
-            claim_state: file.claim_stage || 'review_pending',
-            next_step_suggestion: nextAction,
-            quick_actions: dynamicSuggestions,
-            activity_type: 'ai_generation',
-            metadata: { model: "gpt-4o", attachment_count: attachmentUrls.length }
-        });
+        // 5. Database Operations (Persistent Interaction)
+        let turnResult;
+        try {
+            turnResult = await Message.create({
+                workspace_id: fileId,
+                user_id: userId,
+                user_input: userInput,
+                image_input_url: primaryImageUrl,
+                doccuments_url: documentUrl,
+                ai_response: cleanMainContent,
+                content_type: detectedType,
+                claim_state: file.claim_stage || 'review_pending',
+                next_step_suggestion: nextAction,
+                quick_actions: dynamicSuggestions,
+                activity_type: 'ai_generation',
+                metadata: { model: "gpt-4o", attachment_count: attachmentUrls.length }
+            });
+        } catch (dbErr) {
+            console.error("Critical DB Error:", dbErr.message);
+            // Fallback object so res.json doesn't crash
+            turnResult = { id: Date.now(), created_at: new Date().toISOString() };
+        }
 
-        // 6. Log to ai_logs
-        await supabase.from('ai_logs').insert([{
-            file_id: parseInt(fileId),
-            user_id: userId,
-            input_text: userInput,
-            input_type: primaryImageUrl ? 'attachment+text' : 'text',
-            ai_response: aiRawResponse,
-            output_text: cleanMainContent,
-            output_type: detectedType,
-            suggested_next_step: nextAction,
-            input_image: primaryImageUrl,
-            doccuments_url: documentUrl,
-             metadata: { model: "gpt-4o", attachment_count: attachmentUrls.length }
-        }]);
+        // 6. Secondary Logging & Usage (Non-blocking)
+        // Wrapped in immediate try-catch so failure here doesn't stop the response
+        try {
+            await supabase.from('ai_logs').insert([{
+                file_id: parseInt(fileId),
+                user_id: userId,
+                input_text: userInput,
+                input_type: primaryImageUrl ? 'attachment+text' : 'text',
+                ai_response: aiRawResponse,
+                output_text: cleanMainContent,
+                output_type: detectedType,
+                suggested_next_step: nextAction,
+                input_image: primaryImageUrl,
+                doccuments_url: documentUrl,
+                metadata: { model: "gpt-4o", attachment_count: attachmentUrls.length }
+            }]);
+            await Subscription.incrementUsage(userId);
+        } catch (logErr) {
+            console.error("Logging/Usage increment failed:", logErr.message);
+        }
 
-        await Subscription.incrementUsage(userId);
-        files.forEach(file => {
-            if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
-        });
-
-        // 7. Final Response for Frontend
+        // 7. Success Response
         res.status(200).json({
             success: true,
             data: {
@@ -286,20 +284,22 @@ const createAIDraft = async (req, res) => {
                 output_format: detectedType,
                 next_step_suggestion: nextAction,
                 quick_actions: dynamicSuggestions,
-                image_input_url: primaryImageUrl,
+                attachment_count: attachmentUrls.length,
                 created_at: turnResult.created_at
             }
         });
 
     } catch (error) {
-        files.forEach(file => {
-            if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
-        });
-        console.error("AI Controller Error:", error);
+        console.error("CRITICAL AI Controller Error:", error);
         res.status(500).json({ success: false, message: "Generation failed" });
+    } finally {
+        files.forEach(file => {
+            if (fs.existsSync(file.path)) {
+                try { fs.unlinkSync(file.path); } catch (e) { console.error("Cleanup error:", e); }
+            }
+        });
     }
 };
-
 
 const generateNextStepDraft = async (req, res) => {
     const userId = req.user.id;
