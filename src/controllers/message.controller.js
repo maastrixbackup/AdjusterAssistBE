@@ -11,8 +11,11 @@ const { getMandatoryNextStep } = require("../utils/workflowMatrix");
 const { storeBase64Image } = require("../services/storageService");
 const { supabaseStorage } = require("../services/supabaseStorage");
 
-import fs from 'fs';
-import path from 'path';
+const fs = require('fs');
+const path = require('path');
+
+// Example usage in your controller
+const uploadDir = path.join(__dirname, '../uploads');
 
 
 const testCreateMessage = async (req, res) => {
@@ -165,13 +168,21 @@ const createAIDraft = async (req, res) => {
             console.error("Non-critical Storage Error:", storageErr.message);
         }
 
+        // attachmentUrls = await supabaseStorage.uploadAttachments(files);
+        // console.log(attachmentUrls)
+
+        // This will now WORK because we preserved the extensions!
         const primaryImageUrl = attachmentUrls.find(url =>
-            url.match(/\.(jpeg|jpg|png|gif)$/i)
+            url.toLowerCase().match(/\.(jpeg|jpg|png|gif)$/)
+        ) || null;
+
+        const documentUrl = attachmentUrls.find(url =>
+            url.toLowerCase().match(/\.(pdf|docx|doc|txt|rtf|csv|xlsx|xls)$/)
         ) || null;
 
         // 1. Analyzing Prev messages
-        const previousMessages = await Message.findByFileId(fileId); 
-        const recentHistory = previousMessages.slice(-5); 
+        const previousMessages = await Message.findByFileId(fileId);
+        const recentHistory = previousMessages.slice(-5);
 
         const conversationContext = recentHistory.map(msg => (
             `User: ${msg.user_input}\nAI: ${msg.ai_response}`
@@ -235,6 +246,7 @@ const createAIDraft = async (req, res) => {
             user_id: userId,
             user_input: userInput,
             image_input_url: primaryImageUrl,
+            doccuments_url:documentUrl,
             ai_response: cleanMainContent, // Cleaned content
             content_type: detectedType,
             claim_state: file.claim_stage || 'review_pending',
@@ -249,12 +261,14 @@ const createAIDraft = async (req, res) => {
             file_id: parseInt(fileId),
             user_id: userId,
             input_text: userInput,
-            input_type: primaryImageUrl ? 'image+text' : 'text',
+            input_type: primaryImageUrl ? 'attachment+text' : 'text',
             ai_response: aiRawResponse,
             output_text: cleanMainContent,
             output_type: detectedType,
             suggested_next_step: nextAction,
-            input_image: primaryImageUrl
+            input_image: primaryImageUrl,
+            doccuments_url: documentUrl,
+             metadata: { model: "gpt-4o", attachment_count: attachmentUrls.length }
         }]);
 
         await Subscription.incrementUsage(userId);
