@@ -25,6 +25,8 @@ class ClassifierService {
         return 'supplement_response';
     }
 
+    // if (text.includes("escalation"))
+
     return null; 
   }
 

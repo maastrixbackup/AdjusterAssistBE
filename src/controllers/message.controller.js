@@ -166,6 +166,14 @@ const createAIDraft = async (req, res) => {
             url.match(/\.(jpeg|jpg|png|gif)$/i)
         ) || null;
 
+        // 1. Analyzing Prev messages
+        const previousMessages = await Message.findByFileId(fileId); 
+        const recentHistory = previousMessages.slice(-5); 
+
+        const conversationContext = recentHistory.map(msg => (
+            `User: ${msg.user_input}\nAI: ${msg.ai_response}`
+        )).join('\n\n');
+
         // 2. Context & Classification
         const file = await File.findById(fileId);
         if (!file) return res.status(404).json({ message: "Workspace not found" });
@@ -175,6 +183,7 @@ const createAIDraft = async (req, res) => {
 
         // 3. AI Generation
         const fullPayload = PayloadBuilder.build(file, {
+            conversationHistory: conversationContext,
             output_type: detectedType,
             role: userProfile.role,
             inputText: userInput,
