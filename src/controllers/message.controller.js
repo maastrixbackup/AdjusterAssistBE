@@ -153,6 +153,7 @@ const deleteDraft = async (req, res) => {
 const createAIDraft = async (req, res) => {
     const userId = req.user.id;
     const files = req.files || [];
+    console.log(req.body)
 
     try {
         const { userInput, fileId } = req.body;
