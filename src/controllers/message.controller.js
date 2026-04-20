@@ -255,11 +255,10 @@ const createAIDraft = async (req, res) => {
                 next_step_suggestion: nextAction,
                 quick_actions: dynamicSuggestions,
                 activity_type: 'ai_generation',
-                metadata: { model: "gpt-4o", attachment_count: attachmentUrls.length }
+                metadata: { model: "gpt-4o", attachment_count: attachmentUrls.length, prompt: "adjusterassist_system_prompt_v1" }
             });
         } catch (dbErr) {
             console.error("Critical DB Error:", dbErr.message);
-            // Fallback object so res.json doesn't crash
             turnResult = { id: Date.now(), created_at: new Date().toISOString() };
         }
 
@@ -278,7 +277,7 @@ const createAIDraft = async (req, res) => {
                 input_image: primaryImageUrl,
                 ocrInsights: ocrInsights,
                 doccuments_url: documentUrl,
-                metadata: { model: "gpt-4o", attachment_count: attachmentUrls.length }
+                metadata: { model: "gpt-4o", attachment_count: attachmentUrls.length, prompt: "adjusterassist_system_prompt_v1", guardrail: "gurdrails_v1"  }
             }]);
             await Subscription.incrementUsage(userId);
         } catch (logErr) {
