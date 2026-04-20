@@ -60,7 +60,7 @@ When facts are incomplete:
 Return only the final drafted response.
 
 
-Output must be professional, structured, and suitable for a claim file and avoid using labels.
+Output must be professional, structured, and suitable for a claim file and avoid using labels and placeholders(fill placeholders from payload).
 `;
 
 
@@ -395,7 +395,7 @@ INPUT DATA:
 
 OUTPUT:
 Generate a polished "Attorney Response" that adheres strictly to the above tone, rules, and structure.
-Do not include placeholders in the final output. Replace all inputs with actual content.`
+Do not include placeholders(mainly in emails) in the final output. Replace all inputs with actual content.`
   };
 
 

@@ -10,6 +10,7 @@ const { default: classifierService } = require("../services/classifierService");
 const { getMandatoryNextStep } = require("../utils/workflowMatrix");
 const { storeBase64Image } = require("../services/storageService");
 const { supabaseStorage } = require("../services/supabaseStorage");
+const OCRService = require("../services/ocrService")
 
 const fs = require('fs');
 const path = require('path');
@@ -153,8 +154,6 @@ const deleteDraft = async (req, res) => {
 const createAIDraft = async (req, res) => {
     const userId = req.user.id;
     const files = req.files || [];
-    console.log("FILES: ", files)
-    console.log(req.body)
 
     try {
         const { userInput, fileId } = req.body;
@@ -166,6 +165,20 @@ const createAIDraft = async (req, res) => {
         } catch (storageErr) {
             console.error("Non-critical Storage Error:", storageErr.message);
         }
+
+        let ocrInsights = "No attachments processed.";
+
+        if (files.length > 0) {
+            try {
+                console.log(`[Controller] Extracting insights from ${files.length} files...`);
+                ocrInsights = await OCRService.extractInsights(files);
+            } catch (ocrErr) {
+                console.error("OCR extraction failed:", ocrErr.message);
+                ocrInsights = "Technical error: Could not extract document insights.";
+            }
+        }
+
+        // console.log(ocrInsights)
 
         const primaryImageUrl = attachmentUrls.find(url =>
             url.toLowerCase().match(/\.(jpeg|jpg|png|gif|webp)$/)
@@ -202,10 +215,7 @@ const createAIDraft = async (req, res) => {
                 sender_designation: userProfile.role,
                 sender_company: userProfile.company || "AdjusterAssist™"
             },
-            attachments: {
-                images: files.filter(f => f.mimetype.startsWith('image/')).map(f => f.path),
-                pdfs: files.filter(f => f.mimetype === 'application/pdf').map(f => f.path)
-            }
+            ocrData: ocrInsights
         });
 
         const aiRawResponse = await aiService.generateAIDraft(
@@ -239,6 +249,7 @@ const createAIDraft = async (req, res) => {
                 image_input_url: primaryImageUrl,
                 doccuments_url: documentUrl,
                 ai_response: cleanMainContent,
+                ocrInsights: ocrInsights,
                 content_type: detectedType,
                 claim_state: file.claim_stage || 'review_pending',
                 next_step_suggestion: nextAction,
@@ -265,6 +276,7 @@ const createAIDraft = async (req, res) => {
                 output_type: detectedType,
                 suggested_next_step: nextAction,
                 input_image: primaryImageUrl,
+                ocrInsights: ocrInsights,
                 doccuments_url: documentUrl,
                 metadata: { model: "gpt-4o", attachment_count: attachmentUrls.length }
             }]);
