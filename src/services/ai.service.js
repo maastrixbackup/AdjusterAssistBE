@@ -30,25 +30,25 @@ export const generateAIDraft = async (type, userInput, files = []) => {
         ];
 
         // 2. Process Files
-        for (const file of files) {
-            if (file.mimetype.startsWith('image/')) {
-                console.log("IMAGE ATTACHED")
-                const imageBase64 = fs.readFileSync(file.path, { encoding: 'base64' });
-                userMessageContent.push({
-                    type: "image_url",
-                    image_url: {
-                        url: `data:${file.mimetype};base64,${imageBase64}`,
-                        detail: "auto"
-                    }
-                });
-            } 
+        // for (const file of files) {
+        //     if (file.mimetype.startsWith('image/')) {
+        //         console.log("IMAGE ATTACHED")
+        //         const imageBase64 = fs.readFileSync(file.path, { encoding: 'base64' });
+        //         userMessageContent.push({
+        //             type: "image_url",
+        //             image_url: {
+        //                 url: `data:${file.mimetype};base64,${imageBase64}`,
+        //                 detail: "auto"
+        //             }
+        //         });
+        //     } 
 
-            if (file.mimetype === 'application/pdf') {
-                console.log("PDF ATTACHED")
-                userMessageContent[0].text += `\n[Note: A PDF named ${file.originalname} was attached for context. Please assume standard insurance documentation details apply.]`;
-            }
-        }
-
+        //     if (file.mimetype === 'application/pdf') {
+        //         console.log("PDF ATTACHED")
+        //         userMessageContent[0].text += `\n[Note: A PDF named ${file.originalname} was attached for context. Please assume standard insurance documentation details apply.]`;
+        //     }
+        // }
+        console.log("USER INPUT IN AI  SERVICE: ", userMessageContent)
         const systemMessage = `
             ${adjusterPrompt}
             ${guardrailInjection}
