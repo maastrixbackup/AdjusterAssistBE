@@ -550,6 +550,7 @@ const createVariantDraft = async (req, res) => {
             data: {
                 id: turnResult.id,
                 parent_id: turnResult.parent_id,
+                user_input:userInput,
                 variant_label: turnResult.variant_label,
                 ai_response: cleanMainContent,
                 next_step_suggestion: turnResult.next_step_suggestion || arentMessage.next_step_suggestion,
@@ -665,9 +666,10 @@ const refineAIDraft = async (req, res) => {
             data: {
                 id: turnResult.id,
                 parent_id: turnResult.parent_id,
+                user_input:userInput,
                 refinement_type: turnResult.refinement_type,
                 ai_response: cleanMainContent,
-                next_step_suggestion:next_step_suggestion,
+                next_step_suggestion:parentMessage.next_step_suggestion,
                 created_at: turnResult.created_at
             }
         });
