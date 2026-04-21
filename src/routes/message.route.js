@@ -3,13 +3,14 @@ const router = express.Router();
 const { 
     testDraft, 
     createAIDraft, 
-    getRecentDrafts, 
-    saveGeneratedDraft,
+    getRecentDrafts,
     generateNextStepDraft,
     AllDrafts,
     deleteDraft,
     updateDraft,
     testCreateMessage,
+    createVariantDraft,
+    refineAIDraft
 } = require("../controllers/message.controller");
 
 const authMiddleware = require("../middlewares/auth.middleware");
@@ -40,10 +41,14 @@ router.post("/generate", authMiddleware, checkUsageLimit, (req, res, next) => {
     });
 }, createAIDraft);
 
+router.post("/variant", authMiddleware, checkUsageLimit, createVariantDraft);
+
+router.post("/refine", authMiddleware, checkUsageLimit, refineAIDraft);
+
 router.post('/generate-next-step', authMiddleware, checkUsageLimit, generateNextStepDraft);
 
 router.delete("/delete/:draftId", authMiddleware, deleteDraft);
-router.post("/save", authMiddleware, saveGeneratedDraft);
+// router.post("/save", authMiddleware, saveGeneratedDraft);
 router.get("/recent", authMiddleware, getRecentDrafts);
 router.get("/history", authMiddleware, AllDrafts); 
 

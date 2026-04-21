@@ -178,9 +178,9 @@ class PayloadBuilder {
     /**
      * Builds the full JSON structure
      * @param {Object} file - Database record from Supabase
-     * @param {Object} input - { output_type, role, inputText, task_type }
+     * @param {Object} input - { output_type, role, inputText, ocrData }
      */
-    static build(file, { output_type, role, inputText, task_type, userInfo }) {
+    static build(file, { output_type, role, inputText, ocrData, userInfo }) {
 
         // console.log(userInfo);
 
@@ -194,7 +194,7 @@ class PayloadBuilder {
                 name: userInfo?.sender_name || "Adjuster Name",
                 email: userInfo?.sender_email || "email",
                 role: userInfo?.sender_designation || "Carrier Adjuster",
-                // company: userInfo?.sender_company || "AdjusterAssist™"
+                company: userInfo?.sender_company || "AdjusterAssist™"
             },
 
             jurisdiction: file.jurisdiction || "CT", ///// ---->>>>>
@@ -208,7 +208,7 @@ class PayloadBuilder {
                 policy_form: file.policy_form || "",
                 insured_name: file.client_name,
                 property_address: file.address || "",
-                claim_stage: task_type || file.claim_stage || "general_review",
+                claim_stage: file.claim_stage || "general_review",
 
                 current_issue: inputText.substring(0, 75).replace(/\n/g, " ") + "..."  ///------>>
             },
@@ -265,12 +265,96 @@ class PayloadBuilder {
             },
 
             "attachments_context": {
-                "photos_received": false,
+                "photos_received": !!ocrData,
                 "estimate_received": false,
                 "invoice_received": false,
                 "proof_of_loss_received": false,
                 "mitigation_docs_received": false,
                 "expert_report_received": false
+            }
+        };
+    }
+
+    static async buildVariantPayload({ fileId, originalContent, instructions, variantLabel }) {
+        // 1. Define the System Persona for Variants
+        const systemInstruction = `
+            You are a specialized Insurance Claims Assistant. 
+            Your task is to TRANSFORM the provided content into a ${variantLabel.toUpperCase()} format.
+            
+            STRICT GUARDRAILS:
+            - Use only the facts provided in the original content.
+            - Adopt the standard structural conventions of a ${variantLabel}.
+            - Maintain professional, objective, and adjuster-standard language.
+            - If the original content contains specific claim numbers or dates, they MUST be preserved.
+        `;
+
+        // 2. Format the Prompt
+        const prompt = `
+            ${instructions}
+
+            ORIGINAL CONTENT TO TRANSFORM:
+            """
+            ${originalContent}
+            """
+
+            Provide the ${variantLabel} below:
+        `;
+
+        // 3. Return the standard payload structure for your AI Service
+        return {
+            fileId,
+            systemInstruction,
+            messages: [
+                {
+                    role: "user",
+                    parts: [{ text: prompt }]
+                }
+            ],
+            config: {
+                temperature: 0.3, // Lower temperature for structural accuracy
+                maxOutputTokens: 2048,
+            }
+        };
+    }
+
+    static async buildRefinementPayload({ originalContent, rule }) {
+        // 1. Define the System Instruction for Refinements
+        const systemInstruction = `
+            You are an expert Insurance Content Editor. 
+            Your goal is to REWRITE the provided content based on a specific user rule.
+            
+            STRICT GUARDRAILS:
+            - DO NOT change the facts, claim numbers, dates, or names.
+            - DO NOT add new information that is not in the original text.
+            - ONLY change the tone, length, or compliance language as requested.
+            - Maintain a professional insurance adjuster standard.
+        `;
+
+        // 2. Format the Prompt to isolate the content and the rule
+        const prompt = `
+            REFINEMENT RULE: ${rule}
+
+            CONTENT TO REFINE:
+            """
+            ${originalContent}
+            """
+
+            Provide the refined version below:
+        `;
+
+        // 3. Return the payload
+        return {
+            systemInstruction,
+            messages: [
+                {
+                    role: "user",
+                    parts: [{ text: prompt }]
+                }
+            ],
+            config: {
+                temperature: 0.1, // Set very low to prevent "creative" hallucinations
+                maxOutputTokens: 2048,
+                topP: 0.1
             }
         };
     }
