@@ -521,6 +521,7 @@ const createVariantDraft = async (req, res) => {
             content_type: variantLabel.toLowerCase().replace(/\s+/g, '_'),
             claim_state: file.claim_stage || 'review_pending',
             activity_type: 'ai_variant_generation',
+            next_step_suggestion: "Continue monitoring claim",
             metadata: {
                 model: "gpt-4o",
                 is_variant: true,
@@ -551,6 +552,7 @@ const createVariantDraft = async (req, res) => {
                 parent_id: turnResult.parent_id,
                 variant_label: turnResult.variant_label,
                 ai_response: cleanMainContent,
+                next_step_suggestion: turnResult.next_step_suggestion || arentMessage.next_step_suggestion,
                 created_at: turnResult.created_at
             }
         });
@@ -633,6 +635,7 @@ const refineAIDraft = async (req, res) => {
             ocrInsights: parentMessage.ocrInsights, 
             content_type: parentMessage.content_type,
             claim_state: file.claim_stage || 'review_pending',
+            next_step_suggestion:"Continue monitoring draft.",
             activity_type: 'ai_refinement',
             metadata: {
                 model: "gpt-4o",
@@ -664,6 +667,7 @@ const refineAIDraft = async (req, res) => {
                 parent_id: turnResult.parent_id,
                 refinement_type: turnResult.refinement_type,
                 ai_response: cleanMainContent,
+                next_step_suggestion:next_step_suggestion,
                 created_at: turnResult.created_at
             }
         });
