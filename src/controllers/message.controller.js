@@ -152,11 +152,19 @@ const deleteDraft = async (req, res) => {
 };
 
 const createAIDraft = async (req, res) => {
+    const startTime = Date.now();
     const userId = req.user.id;
     const files = req.files || [];
 
     try {
-        const { userInput, fileId } = req.body;
+        // 1. Destructure new refinement fields from body
+        const {
+            userInput,
+            fileId,
+            parentMessageId = null,
+            refinementType = null,
+            variantLabel = null
+        } = req.body;
 
         // 1. Storage - Isolated (Non-blocking)
         let attachmentUrls = [];
@@ -167,10 +175,20 @@ const createAIDraft = async (req, res) => {
         }
 
         let ocrInsights = "No attachments processed.";
+        let parentMessage = null;
 
-        if (files.length > 0) {
+        // 2. LOGIC BRANCH: NEW CHAT vs. REFINEMENT
+        if (parentMessageId) {
+            // REFINEMENT: Fetch parent to inherit OCR insights and attachments
+            console.log(`[Supabase Call] Fetching OCR Insights from parent message Id: {parentMessageId}`)
+            parentMessage = await Message.findById(parentMessageId);
+            if (parentMessage) {
+                ocrInsights = parentMessage.ocrInsights || "No previous insights.";
+            }
+        } else if (files.length > 0) {
+            // NEW CHAT: Process new files( OCR extract)
             try {
-                console.log(`[Controller] Extracting insights from ${files.length} files...`);
+                console.log(`[OCR Service] Extracting insights from ${files.length} files...`);
                 ocrInsights = await OCRService.extractInsights(files);
             } catch (ocrErr) {
                 console.error("OCR extraction failed:", ocrErr.message);
@@ -178,15 +196,14 @@ const createAIDraft = async (req, res) => {
             }
         }
 
-        // console.log(ocrInsights)
-
+        // Inherit URLs if refining, otherwise use new uploads
         const primaryImageUrl = attachmentUrls.find(url =>
             url.toLowerCase().match(/\.(jpeg|jpg|png|gif|webp)$/)
-        ) || null;
+        ) || (parentMessage ? parentMessage.image_input_url : null);
 
         const documentUrl = attachmentUrls.find(url =>
             url.toLowerCase().match(/\.(pdf|docx|doc|txt|rtf|csv|xlsx|xls)$/)
-        ) || null;
+        ) || (parentMessage ? parentMessage.doccuments_url : null);
 
         // 2. Thread History & Context
         let conversationContext = "";
@@ -200,11 +217,22 @@ const createAIDraft = async (req, res) => {
         const file = await File.findById(fileId);
         if (!file) return res.status(404).json({ message: "Workspace not found" });
 
-        // Safely get profile and classification
         const userProfile = await UserModel.findById(userId) || { name: "Adjuster", role: "Field Adjuster" };
-        const detectedType = await classifierService.classify(userInput).catch(() => 'general_note');
 
-        // 3. AI Generation (The Core Task)
+
+        let detectedType;
+        if (refinementType || variantLabel) {
+            const classificationInput = refinementType || variantLabel;
+
+            console.log(`[SERVICE]: Classifying Output Format using Action: ${classificationInput}`);
+            detectedType = await classifierService.classify(classificationInput).catch(() => 'file_note');
+        } else {
+            console.log("[SERVICE]: Classifying Output Format using UserInput");
+            detectedType = await classifierService.classify(userInput).catch(() => 'file_note');
+        }
+
+
+        // 3. AI Generation (Enhanced with Refinement Context)
         const fullPayload = PayloadBuilder.build(file, {
             conversationHistory: conversationContext,
             output_type: detectedType,
@@ -215,7 +243,10 @@ const createAIDraft = async (req, res) => {
                 sender_designation: userProfile.role,
                 sender_company: userProfile.company || "AdjusterAssist™"
             },
-            ocrData: ocrInsights
+            ocrData: ocrInsights,
+            originalResponse: parentMessage ? parentMessage.ai_response : null,
+            refinementAction: refinementType,
+            variant: variantLabel
         });
 
         const aiRawResponse = await aiService.generateAIDraft(
@@ -225,7 +256,7 @@ const createAIDraft = async (req, res) => {
         );
 
         // 4. Parsing Logic
-        let nextAction = "Continue monitoring the claim and proceed with the next action once additional information is received.";
+        let nextAction = "Continue monitoring the claim...";
         let dynamicSuggestions = ["Review file", "Contact insured"];
 
         const nextStepMatch = aiRawResponse.match(/(?:next\s*steps?|recommended\s*action):\s*(.*)/i);
@@ -239,12 +270,15 @@ const createAIDraft = async (req, res) => {
             .replace(/(?:suggestions|quick\s*actions|suggested\s*actions):[\s\S]*$/i, '')
             .trim();
 
-        // 5. Database Operations (Persistent Interaction)
+        // 5. Database Operations (Now supporting Hierarchy)
         let turnResult;
         try {
             turnResult = await Message.create({
                 workspace_id: fileId,
                 user_id: userId,
+                parent_id: parentMessageId, // Links this version to the parent
+                variant_label: variantLabel || (parentMessageId ? "Refinement" : "Original"),
+                refinement_type: refinementType,
                 user_input: userInput,
                 image_input_url: primaryImageUrl,
                 doccuments_url: documentUrl,
@@ -254,34 +288,72 @@ const createAIDraft = async (req, res) => {
                 claim_state: file.claim_stage || 'review_pending',
                 next_step_suggestion: nextAction,
                 quick_actions: dynamicSuggestions,
-                activity_type: 'ai_generation',
-                metadata: { model: "gpt-4o", attachment_count: attachmentUrls.length, prompt: "adjusterassist_system_prompt_v1" }
-            });
+                activity_type: parentMessageId ? 'ai_refinement' : 'ai_generation',
+                metadata: {
+                    model: "gpt-4o",
+                    is_refinement: !!parentMessageId,
+                    parent_id: parentMessageId
+                }
+            })
+            if (turnResult) {
+
+                console.log("Message turn Saved with ID: ", turnResult.id)
+            }
+
         } catch (dbErr) {
             console.error("Critical DB Error:", dbErr.message);
             turnResult = { id: Date.now(), created_at: new Date().toISOString() };
         }
 
-        // 6. Secondary Logging & Usage (Non-blocking)
-        // Wrapped in immediate try-catch so failure here doesn't stop the response
+        // 6. Secondary Logging (Refinement Aware)
         try {
-            await supabase.from('ai_logs').insert([{
-                file_id: parseInt(fileId),
-                user_id: userId,
-                input_text: userInput,
-                input_type: primaryImageUrl ? 'attachment+text' : 'text',
-                ai_response: aiRawResponse,
-                output_text: cleanMainContent,
-                output_type: detectedType,
-                suggested_next_step: nextAction,
-                input_image: primaryImageUrl,
-                ocrInsights: ocrInsights,
-                doccuments_url: documentUrl,
-                metadata: { model: "gpt-4o", attachment_count: attachmentUrls.length, prompt: "adjusterassist_system_prompt_v1", guardrail: "gurdrails_v1"  }
-            }]);
+            const { data: logEntry, error: logError } = await supabase
+                .from('ai_logs')
+                .insert([{
+                    file_id: parseInt(fileId),
+                    user_id: userId,
+
+                    // Hierarchy & Versioning Columns
+                    parent_log_id: parentMessageId ? parseInt(parentMessageId) : null,
+                    variant_label: variantLabel || null,
+                    refinement_type: refinementType || null,
+
+                    // Input Data
+                    input_text: userInput,
+                    input_type: primaryImageUrl ? 'attachment+text' : 'text',
+                    input_image: primaryImageUrl,
+                    doccuments_url: documentUrl,
+                    ocrInsights: ocrInsights,
+
+                    // Output Data
+                    ai_response: aiRawResponse,
+                    output_text: cleanMainContent,
+                    output_type: detectedType,
+                    suggested_next_step: nextAction,
+
+                    // Performance & Analytics
+                    execution_time_ms: Date.now() - startTime,
+                    token_usage: { prompt: 0, completion: 0 },
+
+                    metadata: {
+                        model: "gpt-4o",
+                        prompt_version: "adjusterassist_v1",
+                        is_refinement: !!refinementType,
+                        is_variant: !!variantLabel
+                    }
+                }])
+                .select()
+                .single();
+
+            if (logError) throw logError;
+
+            if (logEntry) {
+                console.log("Logs created with ID: ", logEntry.id);
+            }
+
             await Subscription.incrementUsage(userId);
         } catch (logErr) {
-            console.error("Logging/Usage increment failed:", logErr.message);
+            console.error("Logging failed:", logErr.message);
         }
 
         // 7. Success Response
@@ -289,6 +361,8 @@ const createAIDraft = async (req, res) => {
             success: true,
             data: {
                 id: turnResult.id,
+                parent_id: turnResult.parent_id,
+                version_index: turnResult.version_index,
                 user_input: userInput,
                 ai_response: cleanMainContent,
                 output_format: detectedType,
@@ -310,6 +384,7 @@ const createAIDraft = async (req, res) => {
         });
     }
 };
+
 
 const generateNextStepDraft = async (req, res) => {
     const userId = req.user.id;
@@ -393,42 +468,6 @@ const generateNextStepDraft = async (req, res) => {
     }
 };
 
-const saveGeneratedDraft = async (req, res) => {
-    try {
-        let { fileId, output_format, content } = req.body;
-        const userId = req.user.id;
-
-        // 1. If no workspace provided, create a generic one
-        if (!fileId) {
-            const newFile = await File.create({
-                user_id: userId,
-                claim_number: `TEMP-${Date.now()}`,
-                client_name: "Unnamed Client"
-            });
-            fileId = newFile.id;
-        }
-
-        // 2. Persist the Message using the Supabase model
-        const savedDraft = await Message.create({
-            file_id: fileId,
-            user_id: userId,
-            draft_type: output_format,
-            content: content
-        });
-
-        res.status(201).json({
-            success: true,
-            message: "Message saved to workspace.",
-            data: {
-                draftId: savedDraft.id,
-                fileId: fileId
-            }
-        });
-    } catch (error) {
-        console.error("Save Message Error:", error.message);
-        res.status(500).json({ success: false, message: "Save failed." });
-    }
-};
 
 const updateDraft = async (req, res) => {
     try {
@@ -478,7 +517,6 @@ module.exports = {
     deleteDraft,
     createAIDraft,
     generateNextStepDraft,
-    saveGeneratedDraft,
     AllDrafts,
     updateDraft
 };

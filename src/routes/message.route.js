@@ -3,8 +3,7 @@ const router = express.Router();
 const { 
     testDraft, 
     createAIDraft, 
-    getRecentDrafts, 
-    saveGeneratedDraft,
+    getRecentDrafts,
     generateNextStepDraft,
     AllDrafts,
     deleteDraft,
@@ -43,7 +42,7 @@ router.post("/generate", authMiddleware, checkUsageLimit, (req, res, next) => {
 router.post('/generate-next-step', authMiddleware, checkUsageLimit, generateNextStepDraft);
 
 router.delete("/delete/:draftId", authMiddleware, deleteDraft);
-router.post("/save", authMiddleware, saveGeneratedDraft);
+// router.post("/save", authMiddleware, saveGeneratedDraft);
 router.get("/recent", authMiddleware, getRecentDrafts);
 router.get("/history", authMiddleware, AllDrafts); 
 

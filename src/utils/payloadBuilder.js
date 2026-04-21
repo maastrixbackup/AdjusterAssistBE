@@ -178,9 +178,9 @@ class PayloadBuilder {
     /**
      * Builds the full JSON structure
      * @param {Object} file - Database record from Supabase
-     * @param {Object} input - { output_type, role, inputText, task_type }
+     * @param {Object} input - { output_type, role, inputText, ocrData }
      */
-    static build(file, { output_type, role, inputText, task_type, userInfo }) {
+    static build(file, { output_type, role, inputText, ocrData, userInfo }) {
 
         // console.log(userInfo);
 
@@ -194,7 +194,7 @@ class PayloadBuilder {
                 name: userInfo?.sender_name || "Adjuster Name",
                 email: userInfo?.sender_email || "email",
                 role: userInfo?.sender_designation || "Carrier Adjuster",
-                // company: userInfo?.sender_company || "AdjusterAssist™"
+                company: userInfo?.sender_company || "AdjusterAssist™"
             },
 
             jurisdiction: file.jurisdiction || "CT", ///// ---->>>>>
@@ -208,7 +208,7 @@ class PayloadBuilder {
                 policy_form: file.policy_form || "",
                 insured_name: file.client_name,
                 property_address: file.address || "",
-                claim_stage: task_type || file.claim_stage || "general_review",
+                claim_stage: file.claim_stage || "general_review",
 
                 current_issue: inputText.substring(0, 75).replace(/\n/g, " ") + "..."  ///------>>
             },
@@ -265,7 +265,7 @@ class PayloadBuilder {
             },
 
             "attachments_context": {
-                "photos_received": false,
+                "photos_received": !!ocrData,
                 "estimate_received": false,
                 "invoice_received": false,
                 "proof_of_loss_received": false,

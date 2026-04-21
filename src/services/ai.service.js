@@ -48,7 +48,7 @@ export const generateAIDraft = async (type, userInput, files = []) => {
         //         userMessageContent[0].text += `\n[Note: A PDF named ${file.originalname} was attached for context. Please assume standard insurance documentation details apply.]`;
         //     }
         // }
-        console.log("USER INPUT IN AI  SERVICE: ", userMessageContent)
+        // console.log("USER INPUT IN AI  SERVICE: ", userMessageContent)
         const systemMessage = `
             ${adjusterPrompt}
             ${guardrailInjection}
