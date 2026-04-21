@@ -9,6 +9,8 @@ const {
     deleteDraft,
     updateDraft,
     testCreateMessage,
+    createVariantDraft,
+    refineAIDraft
 } = require("../controllers/message.controller");
 
 const authMiddleware = require("../middlewares/auth.middleware");
@@ -38,6 +40,10 @@ router.post("/generate", authMiddleware, checkUsageLimit, (req, res, next) => {
         next();
     });
 }, createAIDraft);
+
+router.post("/variant", authMiddleware, checkUsageLimit, createVariantDraft);
+
+router.post("/refine", authMiddleware, checkUsageLimit, refineAIDraft);
 
 router.post('/generate-next-step', authMiddleware, checkUsageLimit, generateNextStepDraft);
 

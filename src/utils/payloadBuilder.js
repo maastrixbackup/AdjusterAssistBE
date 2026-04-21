@@ -274,6 +274,90 @@ class PayloadBuilder {
             }
         };
     }
+
+    static async buildVariantPayload({ fileId, originalContent, instructions, variantLabel }) {
+        // 1. Define the System Persona for Variants
+        const systemInstruction = `
+            You are a specialized Insurance Claims Assistant. 
+            Your task is to TRANSFORM the provided content into a ${variantLabel.toUpperCase()} format.
+            
+            STRICT GUARDRAILS:
+            - Use only the facts provided in the original content.
+            - Adopt the standard structural conventions of a ${variantLabel}.
+            - Maintain professional, objective, and adjuster-standard language.
+            - If the original content contains specific claim numbers or dates, they MUST be preserved.
+        `;
+
+        // 2. Format the Prompt
+        const prompt = `
+            ${instructions}
+
+            ORIGINAL CONTENT TO TRANSFORM:
+            """
+            ${originalContent}
+            """
+
+            Provide the ${variantLabel} below:
+        `;
+
+        // 3. Return the standard payload structure for your AI Service
+        return {
+            fileId,
+            systemInstruction,
+            messages: [
+                {
+                    role: "user",
+                    parts: [{ text: prompt }]
+                }
+            ],
+            config: {
+                temperature: 0.3, // Lower temperature for structural accuracy
+                maxOutputTokens: 2048,
+            }
+        };
+    }
+
+    static async buildRefinementPayload({ originalContent, rule }) {
+        // 1. Define the System Instruction for Refinements
+        const systemInstruction = `
+            You are an expert Insurance Content Editor. 
+            Your goal is to REWRITE the provided content based on a specific user rule.
+            
+            STRICT GUARDRAILS:
+            - DO NOT change the facts, claim numbers, dates, or names.
+            - DO NOT add new information that is not in the original text.
+            - ONLY change the tone, length, or compliance language as requested.
+            - Maintain a professional insurance adjuster standard.
+        `;
+
+        // 2. Format the Prompt to isolate the content and the rule
+        const prompt = `
+            REFINEMENT RULE: ${rule}
+
+            CONTENT TO REFINE:
+            """
+            ${originalContent}
+            """
+
+            Provide the refined version below:
+        `;
+
+        // 3. Return the payload
+        return {
+            systemInstruction,
+            messages: [
+                {
+                    role: "user",
+                    parts: [{ text: prompt }]
+                }
+            ],
+            config: {
+                temperature: 0.1, // Set very low to prevent "creative" hallucinations
+                maxOutputTokens: 2048,
+                topP: 0.1
+            }
+        };
+    }
 }
 
 module.exports = PayloadBuilder;
