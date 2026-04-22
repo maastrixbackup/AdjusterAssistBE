@@ -496,17 +496,18 @@ const createVariantDraft = async (req, res) => {
 
         console.log(`[VARIANT]: Transforming content to format: ${detectedType}`);
 
-        const fullPayload = await PayloadBuilder.build(file, {
-            fileId,
+        const fullPayload = await PayloadBuilder.buildVariant(file, {
+            variantLabel: variantLabel,
             originalContent: userInput || parentMessage.ai_response,
-            instructions: `Transform this into a professional ${variantLabel}. Apply insurance industry guardrails.`,
-            variantLabel: detectedType
+            userInfo: userProfile, 
+            parentMessage: parentMessage 
         });
 
         const aiRawResponse = await aiService.generateAIDraft(
             variantLabel,
             JSON.stringify(fullPayload),
-            []
+            [],
+            // parentMessage
         );
 
         const nextStepMatch = aiRawResponse.match(/(?:next\s*steps?|recommended\s*action):\s*(.*)/i);
@@ -584,7 +585,7 @@ const refineAIDraft = async (req, res) => {
             parentMessageId,
             refinementType    // 'shorten', 'formal', 'attorney_facing', 'firm', 'doi_safe'
         } = req.body;
-        console.log("DEBUG BODY:", req.body)
+        // console.log("DEBUG BODY:", req.body)
         // 1. Validation
         if (!parentMessageId || !refinementType || !userInput) {
             return res.status(400).json({
@@ -681,6 +682,7 @@ const refineAIDraft = async (req, res) => {
                 user_input: userInput,
                 refinement_type: turnResult.refinement_type,
                 ai_response: cleanMainContent,
+                output_format: parentMessage.output_format,
                 next_step_suggestion: parentMessage.next_step_suggestion,
                 created_at: turnResult.created_at
             }

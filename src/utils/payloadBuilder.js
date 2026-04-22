@@ -1,4 +1,3 @@
-
 class PayloadBuilder {
     static #TYPE_CONFIGS = {
         "file_note": {
@@ -175,21 +174,13 @@ class PayloadBuilder {
         }
     };
 
-    /**
-     * Builds the full JSON structure
-     * @param {Object} file - Database record from Supabase
-     * @param {Object} input - { output_type, role, inputText, ocrData }
-     */
     static build(file, { output_type, role, inputText, ocrData, userInfo, files }) {
-
-        // console.log(userInfo);
-
         const typeKey = output_type?.toLowerCase() || "file_note";
         const config = this.#TYPE_CONFIGS[typeKey] || this.#TYPE_CONFIGS.file_note;
 
         return {
             output_type: typeKey,
-            claim_role: role || "staff_adjuster", //// ----->  Role of Loggedin user
+            claim_role: role || "staff_adjuster",
             sender_identity: {
                 name: userInfo?.sender_name || "Adjuster",
                 email: userInfo?.sender_email,
@@ -275,6 +266,77 @@ class PayloadBuilder {
             }
         };
     }
+
+    static async buildVariant(file, { variantLabel, originalContent, userInfo, parentMessage }) {
+    // 1. Determine the config based on the variant label
+    const typeKey = variantLabel?.toLowerCase().replace(/\s+/g, '_') || "file_note";
+    const config = this.#TYPE_CONFIGS[typeKey] || this.#TYPE_CONFIGS.file_note;
+
+    // 2. Safety check for the substring crash you encountered
+    const safeContent = (originalContent || "").toString();
+    const currentIssueSummary = safeContent.length > 0 
+        ? safeContent.substring(0, 75).replace(/\n/g, " ") + "..."
+        : "Context transformation request.";
+
+    return {
+        output_type: typeKey,
+        claim_role: "staff_adjuster",
+        sender_identity: {
+            name: userInfo?.name || "Adjuster",
+            email: userInfo?.email,
+            role: userInfo?.role || "Carrier Adjuster",
+            company: userInfo?.company || "AdjusterAssist™"
+        },
+
+        // Inherited from the File/Workspace Object
+        jurisdiction: file.jurisdiction || "CT",
+        line_of_business: file.line_of_business || "homeowners",
+
+        claim_context: {
+            claim_number: file.claim_number,
+            date_of_loss: file.date_of_loss,
+            reported_date: file.reported_date,
+            loss_type: file.loss_type || "water",
+            policy_form: file.policy_form || "",
+            insured_name: file.client_name,
+            property_address: file.address || "",
+            claim_stage: file.claim_stage || "general_review",
+            current_issue: currentIssueSummary
+        },
+
+        facts: {
+            summary: safeContent,
+            // We inherit insights from the parent message so the AI doesn't lose OCR data
+            ocr_insights: parentMessage?.ocrInsights || "No previous OCR data.",
+            inspection_findings: "Extract from summary or previous context",
+            insured_statement: safeContent.match(/#Insured (.*?)($|#)/)?.[1] || "",
+            next_steps: "Identify from summary"
+        },
+
+        communication_context: {
+            audience: config.audience || "internal",
+            sender_identity: "adjuster",
+            recipient_role: config.recipient_role || "stakeholder",
+            purpose: `Transforming existing claim data into a professional ${variantLabel}`,
+            tone_override: config.tone_override || "",
+            include_salutation: config.greeting ?? true,
+            include_closing: config.closing ?? true
+        },
+
+        drafting_controls: {
+            length: config.length || "standard",
+            format_style: config.format || "paragraph",
+            preserve_user_facts_verbatim: true,
+            special_instructions: `STRICT: Do not change the facts of the claim. Only transform the format to ${variantLabel}.`
+        },
+
+        compliance_flags: {
+            doi_sensitive: variantLabel.toLowerCase().includes("doi"),
+            litigation_sensitive: variantLabel.toLowerCase().includes("attorney"),
+            coverage_sensitive: false
+        }
+    };
+}
 
 
     static async buildRefinementPayload({ originalContent, rule}) {
