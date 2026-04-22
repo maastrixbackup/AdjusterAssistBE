@@ -317,13 +317,17 @@ const createAIDraft = async (req, res) => {
         ) || null;
 
         // 3. Context & Metadata Gathering
-        let conversationContext = "";
+        let conversationHistory = []; // Initialize as an array, not a string
         try {
             const previousMessages = await Message.findByFileId(fileId);
-            conversationContext = previousMessages.slice(-5).map(msg => (
-                `User: ${msg.user_input}\nAI: ${msg.ai_response}`
-            )).join('\n\n');
-        } catch (e) { console.error("History fetch failed:", e.message); }
+
+            conversationHistory = previousMessages.slice(-5).flatMap(msg => [
+                { role: "user", content: msg.user_input },
+                { role: "assistant", content: msg.ai_response }
+            ]);
+        } catch (e) {
+            console.error("History fetch failed:", e.message);
+        }
 
         const file = await File.findById(fileId);
         if (!file) return res.status(404).json({ message: "Workspace not found" });
@@ -335,26 +339,28 @@ const createAIDraft = async (req, res) => {
         const detectedType = await classifierService.classify(userInput).catch(() => 'file_note');
 
         const fullPayload = PayloadBuilder.build(file, {
-            conversationHistory: conversationContext,
             output_type: detectedType,
             role: userProfile.role,
             inputText: userInput,
+            ocrData: ocrInsights,
+            files: files,
             userInfo: {
                 sender_name: userProfile.name,
                 sender_designation: userProfile.role,
-                sender_company: userProfile.company || "AdjusterAssist™"
-            },
-            ocrData: ocrInsights
+                sender_email: userProfile.email,
+                sender_company: "AdjusterAssist™"
+            }
         });
 
         const aiRawResponse = await aiService.generateAIDraft(
             detectedType,
             JSON.stringify(fullPayload),
-            files
+            files,
+            conversationHistory
         );
 
         // 5. Parsing AI Response for metadata
-        let nextAction = "Continue monitoring the claim...";
+        let nextAction = "Continue monitoring the claim.";
         let dynamicSuggestions = ["Review file", "Contact insured"];
 
         const nextStepMatch = aiRawResponse.match(/(?:next\s*steps?|recommended\s*action):\s*(.*)/i);
@@ -365,7 +371,7 @@ const createAIDraft = async (req, res) => {
 
         const cleanMainContent = aiRawResponse
             .replace(/(?:next\s*steps?|recommended\s*action):[\s\S]*$/i, '')
-            .replace(/(?:suggestions|quick\s*actions|suggested\s*actions):[\s\S]*$/i, '')
+            // .replace(/(?:suggestions|quick\s*actions|suggested\s*actions):[\s\S]*$/i, '')
             .trim();
 
         // 6. Database Operations - Save Main Message Turn
@@ -382,7 +388,7 @@ const createAIDraft = async (req, res) => {
                 ai_response: cleanMainContent,
                 ocrInsights: ocrInsights,
                 content_type: detectedType,
-                claim_state: file.claim_stage || 'review_pending',
+                claim_state: file.claim_stage || 'review pending',
                 next_step_suggestion: nextAction,
                 quick_actions: dynamicSuggestions,
                 activity_type: 'ai_generation',
@@ -462,14 +468,14 @@ const createAIDraft = async (req, res) => {
 const createVariantDraft = async (req, res) => {
     const startTime = Date.now();
     const userId = req.user.id;
-
     try {
-        const { 
-            userInput,       
-            fileId,           
-            parentMessageId,  
-            variantLabel     
+        const {
+            userInput,
+            fileId,
+            parentMessageId,
+            variantLabel
         } = req.body;
+        console.log("DEBUG BODY:", req.body)
 
         // 1. Validation - Variant MUST have a parent
         if (!parentMessageId) {
@@ -485,43 +491,57 @@ const createVariantDraft = async (req, res) => {
         const ocrInsights = parentMessage.ocrInsights || "No previous insights.";
         const file = await File.findById(fileId);
         const userProfile = await UserModel.findById(userId) || { name: "Adjuster", role: "Field Adjuster" };
-        
-        const detectedType = await classifierService.classify(variantLabel)
+
+        let detectedType = "";
+        if(variantLabel.toLowerCase() == "email"){
+            detectedType = "email_insured"
+        }else{
+            detectedType = await classifierService.classify(variantLabel)
+        }
 
         console.log(`[VARIANT]: Transforming content to format: ${detectedType}`);
-  
-        const fullPayload = await PayloadBuilder.buildVariantPayload({
-            fileId,
+
+        const fullPayload = await PayloadBuilder.buildVariant(file, {
+            variantLabel: variantLabel,
             originalContent: userInput || parentMessage.ai_response,
-            instructions: `Transform this into a professional ${variantLabel}. Apply insurance industry guardrails.`,
-            variantLabel: detectedType
+            userInfo: userProfile,
+            parentMessage: parentMessage
         });
 
         const aiRawResponse = await aiService.generateAIDraft(
-            variantLabel, 
+            detectedType,
             JSON.stringify(fullPayload),
-            [] 
+            [],
+            // parentMessage
         );
 
-        // 6. Clean Response Parsing
+        let nextAction = "Continue monitoring the claim.";
+        let dynamicSuggestions = ["Review file", "Contact insured"];
+
+        const nextStepMatch = aiRawResponse.match(/(?:next\s*steps?|recommended\s*action):\s*(.*)/i);
+        const suggestionMatch = aiRawResponse.match(/(?:suggestions|quick\s*actions|suggested\s*actions):\s*(.*)/i);
+
+        if (suggestionMatch) dynamicSuggestions = suggestionMatch[1].split('|').map(s => s.trim());
+        if (nextStepMatch) nextAction = nextStepMatch[1].trim();
+
         const cleanMainContent = aiRawResponse
             .replace(/(?:next\s*steps?|recommended\s*action):[\s\S]*$/i, '')
-            .replace(/(?:suggestions|quick\s*actions|suggested\s*actions):[\s\S]*$/i, '')
+            // .replace(/(?:suggestions|quick\s*actions|suggested\s*actions):[\s\S]*$/i, '')
             .trim();
 
         // 7. Save to Database (Linked to Parent)
         const turnResult = await Message.create({
             workspace_id: fileId,
             user_id: userId,
-            parent_id: parentMessageId, // Hierarchical Link
+            parent_id: parentMessageId,
             variant_label: variantLabel,
             user_input: `Generate Variant: ${variantLabel}`,
             ai_response: cleanMainContent,
             ocrInsights: ocrInsights, // Inherited
             content_type: variantLabel.toLowerCase().replace(/\s+/g, '_'),
             claim_state: file.claim_stage || 'review_pending',
-            activity_type: 'ai_variant_generation',
-            next_step_suggestion: "Continue monitoring claim",
+            activity_type: 'ai_variant',
+            next_step_suggestion: nextAction || "Continue monitoring claim.",
             metadata: {
                 model: "gpt-4o",
                 is_variant: true,
@@ -537,7 +557,9 @@ const createVariantDraft = async (req, res) => {
             variant_label: variantLabel,
             input_text: userInput,
             ai_response: aiRawResponse,
+            output_text: cleanMainContent,
             output_type: variantLabel,
+            ocrInsights: null,
             execution_time_ms: Date.now() - startTime,
             metadata: { is_variant: true }
         }]);
@@ -550,10 +572,11 @@ const createVariantDraft = async (req, res) => {
             data: {
                 id: turnResult.id,
                 parent_id: turnResult.parent_id,
-                user_input:userInput,
+                user_input: userInput,
                 variant_label: turnResult.variant_label,
                 ai_response: cleanMainContent,
-                next_step_suggestion: turnResult.next_step_suggestion || arentMessage.next_step_suggestion,
+                output_format: detectedType,
+                next_step_suggestion: turnResult.next_step_suggestion || parentMessage.next_step_suggestion,
                 created_at: turnResult.created_at
             }
         });
@@ -569,17 +592,17 @@ const refineAIDraft = async (req, res) => {
     const userId = req.user.id;
 
     try {
-        const { 
-            userInput,        
-            fileId,           
-            parentMessageId,  
-            refinementType    // 'shorten', 'formal', 'attorney_facing', 'firm', 'doi_safe'
+        const {
+            userInput,
+            fileId,
+            parentMessageId,
+            refinementType   
         } = req.body;
-
+        // console.log("DEBUG BODY:", req.body)
         // 1. Validation
-        if (!parentMessageId || !refinementType) {
-            return res.status(400).json({ 
-                message: "Refinement requires a parentMessageId and a specific refinementType." 
+        if (!parentMessageId || !refinementType || !userInput) {
+            return res.status(400).json({
+                message: "Refinement requires a parentMessageId and a specific refinementType and AI response."
             });
         }
 
@@ -613,15 +636,24 @@ const refineAIDraft = async (req, res) => {
         // 5. Call AI Service
         console.log(`[REFINE]: Applying '${refinementType}' logic to Message ${parentMessageId}`);
         const aiRawResponse = await aiService.generateAIDraft(
-            parentMessage.content_type, // Maintain the original format (e.g., Email stays an Email)
+            parentMessage.content_type,
             JSON.stringify(fullPayload),
-            [] 
+            []
         );
 
-        // 6. Clean Parsing
+
+        let nextAction = "Continue monitoring the claim.";
+        let dynamicSuggestions = ["Review file", "Contact insured"];
+
+        const nextStepMatch = aiRawResponse.match(/(?:next\s*steps?|recommended\s*action):\s*(.*)/i);
+        const suggestionMatch = aiRawResponse.match(/(?:suggestions|quick\s*actions|suggested\s*actions):\s*(.*)/i);
+
+        if (suggestionMatch) dynamicSuggestions = suggestionMatch[1].split('|').map(s => s.trim());
+        if (nextStepMatch) nextAction = nextStepMatch[1].trim();
+
         const cleanMainContent = aiRawResponse
             .replace(/(?:next\s*steps?|recommended\s*action):[\s\S]*$/i, '')
-            .replace(/(?:suggestions|quick\s*actions|suggested\s*actions):[\s\S]*$/i, '')
+            // .replace(/(?:suggestions|quick\s*actions|suggested\s*actions):[\s\S]*$/i, '')
             .trim();
 
         // 7. Save to Database (Version of the parent)
@@ -633,10 +665,10 @@ const refineAIDraft = async (req, res) => {
             refinement_type: refinementType,
             user_input: `Refine: ${refinementType}`,
             ai_response: cleanMainContent,
-            ocrInsights: parentMessage.ocrInsights, 
+            ocrInsights: parentMessage.ocrInsights,
             content_type: parentMessage.content_type,
             claim_state: file.claim_stage || 'review_pending',
-            next_step_suggestion:"Continue monitoring draft.",
+            next_step_suggestion: nextAction || "Continue monitoring draft.",
             activity_type: 'ai_refinement',
             metadata: {
                 model: "gpt-4o",
@@ -666,10 +698,11 @@ const refineAIDraft = async (req, res) => {
             data: {
                 id: turnResult.id,
                 parent_id: turnResult.parent_id,
-                user_input:userInput,
+                user_input: userInput,
                 refinement_type: turnResult.refinement_type,
                 ai_response: cleanMainContent,
-                next_step_suggestion:parentMessage.next_step_suggestion,
+                output_format: parentMessage.output_format,
+                next_step_suggestion: nextAction || parentMessage.next_step_suggestion,
                 created_at: turnResult.created_at
             }
         });

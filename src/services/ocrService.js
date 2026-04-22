@@ -16,6 +16,9 @@ const OCRService = {
                     } else if (file.mimetype === 'application/pdf') {
                         return await this.processMultiPagePDF(file);
                     }
+                    else if (file.mimetype === 'text/plain' || file.originalname.endsWith('.txt')) {
+                        return await this.processTextFile(file);
+                    }
                     return "";
                 } catch (err) {
                     console.error(`[OCR Error] ${file.originalname}:`, err.message);
@@ -35,6 +38,17 @@ const OCRService = {
         return await this.callVisualAI(base64Image, file.mimetype, file.originalname, "photo");
     },
 
+    async processTextFile(file) {
+        const content = fs.readFileSync(file.path, { encoding: 'utf-8' });
+        const maxLength = 15000;
+
+        const safeContent = content.length > maxLength
+            ? content.substring(0, maxLength) + "\n...[Text truncated for length]..."
+            : content;
+
+        return `[Source: ${file.originalname}]\n${safeContent}`;
+    },
+
     /**
      * MULTI-PAGE PDF: Iterates through all pages
      */
@@ -49,17 +63,17 @@ const OCRService = {
             for await (const pageBuffer of document) {
                 console.log(`[OCR] Processing Page ${pageCounter} of ${file.originalname}`);
                 const base64 = pageBuffer.toString('base64');
-                
+
                 const pageAnalysis = await this.callVisualAI(
-                    base64, 
-                    'image/png', 
-                    `${file.originalname} (Page ${pageCounter})`, 
+                    base64,
+                    'image/png',
+                    `${file.originalname} (Page ${pageCounter})`,
                     "document"
                 );
-                
+
                 fullPDFContext.push(pageAnalysis);
                 pageCounter++;
-                
+
                 // Safety: Stop after 10 pages to avoid massive token costs/delays
                 if (pageCounter > 10) {
                     fullPDFContext.push("...[Document truncated after 10 pages]...");
@@ -91,9 +105,9 @@ const OCRService = {
         const response = await openai.chat.completions.create({
             model: "gpt-4o",
             messages: [
-                { 
-                    role: "system", 
-                    content: "You are the primary intelligence engine for AdjusterAssist™. Your goal is to provide the 'Whole Context' of an image or document so a software developer can use it to draft claim notes." 
+                {
+                    role: "system",
+                    content: "You are the primary intelligence engine for AdjusterAssist™. Your goal is to provide the 'Whole Context' of an image or document so a software developer can use it to draft claim notes."
                 },
                 {
                     role: "user",

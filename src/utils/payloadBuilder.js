@@ -1,4 +1,3 @@
-
 class PayloadBuilder {
     static #TYPE_CONFIGS = {
         "file_note": {
@@ -175,27 +174,20 @@ class PayloadBuilder {
         }
     };
 
-    /**
-     * Builds the full JSON structure
-     * @param {Object} file - Database record from Supabase
-     * @param {Object} input - { output_type, role, inputText, ocrData }
-     */
-    static build(file, { output_type, role, inputText, ocrData, userInfo }) {
-
-        // console.log(userInfo);
-
+    static build(file, { output_type, role, inputText, ocrData, userInfo, files }) {
         const typeKey = output_type?.toLowerCase() || "file_note";
         const config = this.#TYPE_CONFIGS[typeKey] || this.#TYPE_CONFIGS.file_note;
 
         return {
             output_type: typeKey,
-            claim_role: role || "staff_adjuster", //// ----->  Role of Loggedin user
-            sender_identity:{
-                name: userInfo?.sender_name || "Adjuster Name",
-                email: userInfo?.sender_email || "email",
+            claim_role: role || "staff_adjuster",
+            sender_identity: {
+                name: userInfo?.sender_name || "Adjuster",
+                email: userInfo?.sender_email,
                 role: userInfo?.sender_designation || "Carrier Adjuster",
                 company: userInfo?.sender_company || "AdjusterAssist™"
             },
+
 
             jurisdiction: file.jurisdiction || "CT", ///// ---->>>>>
             line_of_business: file.line_of_business || "homeowners", //////------->>>> 
@@ -226,7 +218,7 @@ class PayloadBuilder {
                 next_steps: "Identify from summary" || text.match(/#Next (.*?)($|#)/)?.[1] || "",
                 additional_facts: ""
             },
-            
+
             communication_context: {
                 audience: config.audience || "internal",
                 sender_identity: "adjuster",
@@ -265,7 +257,7 @@ class PayloadBuilder {
             },
 
             "attachments_context": {
-                "photos_received": !!ocrData,
+                "photos_received": !!files,
                 "estimate_received": false,
                 "invoice_received": false,
                 "proof_of_loss_received": false,
@@ -275,74 +267,116 @@ class PayloadBuilder {
         };
     }
 
-    static async buildVariantPayload({ fileId, originalContent, instructions, variantLabel }) {
-        // 1. Define the System Persona for Variants
-        const systemInstruction = `
-            You are a specialized Insurance Claims Assistant. 
-            Your task is to TRANSFORM the provided content into a ${variantLabel.toUpperCase()} format.
-            
-            STRICT GUARDRAILS:
-            - Use only the facts provided in the original content.
-            - Adopt the standard structural conventions of a ${variantLabel}.
-            - Maintain professional, objective, and adjuster-standard language.
-            - If the original content contains specific claim numbers or dates, they MUST be preserved.
-        `;
+    static async buildVariant(file, { variantLabel, originalContent, userInfo, parentMessage }) {
+        // 1. Determine the config based on the variant label
+        const typeKey = variantLabel?.toLowerCase().replace(/\s+/g, '_') || "file_note";
+        const config = this.#TYPE_CONFIGS[typeKey] || this.#TYPE_CONFIGS.file_note;
 
-        // 2. Format the Prompt
-        const prompt = `
-            ${instructions}
+        // 2. Safety check for the substring crash you encountered
+        const safeContent = (originalContent || "").toString();
+        const currentIssueSummary = safeContent.length > 0
+            ? safeContent.substring(0, 75).replace(/\n/g, " ") + "..."
+            : "Context transformation request.";
 
-            ORIGINAL CONTENT TO TRANSFORM:
-            """
-            ${originalContent}
-            """
-
-            Provide the ${variantLabel} below:
-        `;
-
-        // 3. Return the standard payload structure for your AI Service
         return {
-            fileId,
-            systemInstruction,
-            messages: [
-                {
-                    role: "user",
-                    parts: [{ text: prompt }]
-                }
-            ],
-            config: {
-                temperature: 0.3, // Lower temperature for structural accuracy
-                maxOutputTokens: 2048,
+            output_type: typeKey,
+            claim_role: "staff_adjuster",
+            sender_identity: {
+                name: userInfo?.name || "Adjuster",
+                email: userInfo?.email,
+                role: userInfo?.role || "Carrier Adjuster",
+                company: userInfo?.company || "AdjusterAssist™"
+            },
+
+            // Inherited from the File/Workspace Object
+            jurisdiction: file.jurisdiction || "CT",
+            line_of_business: file.line_of_business || "homeowners",
+
+            claim_context: {
+                claim_number: file.claim_number,
+                date_of_loss: file.date_of_loss,
+                reported_date: file.reported_date,
+                loss_type: file.loss_type || "water",
+                policy_form: file.policy_form || "",
+                insured_name: file.client_name,
+                property_address: file.address || "",
+                claim_stage: file.claim_stage || "general_review",
+                current_issue: currentIssueSummary
+            },
+
+            facts: {
+                summary: safeContent,
+                // We inherit insights from the parent message so the AI doesn't lose OCR data
+                ocr_insights: parentMessage?.ocrInsights || "No previous OCR data.",
+                inspection_findings: "Extract from summary or previous context",
+                insured_statement: safeContent.match(/#Insured (.*?)($|#)/)?.[1] || "",
+                next_steps: "Identify from summary"
+            },
+
+            communication_context: {
+                audience: config.audience || "internal",
+                sender_identity: "adjuster",
+                recipient_role: config.recipient_role || "stakeholder",
+                purpose: `Transforming existing claim data into a professional ${variantLabel}`,
+                tone_override: config.tone_override || "",
+                include_salutation: config.greeting ?? true,
+                include_closing: config.closing ?? true
+            },
+
+            drafting_controls: {
+                length: config.length || "standard",
+                format_style: config.format || "paragraph",
+                allow_softening_language: config.allow_softening || false,
+                allow_direct_request_language: config.allow_direct_request_language || false,
+                preserve_user_facts_verbatim: config.preserve_user_facts_verbatim || false,
+                must_include: config.must_include || [],
+                must_avoid: config.must_avoid || [],
+                special_instructions: config.special_instructions || ""
+            },
+
+            compliance_flags: {
+                doi_sensitive: variantLabel.toLowerCase().includes("doi"),
+                litigation_sensitive: variantLabel.toLowerCase().includes("attorney"),
+                coverage_sensitive: false
             }
         };
     }
 
+
     static async buildRefinementPayload({ originalContent, rule }) {
-        // 1. Define the System Instruction for Refinements
+        // 1. Enhanced System Instruction
         const systemInstruction = `
-            You are an expert Insurance Content Editor. 
-            Your goal is to REWRITE the provided content based on a specific user rule.
-            
-            STRICT GUARDRAILS:
-            - DO NOT change the facts, claim numbers, dates, or names.
-            - DO NOT add new information that is not in the original text.
-            - ONLY change the tone, length, or compliance language as requested.
-            - Maintain a professional insurance adjuster standard.
-        `;
+        You are a Senior Insurance Claims Specialist and Editor.
+        TASK: Transform the "ORIGINAL CONTENT" based ONLY on the "REFINEMENT RULE".
+        
+        STRICT OPERATIONAL DIRECTIVES:
+        - CONTEXT LOCK: Do not invent new damages, dates, or claim facts. 
+        - DATA INTEGRITY: Preserve all names, claim numbers, and financial figures exactly as they appear.
+        - NO INTRODUCTIONS: Do not say "Here is the refined version" or "As an attorney-facing document...". 
+        - OUTPUT ONLY: Provide the edited text and nothing else.
+        
+        REFINEMENT STYLE GUIDE:
+        - shorten: Remove wordiness. Focus on the 'Bottom Line'.
+        - formal: Use passive voice where appropriate and industry terminology (e.g., "Correspondence" instead of "Letter").
+        - attorney_facing: Focus on policy citations, factual evidence, and objective observations to withstand legal scrutiny.
+        - firm: Use decisive language. Replace "we might consider" with "the position remains".
+        - doi_safe: Ensure compliance with Department of Insurance standards; use neutral, transparent, and non-prejudicial language.
+    `;
 
-        // 2. Format the Prompt to isolate the content and the rule
+        // 2. Structured Prompt
         const prompt = `
-            REFINEMENT RULE: ${rule}
+        [REFINEMENT RULE]
+        ${rule}
 
-            CONTENT TO REFINE:
-            """
-            ${originalContent}
-            """
+        [ORIGINAL CONTENT TO BE TRANSFORMED]
+        """
+        ${originalContent}
+        """
 
-            Provide the refined version below:
-        `;
+        [TRANSFORMED TEXT]
+    `;
 
-        // 3. Return the payload
+        // 3. Return the payload with history if available
         return {
             systemInstruction,
             messages: [
@@ -352,12 +386,15 @@ class PayloadBuilder {
                 }
             ],
             config: {
-                temperature: 0.1, // Set very low to prevent "creative" hallucinations
+                temperature: 0.0, // Reduced to 0.0 for maximum consistency/predictability
                 maxOutputTokens: 2048,
-                topP: 0.1
+                topP: 0.1,
+                presencePenalty: 0.0,
+                frequencyPenalty: 0.0
             }
         };
     }
 }
+
 
 module.exports = PayloadBuilder;
