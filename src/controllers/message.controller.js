@@ -529,7 +529,7 @@ const createVariantDraft = async (req, res) => {
             content_type: variantLabel.toLowerCase().replace(/\s+/g, '_'),
             claim_state: file.claim_stage || 'review_pending',
             activity_type: 'ai_variant',
-            next_step_suggestion: "Continue monitoring claim",
+            next_step_suggestion: nextStepMatch ||"Continue monitoring claim..",
             metadata: {
                 model: "gpt-4o",
                 is_variant: true,
