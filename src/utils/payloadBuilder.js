@@ -326,8 +326,12 @@ class PayloadBuilder {
             drafting_controls: {
                 length: config.length || "standard",
                 format_style: config.format || "paragraph",
-                preserve_user_facts_verbatim: true,
-                special_instructions: `STRICT: Do not change the facts of the claim. Only transform the format to ${variantLabel}.`
+                allow_softening_language: config.allow_softening || false,
+                allow_direct_request_language: config.allow_direct_request_language || false,
+                preserve_user_facts_verbatim: config.preserve_user_facts_verbatim || false,
+                must_include: config.must_include || [],
+                must_avoid: config.must_avoid || [],
+                special_instructions: config.special_instructions || ""
             },
 
             compliance_flags: {
