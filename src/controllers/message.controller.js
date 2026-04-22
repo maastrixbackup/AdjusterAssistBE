@@ -360,7 +360,7 @@ const createAIDraft = async (req, res) => {
         );
 
         // 5. Parsing AI Response for metadata
-        let nextAction = "Continue monitoring the claim...";
+        let nextAction = "Continue monitoring the claim.";
         let dynamicSuggestions = ["Review file", "Contact insured"];
 
         const nextStepMatch = aiRawResponse.match(/(?:next\s*steps?|recommended\s*action):\s*(.*)/i);
@@ -499,29 +499,36 @@ const createVariantDraft = async (req, res) => {
         const fullPayload = await PayloadBuilder.buildVariant(file, {
             variantLabel: variantLabel,
             originalContent: userInput || parentMessage.ai_response,
-            userInfo: userProfile, 
-            parentMessage: parentMessage 
+            userInfo: userProfile,
+            parentMessage: parentMessage
         });
 
         const aiRawResponse = await aiService.generateAIDraft(
-            variantLabel,
+            detectedType,
             JSON.stringify(fullPayload),
             [],
             // parentMessage
         );
 
+        let nextAction = "Continue monitoring the claim.";
+        let dynamicSuggestions = ["Review file", "Contact insured"];
+
         const nextStepMatch = aiRawResponse.match(/(?:next\s*steps?|recommended\s*action):\s*(.*)/i);
         const suggestionMatch = aiRawResponse.match(/(?:suggestions|quick\s*actions|suggested\s*actions):\s*(.*)/i);
-        // 6. Clean Response Parsing
+
+        if (suggestionMatch) dynamicSuggestions = suggestionMatch[1].split('|').map(s => s.trim());
+        if (nextStepMatch) nextAction = nextStepMatch[1].trim();
+
         const cleanMainContent = aiRawResponse
             .replace(/(?:next\s*steps?|recommended\s*action):[\s\S]*$/i, '')
+            // .replace(/(?:suggestions|quick\s*actions|suggested\s*actions):[\s\S]*$/i, '')
             .trim();
 
         // 7. Save to Database (Linked to Parent)
         const turnResult = await Message.create({
             workspace_id: fileId,
             user_id: userId,
-            parent_id: parentMessageId, // Hierarchical Link
+            parent_id: parentMessageId,
             variant_label: variantLabel,
             user_input: `Generate Variant: ${variantLabel}`,
             ai_response: cleanMainContent,
@@ -529,7 +536,7 @@ const createVariantDraft = async (req, res) => {
             content_type: variantLabel.toLowerCase().replace(/\s+/g, '_'),
             claim_state: file.claim_stage || 'review_pending',
             activity_type: 'ai_variant',
-            next_step_suggestion: nextStepMatch ||"Continue monitoring claim..",
+            next_step_suggestion: nextAction || "Continue monitoring claim.",
             metadata: {
                 model: "gpt-4o",
                 is_variant: true,
@@ -563,7 +570,7 @@ const createVariantDraft = async (req, res) => {
                 user_input: userInput,
                 variant_label: turnResult.variant_label,
                 ai_response: cleanMainContent,
-                next_step_suggestion: turnResult.next_step_suggestion || arentMessage.next_step_suggestion,
+                next_step_suggestion: turnResult.next_step_suggestion || parentMessage.next_step_suggestion,
                 created_at: turnResult.created_at
             }
         });
@@ -629,9 +636,15 @@ const refineAIDraft = async (req, res) => {
         );
 
 
+        let nextAction = "Continue monitoring the claim.";
+        let dynamicSuggestions = ["Review file", "Contact insured"];
+
         const nextStepMatch = aiRawResponse.match(/(?:next\s*steps?|recommended\s*action):\s*(.*)/i);
         const suggestionMatch = aiRawResponse.match(/(?:suggestions|quick\s*actions|suggested\s*actions):\s*(.*)/i);
-        // 6. Clean Parsing
+
+        if (suggestionMatch) dynamicSuggestions = suggestionMatch[1].split('|').map(s => s.trim());
+        if (nextStepMatch) nextAction = nextStepMatch[1].trim();
+
         const cleanMainContent = aiRawResponse
             .replace(/(?:next\s*steps?|recommended\s*action):[\s\S]*$/i, '')
             // .replace(/(?:suggestions|quick\s*actions|suggested\s*actions):[\s\S]*$/i, '')
@@ -649,7 +662,7 @@ const refineAIDraft = async (req, res) => {
             ocrInsights: parentMessage.ocrInsights,
             content_type: parentMessage.content_type,
             claim_state: file.claim_stage || 'review_pending',
-            next_step_suggestion: nextStepMatch || "Continue monitoring draft.",
+            next_step_suggestion: nextAction || "Continue monitoring draft.",
             activity_type: 'ai_refinement',
             metadata: {
                 model: "gpt-4o",
@@ -683,7 +696,7 @@ const refineAIDraft = async (req, res) => {
                 refinement_type: turnResult.refinement_type,
                 ai_response: cleanMainContent,
                 output_format: parentMessage.output_format,
-                next_step_suggestion: parentMessage.next_step_suggestion,
+                next_step_suggestion: nextAction || parentMessage.next_step_suggestion,
                 created_at: turnResult.created_at
             }
         });
