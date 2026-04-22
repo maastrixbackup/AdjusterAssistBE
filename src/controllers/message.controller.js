@@ -492,7 +492,12 @@ const createVariantDraft = async (req, res) => {
         const file = await File.findById(fileId);
         const userProfile = await UserModel.findById(userId) || { name: "Adjuster", role: "Field Adjuster" };
 
-        const detectedType = await classifierService.classify(variantLabel)
+        let detectedType = "";
+        if(variantLabel.toLowerCase() == "email"){
+            detectedType = "email_insured"
+        }else{
+            detectedType = await classifierService.classify(variantLabel)
+        }
 
         console.log(`[VARIANT]: Transforming content to format: ${detectedType}`);
 
@@ -570,6 +575,7 @@ const createVariantDraft = async (req, res) => {
                 user_input: userInput,
                 variant_label: turnResult.variant_label,
                 ai_response: cleanMainContent,
+                output_format: detectedType,
                 next_step_suggestion: turnResult.next_step_suggestion || parentMessage.next_step_suggestion,
                 created_at: turnResult.created_at
             }
