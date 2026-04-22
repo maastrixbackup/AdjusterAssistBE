@@ -596,7 +596,7 @@ const refineAIDraft = async (req, res) => {
             userInput,
             fileId,
             parentMessageId,
-            refinementType    // 'shorten', 'formal', 'attorney_facing', 'firm', 'doi_safe'
+            refinementType   
         } = req.body;
         // console.log("DEBUG BODY:", req.body)
         // 1. Validation
