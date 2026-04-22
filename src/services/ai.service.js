@@ -51,7 +51,7 @@ export const generateAIDraft = async (type, userInput, files = [], conversationH
             ],
             temperature: 0.4, // Slightly lower for more consistent insurance drafting
         });
-
+        console.log("Response Generated")
         return completion.choices[0].message.content;
     } catch (error) {
         console.error("OpenAI Service Error:", error);
