@@ -29,7 +29,6 @@ router.post("/test", authMiddleware, testCreateMessage);
 router.post("/generate", authMiddleware, checkUsageLimit, (req, res, next) => {
     upload.array('attachments')(req, res, (err) => {
         if (err instanceof multer.MulterError) {
-            // This will tell you exactly what field Multer was looking for
             return res.status(400).json({ 
                 success: false, 
                 message: `Multer Error: ${err.message}. Expected field name: 'attachments'` 

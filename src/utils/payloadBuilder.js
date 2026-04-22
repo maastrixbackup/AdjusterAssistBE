@@ -180,7 +180,7 @@ class PayloadBuilder {
      * @param {Object} file - Database record from Supabase
      * @param {Object} input - { output_type, role, inputText, ocrData }
      */
-    static build(file, { output_type, role, inputText, ocrData, userInfo }) {
+    static build(file, { output_type, role, inputText, ocrData, userInfo, files }) {
 
         // console.log(userInfo);
 
@@ -190,12 +190,13 @@ class PayloadBuilder {
         return {
             output_type: typeKey,
             claim_role: role || "staff_adjuster", //// ----->  Role of Loggedin user
-            sender_identity:{
-                name: userInfo?.sender_name || "Adjuster Name",
-                email: userInfo?.sender_email || "email",
+            sender_identity: {
+                name: userInfo?.sender_name || "Adjuster",
+                email: userInfo?.sender_email,
                 role: userInfo?.sender_designation || "Carrier Adjuster",
                 company: userInfo?.sender_company || "AdjusterAssist™"
             },
+
 
             jurisdiction: file.jurisdiction || "CT", ///// ---->>>>>
             line_of_business: file.line_of_business || "homeowners", //////------->>>> 
@@ -226,7 +227,7 @@ class PayloadBuilder {
                 next_steps: "Identify from summary" || text.match(/#Next (.*?)($|#)/)?.[1] || "",
                 additional_facts: ""
             },
-            
+
             communication_context: {
                 audience: config.audience || "internal",
                 sender_identity: "adjuster",
@@ -265,7 +266,7 @@ class PayloadBuilder {
             },
 
             "attachments_context": {
-                "photos_received": !!ocrData,
+                "photos_received": !!files,
                 "estimate_received": false,
                 "invoice_received": false,
                 "proof_of_loss_received": false,
@@ -275,74 +276,41 @@ class PayloadBuilder {
         };
     }
 
-    static async buildVariantPayload({ fileId, originalContent, instructions, variantLabel }) {
-        // 1. Define the System Persona for Variants
+
+    static async buildRefinementPayload({ originalContent, rule}) {
+        // 1. Enhanced System Instruction
         const systemInstruction = `
-            You are a specialized Insurance Claims Assistant. 
-            Your task is to TRANSFORM the provided content into a ${variantLabel.toUpperCase()} format.
-            
-            STRICT GUARDRAILS:
-            - Use only the facts provided in the original content.
-            - Adopt the standard structural conventions of a ${variantLabel}.
-            - Maintain professional, objective, and adjuster-standard language.
-            - If the original content contains specific claim numbers or dates, they MUST be preserved.
-        `;
+        You are a Senior Insurance Claims Specialist and Editor.
+        TASK: Transform the "ORIGINAL CONTENT" based ONLY on the "REFINEMENT RULE".
+        
+        STRICT OPERATIONAL DIRECTIVES:
+        - CONTEXT LOCK: Do not invent new damages, dates, or claim facts. 
+        - DATA INTEGRITY: Preserve all names, claim numbers, and financial figures exactly as they appear.
+        - NO INTRODUCTIONS: Do not say "Here is the refined version" or "As an attorney-facing document...". 
+        - OUTPUT ONLY: Provide the edited text and nothing else.
+        
+        REFINEMENT STYLE GUIDE:
+        - shorten: Remove wordiness. Focus on the 'Bottom Line'.
+        - formal: Use passive voice where appropriate and industry terminology (e.g., "Correspondence" instead of "Letter").
+        - attorney_facing: Focus on policy citations, factual evidence, and objective observations to withstand legal scrutiny.
+        - firm: Use decisive language. Replace "we might consider" with "the position remains".
+        - doi_safe: Ensure compliance with Department of Insurance standards; use neutral, transparent, and non-prejudicial language.
+    `;
 
-        // 2. Format the Prompt
+        // 2. Structured Prompt
         const prompt = `
-            ${instructions}
+        [REFINEMENT RULE]
+        ${rule}
 
-            ORIGINAL CONTENT TO TRANSFORM:
-            """
-            ${originalContent}
-            """
+        [ORIGINAL CONTENT TO BE TRANSFORMED]
+        """
+        ${originalContent}
+        """
 
-            Provide the ${variantLabel} below:
-        `;
+        [TRANSFORMED TEXT]
+    `;
 
-        // 3. Return the standard payload structure for your AI Service
-        return {
-            fileId,
-            systemInstruction,
-            messages: [
-                {
-                    role: "user",
-                    parts: [{ text: prompt }]
-                }
-            ],
-            config: {
-                temperature: 0.3, // Lower temperature for structural accuracy
-                maxOutputTokens: 2048,
-            }
-        };
-    }
-
-    static async buildRefinementPayload({ originalContent, rule }) {
-        // 1. Define the System Instruction for Refinements
-        const systemInstruction = `
-            You are an expert Insurance Content Editor. 
-            Your goal is to REWRITE the provided content based on a specific user rule.
-            
-            STRICT GUARDRAILS:
-            - DO NOT change the facts, claim numbers, dates, or names.
-            - DO NOT add new information that is not in the original text.
-            - ONLY change the tone, length, or compliance language as requested.
-            - Maintain a professional insurance adjuster standard.
-        `;
-
-        // 2. Format the Prompt to isolate the content and the rule
-        const prompt = `
-            REFINEMENT RULE: ${rule}
-
-            CONTENT TO REFINE:
-            """
-            ${originalContent}
-            """
-
-            Provide the refined version below:
-        `;
-
-        // 3. Return the payload
+        // 3. Return the payload with history if available
         return {
             systemInstruction,
             messages: [
@@ -352,12 +320,15 @@ class PayloadBuilder {
                 }
             ],
             config: {
-                temperature: 0.1, // Set very low to prevent "creative" hallucinations
+                temperature: 0.0, // Reduced to 0.0 for maximum consistency/predictability
                 maxOutputTokens: 2048,
-                topP: 0.1
+                topP: 0.1,
+                presencePenalty: 0.0,
+                frequencyPenalty: 0.0
             }
         };
     }
 }
+
 
 module.exports = PayloadBuilder;
