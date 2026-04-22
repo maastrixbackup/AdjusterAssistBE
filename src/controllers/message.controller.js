@@ -343,7 +343,7 @@ const createAIDraft = async (req, res) => {
             role: userProfile.role,
             inputText: userInput,
             ocrData: ocrInsights,
-            files:files,
+            files: files,
             userInfo: {
                 sender_name: userProfile.name,
                 sender_designation: userProfile.role,
@@ -475,6 +475,7 @@ const createVariantDraft = async (req, res) => {
             parentMessageId,
             variantLabel
         } = req.body;
+        console.log("DEBUG BODY:", req.body)
 
         // 1. Validation - Variant MUST have a parent
         if (!parentMessageId) {
@@ -545,7 +546,7 @@ const createVariantDraft = async (req, res) => {
             ai_response: aiRawResponse,
             output_text: cleanMainContent,
             output_type: variantLabel,
-            ocrInsights:null,
+            ocrInsights: null,
             execution_time_ms: Date.now() - startTime,
             metadata: { is_variant: true }
         }]);
@@ -583,7 +584,7 @@ const refineAIDraft = async (req, res) => {
             parentMessageId,
             refinementType    // 'shorten', 'formal', 'attorney_facing', 'firm', 'doi_safe'
         } = req.body;
-
+        console.log("DEBUG BODY:", req.body)
         // 1. Validation
         if (!parentMessageId || !refinementType || !userInput) {
             return res.status(400).json({

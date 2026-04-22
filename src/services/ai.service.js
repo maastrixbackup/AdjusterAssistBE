@@ -11,7 +11,7 @@ const openai = new OpenAI({
 /**
  * Heavy generation for the final professional draft
  */
-export const generateAIDraft = async (type, userInput, files = [], conversationHistory) => {
+export const generateAIDraft = async (type, userInput, files = [], conversationHistory = []) => {
     console.log("Generating AI Draft with input:", {
         type,
         fileCount: files.length
