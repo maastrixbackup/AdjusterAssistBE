@@ -446,7 +446,8 @@ const createAIDraft = async (req, res) => {
                 output_format: detectedType,
                 next_step_suggestion: nextAction,
                 quick_actions: dynamicSuggestions,
-                attachments: attachmentUrls,
+                image_input_url: primaryImageUrl,
+                doccuments_url: documentUrl,
                 created_at: turnResult.created_at
             }
         });
