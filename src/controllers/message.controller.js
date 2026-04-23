@@ -663,7 +663,7 @@ const refineAIDraft = async (req, res) => {
             workspace_id: fileId,
             user_id: userId,
             parent_id: parentMessageId,
-            variant_label: `Refined (${refinementType})`,
+            variant_label: null,
             refinement_type: refinementType,
             user_input: `Refine: ${refinementType}`,
             ai_response: cleanMainContent,
