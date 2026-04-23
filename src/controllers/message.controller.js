@@ -446,7 +446,8 @@ const createAIDraft = async (req, res) => {
                 output_format: detectedType,
                 next_step_suggestion: nextAction,
                 quick_actions: dynamicSuggestions,
-                attachments: attachmentUrls,
+                image_input_url: primaryImageUrl,
+                doccuments_url: documentUrl,
                 created_at: turnResult.created_at
             }
         });
@@ -611,6 +612,7 @@ const refineAIDraft = async (req, res) => {
         if (!parentMessage) {
             return res.status(404).json({ message: "Original message not found." });
         }
+        const detectedType = parentMessage.content_type
 
         const file = await File.findById(fileId);
         if (!file) return res.status(404).json({ message: "Workspace not found." });
@@ -661,7 +663,7 @@ const refineAIDraft = async (req, res) => {
             workspace_id: fileId,
             user_id: userId,
             parent_id: parentMessageId,
-            variant_label: `Refined (${refinementType})`,
+            variant_label: null,
             refinement_type: refinementType,
             user_input: `Refine: ${refinementType}`,
             ai_response: cleanMainContent,
@@ -701,7 +703,7 @@ const refineAIDraft = async (req, res) => {
                 user_input: userInput,
                 refinement_type: turnResult.refinement_type,
                 ai_response: cleanMainContent,
-                output_format: parentMessage.output_format,
+                output_format: detectedType,
                 next_step_suggestion: nextAction || parentMessage.next_step_suggestion,
                 created_at: turnResult.created_at
             }
