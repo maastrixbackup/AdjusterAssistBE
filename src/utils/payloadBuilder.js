@@ -252,7 +252,7 @@ class PayloadBuilder {
                 "prior_damage_flag": /prior|previous|pre-existing|old damage|past claim/i.test(fullTextContext) || false,
                 "coverage_sensitive": /determination|denial|partial|coverage issue|policy limit|exclusion/i.test(fullTextContext) || false,
                 "doi_sensitive": /date of loss|occurrence date|policy effective|lapse/i.test(fullTextContext) || false,
-                "litigation_sensitive": /attorney|lawyer|legal|lawsuit|summons|public adjuster|p\.a\.|litigation/i.test(inputfullTextContextText) || false,
+                "litigation_sensitive": /attorney|lawyer|legal|lawsuit|summons|public adjuster|p\.a\.|litigation/i.test(fullTextContext) || false,
                 "high_escalation": /complaint|supervisor|manager|regulatory|bad faith|doi complaint|dissatisfied/i.test(fullTextContext) || false
             },
 
