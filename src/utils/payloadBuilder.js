@@ -244,25 +244,25 @@ class PayloadBuilder {
             },
 
             "compliance_flags": {
-                "weather_related": /storm|hail|wind|hurricane|tornado|lightning|flood/i.test(fullTextContext),
-                "mitigation_involved": /dry-out|mitigation|dehumidifier|extraction|servpro|water restoration/i.test(fullTextContext),
-                "contents_involved": /personal property|contents|furniture|clothing|belongings|inventory/i.test(fullTextContext),
-                "mold_or_odor_flag": /mold|mildew|fungus|odor|smell|musty/i.test(fullTextContext),
-                "emergency_repairs_flag": /immediate|tarp|board-up|emergency|plumber repair|temp repair/i.test(fullTextContext),
-                "prior_damage_flag": /prior|previous|pre-existing|old damage|past claim/i.test(fullTextContext),
-                "coverage_sensitive": /determination|denial|partial|coverage issue|policy limit|exclusion/i.test(fullTextContext),
-                "doi_sensitive": /date of loss|occurrence date|policy effective|lapse/i.test(fullTextContext),
-                "litigation_sensitive": /attorney|lawyer|legal|lawsuit|summons|public adjuster|p\.a\.|litigation/i.test(fullTextContext),
-                "high_escalation": /complaint|supervisor|manager|regulatory|bad faith|doi complaint|dissatisfied/i.test(fullTextContext)
+                "weather_related": /storm|hail|wind|hurricane|tornado|lightning|flood/i.test(inputText) || false,
+                "mitigation_involved": /dry-out|mitigation|dehumidifier|extraction|servpro|water restoration/i.test(inputText) || false,
+                "contents_involved": /personal property|contents|furniture|clothing|belongings|inventory/i.test(inputText) || false,
+                "mold_or_odor_flag": /mold|mildew|fungus|odor|smell|musty/i.test(inputText),
+                "emergency_repairs_flag": /immediate|tarp|board-up|emergency|plumber repair|temp repair/i.test(inputText) || false,
+                "prior_damage_flag": /prior|previous|pre-existing|old damage|past claim/i.test(inputText) || false,
+                "coverage_sensitive": /determination|denial|partial|coverage issue|policy limit|exclusion/i.test(inputText) || false,
+                "doi_sensitive": /date of loss|occurrence date|policy effective|lapse/i.test(inputText) || false,
+                "litigation_sensitive": /attorney|lawyer|legal|lawsuit|summons|public adjuster|p\.a\.|litigation/i.test(inputText) || false,
+                "high_escalation": /complaint|supervisor|manager|regulatory|bad faith|doi complaint|dissatisfied/i.test(inputText) || false
             },
 
             "attachments_context": {
-                "photos_received": !!files && files.some(f => f.mimetype?.startsWith('image/')),
-                "estimate_received": /estimate|xactimate|scope of work|line items/i.test(ocrData),
-                "invoice_received": /invoice|bill|amount due|payment terms/i.test(ocrData),
-                "proof_of_loss_received": /proof of loss|notarized|sworn statement/i.test(ocrData),
-                "mitigation_docs_received": /moisture log|psychrometric|dry log|drying certificate/i.test(ocrData),
-                "expert_report_received": /engineer report|plumber report|expert opinion|cause and origin/i.test(ocrData)
+                "photos_received": !!files && files.some(f => f.mimetype?.startsWith('image/')) || false,
+                "estimate_received": /estimate|xactimate|scope of work|line items/i.test(ocrData) || false,
+                "invoice_received": /invoice|bill|amount due|payment terms/i.test(ocrData) || false,
+                "proof_of_loss_received": /proof of loss|notarized|sworn statement/i.test(ocrData) || false,
+                "mitigation_docs_received": /moisture log|psychrometric|dry log|drying certificate/i.test(ocrData) || false,
+                "expert_report_received": /engineer report|plumber report|expert opinion|cause and origin/i.test(ocrData) || false
             }
         };
     }
