@@ -421,16 +421,17 @@ const createAIDraft = async (req, res) => {
                     output_type: detectedType,
                     suggested_next_step: nextAction,
                     execution_time_ms: Date.now() - startTime,
+                    payload: fullPayload,
                     metadata: {
                         model: "gpt-4o",
                         prompt_version: "adjusterassist_v1",
                         is_refinement: false,
                         is_variant:false
-                    },
-                    payload: fullPayload
+                    }
                 }])
                 .select()
                 .single();
+                console.log("Log Id:", logEntry.id)
 
             if (logError) throw logError;
             await Subscription.incrementUsage(userId);
