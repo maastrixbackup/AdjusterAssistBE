@@ -424,8 +424,10 @@ const createAIDraft = async (req, res) => {
                     metadata: {
                         model: "gpt-4o",
                         prompt_version: "adjusterassist_v1",
-                        is_refinement: false
-                    }
+                        is_refinement: false,
+                        is_variant:false
+                    },
+                    payload: fullPayload
                 }])
                 .select()
                 .single();
@@ -494,9 +496,9 @@ const createVariantDraft = async (req, res) => {
         const userProfile = await UserModel.findById(userId) || { name: "Adjuster", role: "Field Adjuster" };
 
         let detectedType = "";
-        if(variantLabel.toLowerCase() == "email"){
+        if (variantLabel.toLowerCase() == "email") {
             detectedType = "email_insured"
-        }else{
+        } else {
             detectedType = await classifierService.classify(variantLabel)
         }
 
@@ -562,7 +564,12 @@ const createVariantDraft = async (req, res) => {
             output_type: variantLabel,
             ocrInsights: null,
             execution_time_ms: Date.now() - startTime,
-            metadata: { is_variant: true }
+            metadata: {
+                model: "gpt-4o",
+                is_variant: true,
+                source_message_id: parentMessageId
+            },
+            payload: fullPayload
         }]);
 
         await Subscription.incrementUsage(userId);
@@ -597,7 +604,7 @@ const refineAIDraft = async (req, res) => {
             userInput,
             fileId,
             parentMessageId,
-            refinementType   
+            refinementType
         } = req.body;
         // console.log("DEBUG BODY:", req.body)
         // 1. Validation
@@ -689,7 +696,10 @@ const refineAIDraft = async (req, res) => {
             ai_response: aiRawResponse,
             output_type: parentMessage.content_type,
             execution_time_ms: Date.now() - startTime,
-            metadata: { is_refinement: true, action: refinementType }
+            next_step_suggestion: nextAction || "Continue monitoring draft.",
+            metadata: { is_refinement: true, action: refinementType, model: "gpt-4o"},
+            payload: fullPayload
+
         }]);
 
         await Subscription.incrementUsage(userId);
