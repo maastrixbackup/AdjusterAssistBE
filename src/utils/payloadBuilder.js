@@ -177,7 +177,7 @@ class PayloadBuilder {
     static build(file, { output_type, role, inputText, ocrData, userInfo, files }) {
         const typeKey = output_type?.toLowerCase() || "file_note";
         const config = this.#TYPE_CONFIGS[typeKey] || this.#TYPE_CONFIGS.file_note;
-
+        const fullTextContext = (inputText + " " + ocrData).toLowerCase();
         return {
             output_type: typeKey,
             claim_role: role || "staff_adjuster",
@@ -244,16 +244,16 @@ class PayloadBuilder {
             },
 
             "compliance_flags": {
-                "weather_related": /storm|hail|wind|hurricane|tornado|lightning|flood/i.test(inputText) || false,
-                "mitigation_involved": /dry-out|mitigation|dehumidifier|extraction|servpro|water restoration/i.test(inputText) || false,
-                "contents_involved": /personal property|contents|furniture|clothing|belongings|inventory/i.test(inputText) || false,
-                "mold_or_odor_flag": /mold|mildew|fungus|odor|smell|musty/i.test(inputText),
-                "emergency_repairs_flag": /immediate|tarp|board-up|emergency|plumber repair|temp repair/i.test(inputText) || false,
-                "prior_damage_flag": /prior|previous|pre-existing|old damage|past claim/i.test(inputText) || false,
-                "coverage_sensitive": /determination|denial|partial|coverage issue|policy limit|exclusion/i.test(inputText) || false,
-                "doi_sensitive": /date of loss|occurrence date|policy effective|lapse/i.test(inputText) || false,
-                "litigation_sensitive": /attorney|lawyer|legal|lawsuit|summons|public adjuster|p\.a\.|litigation/i.test(inputText) || false,
-                "high_escalation": /complaint|supervisor|manager|regulatory|bad faith|doi complaint|dissatisfied/i.test(inputText) || false
+                "weather_related": /storm|hail|wind|hurricane|tornado|lightning|flood/i.test(fullTextContext) || false,
+                "mitigation_involved": /dry-out|mitigation|dehumidifier|extraction|servpro|water restoration/i.test(fullTextContext) || false,
+                "contents_involved": /personal property|contents|furniture|clothing|belongings|inventory/i.test(fullTextContext) || false,
+                "mold_or_odor_flag": /mold|mildew|fungus|odor|smell|musty/i.test(fullTextContext),
+                "emergency_repairs_flag": /immediate|tarp|board-up|emergency|plumber repair|temp repair/i.test(fullTextContext) || false,
+                "prior_damage_flag": /prior|previous|pre-existing|old damage|past claim/i.test(fullTextContext) || false,
+                "coverage_sensitive": /determination|denial|partial|coverage issue|policy limit|exclusion/i.test(fullTextContext) || false,
+                "doi_sensitive": /date of loss|occurrence date|policy effective|lapse/i.test(fullTextContext) || false,
+                "litigation_sensitive": /attorney|lawyer|legal|lawsuit|summons|public adjuster|p\.a\.|litigation/i.test(inputfullTextContextText) || false,
+                "high_escalation": /complaint|supervisor|manager|regulatory|bad faith|doi complaint|dissatisfied/i.test(fullTextContext) || false
             },
 
             "attachments_context": {
