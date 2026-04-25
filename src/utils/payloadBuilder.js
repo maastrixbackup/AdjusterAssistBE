@@ -212,17 +212,17 @@ class PayloadBuilder {
                 vendor_statement: "",
                 document_review: "System generated based on adjuster notes.",
                 coverage_position: "Pending further verification.",
-                estimate_status: "",
-                payment_status: "",
+                estimate_status: "Extract from context if exists",
+                payment_status: "Extract from context if exists",
                 next_steps: "Identify from summary" || text.match(/#Next (.*?)($|#)/)?.[1] || "",
-                additional_facts: ""
+                additional_facts: "Extract from context if exists"
             },
 
             communication_context: {
                 audience: config.audience || "internal",
-                sender_identity: "adjuster",
+                sender_identity: "Carrier adjuster",
 
-                recipient_name: "Extract from summary if present", // must be different from file.client_name
+                recipient_name: "Extract from summary if present", 
                 recipient_role: config.recipient_role || "supervisor",
 
                 purpose: config.purpose,
