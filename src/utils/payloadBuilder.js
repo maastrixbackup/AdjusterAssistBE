@@ -201,7 +201,6 @@ class PayloadBuilder {
                 insured_name: file.client_name,
                 property_address: file.address || "",
                 claim_stage: file.claim_stage || "general_review",
-
                 current_issue: inputText.substring(0, 75).replace(/\n/g, " ") + "..."  ///------>>
             },
 
@@ -257,6 +256,7 @@ class PayloadBuilder {
             },
 
             "attachments_context": {
+                "ocrData":ocrData,
                 "photos_received": !!files && files.some(f => f.mimetype?.startsWith('image/')) || false,
                 "estimate_received": /estimate|xactimate|scope of work|line items/i.test(ocrData) || false,
                 "invoice_received": /invoice|bill|amount due|payment terms/i.test(ocrData) || false,
