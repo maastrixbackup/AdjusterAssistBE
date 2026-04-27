@@ -226,10 +226,11 @@ class PayloadBuilder {
         },
     };
 
-    static build(file, { output_type, role, inputText, ocrData, userInfo, files, audienceType }) {
+    static build(file, { output_type, role, inputText, facts ,ocrData, userInfo, files, audienceType }) {
         const typeKey = output_type?.toLowerCase() || "file_note";
         const config = this.#TYPE_CONFIGS[typeKey] || this.#TYPE_CONFIGS.file_note;
         const fullTextContext = (inputText + " " + ocrData).toLowerCase();
+        const claimFacts = facts || {};
         return {
             output_type: typeKey,
             claim_role: role || "staff_adjuster",
@@ -258,16 +259,16 @@ class PayloadBuilder {
 
             facts: {
                 summary: inputText,
-                inspection_findings: "Extract from summary if present",
-                insured_statement: "Extract from summary if present" || inputText.match(/#Insured (.*?)($|#)/)?.[1] || "",
-                contractor_statement: "Extract from summary if present" || text.match(/#Contractor (.*?)($|#)/)?.[1] || "",
-                vendor_statement: "",
-                document_review: "System generated based on adjuster notes.",
-                coverage_position: "Pending further verification.",
-                estimate_status: "Extract from context if exists",
-                payment_status: "Extract from context if exists",
-                next_steps: inputText.match(/#Next (.*?)($|#)/)?.[1] || "Identify from summary" ||  "",
-                additional_facts: "Extract from context if exists"
+                inspection_findings: claimFacts?.inspection_findings,
+                insured_statement: claimFacts.insured_statement|| inputText.match(/#Insured (.*?)($|#)/)?.[1] || "Extract from summary if present",
+                contractor_statement: claimFacts.contractor_statement || inputText.match(/#Contractor (.*?)($|#)/)?.[1] ||"Extract from summary if present",
+                vendor_statement: claimFacts.vendor_statement,
+                document_review: claimFacts.document_review ||"System generated based on adjuster notes.",
+                coverage_position: claimFacts.coverage_position || "Pending further verification.",
+                estimate_status: claimFacts.estimate_status ||"Extract from context if exists",
+                payment_status: claimFacts.payment_status ||"Extract from context if exists",
+                next_steps: claimFacts.next_steps || inputText.match(/#Next (.*?)($|#)/)?.[1] || "Identify from summary" ||  "",
+                additional_facts: claimFacts.additional_facts || "Extract from context if exists"
             },
 
             communication_context: {
@@ -358,10 +359,16 @@ class PayloadBuilder {
 
             facts: {
                 summary: safeContent,
-                // We inherit insights from the parent message so the AI doesn't lose OCR data
                 ocr_insights: parentMessage?.ocrInsights || "No previous OCR data.",
-                inspection_findings: "Extract from summary or previous context",
                 insured_statement: safeContent.match(/#Insured (.*?)($|#)/)?.[1] || "",
+
+                inspection_findings: "",
+                contractor_statement:"",
+                vendor_statement:"",
+                document_review:"",
+                coverage_position:"",
+                estimate_status:"",
+                payment_status:"",
                 next_steps: "Identify from summary"
             },
 

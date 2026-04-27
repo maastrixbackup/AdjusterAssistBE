@@ -16,6 +16,7 @@ const fs = require('fs');
 const path = require('path');
 const { extractAiComponents } = require("../utils/aiExtractor");
 const { classifyAudience } = require("../services/audienceClassifier.js");
+const { extractClaimContext } = require("../utils/contextExtractor.js");
 
 // Example usage in your controller
 const uploadDir = path.join(__dirname, '../uploads');
@@ -267,12 +268,15 @@ const createAIDraft = async (req, res) => {
         const detectedType = output_classification.type;
         console.log("[SERVICE]: Output Format Classification", output_classification);
 
+        const { facts } = extractClaimContext(userInput, ocrInsights);
+        // console.log("FACTS: ",facts)
 
         /// PAYLOAD BUILDER
         const fullPayload = PayloadBuilder.build(file, {
             output_type: detectedType,
             role: userProfile.role,
             inputText: userInput,
+            claim_facts: facts,
             ocrData: ocrInsights,
             files: files,
             audienceType,

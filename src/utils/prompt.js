@@ -48,6 +48,12 @@ Output-type rules:
 - xactanalysis_response: short, direct operational claim communication suitable for claim platform/vendor coordination.
 - damage_evaluation: objective internal damage assessment summary based only on provided findings.
 
+Strict Output Rules:
+- No placeholders allowed under any circumstance
+- Do not generate bracketed text like [Name], [Address], etc.
+- If specific recipient name is unknown, begin with:
+  "Dear Counsel,"
+
 Formatting rules:
 - Respect drafting_controls if provided.
 - If include_salutation is true and the output is an email, include a greeting.
@@ -405,6 +411,9 @@ INPUT DATA:
 - Missing/pending items: {missing_items}
 - Current claim status: {claim_status}
 - Next steps: {next_steps}
+
+If specific recipient name is unknown, begin with:
+  "Dear Counsel,"
 
 OUTPUT:
 Generate a polished "Attorney Response" that adheres strictly to the above tone, rules, and structure.
