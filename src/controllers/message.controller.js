@@ -581,7 +581,7 @@ const createVariantDraft = async (req, res) => {
                 variant_label: turnResult.variant_label,
                 ai_response: cleanMainContent,
                 output_format: detectedType,
-                next_step_suggestion: turnResult.next_step_suggestion || parentMessage.next_step_suggestion,
+                next_step_suggestion: updateData.next_step_suggestion,
                 created_at: turnResult.created_at,
                 updated_at: updateData.updated_at
             }
