@@ -31,7 +31,7 @@ class ClassifierService {
       return { type: 'file_note', confidence: 0.95, source: 'deterministic' };
     }
 
-    if (text.includes("into a attorney response format")) {
+    if (text.includes("into a attorney response format") || text.includes("attorney")) {
       return { type: 'attorney_response', confidence: 0.95, source: 'deterministic' };
     }
 

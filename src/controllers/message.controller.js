@@ -288,7 +288,8 @@ const createAIDraft = async (req, res) => {
             detectedType,
             JSON.stringify(fullPayload),
             files,
-            conversationHistory
+            conversationHistory,
+            audienceType
         );
 
         // 5. Parsing AI Response for metadata

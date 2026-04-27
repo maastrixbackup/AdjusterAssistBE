@@ -11,12 +11,7 @@ const openai = new OpenAI({
 /**
  * Heavy generation for the final professional draft
  */
-export const generateAIDraft = async (type, userInput, files = [], conversationHistory = []) => {
-    console.log("Generating AI Draft with input:", {
-        type,
-        fileCount: files.length
-    });
-
+export const generateAIDraft = async (type, userInput, files = [], conversationHistory = [], audienceType) => {
     try {
         const formatStyle = getFormatInstruction(type);
         const guardrailInjection = getAppliedGuardrails(userInput);
@@ -36,6 +31,7 @@ export const generateAIDraft = async (type, userInput, files = [], conversationH
             VISION INSTRUCTION: Analyze all provided images (damage photos, receipts, etc.).
             If no images are provided, rely strictly on text context.
             OUTPUT REQUIREMENT (THE FORMAT): ${formatStyle}
+            TARGET AUDIENCE : ${audienceType}
         `;
 
         if (conversationHistory) {
