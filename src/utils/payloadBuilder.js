@@ -269,8 +269,8 @@ class PayloadBuilder {
                 missing_information: claimFacts?.missing_information || "Identify next steps from documentation.",
                 risk_flags: [
                     claimFacts?.risk_flags,
-                    audience.includes('attorney') ? '{"type": "attorney_involvement", "level": "high", "reason": "Attorney detected in recipient role."}' : null,
-                    audience.includes('public_adjuster') ? '{"type": "pa_involvement", "level": "medium", "reason": "PA detected in recipient role."}' : null,
+                    audience.includes('attorney') ? '{"type": "attorney_involvement", "level": "high", "reason": "Attorney representation or legal communication detected."}' : null,
+                    audience.includes('public_adjuster') ? '{"type": "pa_involvement", "level": "medium", "reason": "Public adjuster communication or representation detected"}' : null,
                     String(claimFacts?.claim_positions || "").toLowerCase().includes('denied') ? '{"type": "dispute", "level": "medium", "reason": "Coverage denial mentioned."}' : null
                 ]
                     .filter(item => item && String(item).trim() !== "" && String(item) !== "[]")
