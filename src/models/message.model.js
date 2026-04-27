@@ -1,4 +1,4 @@
-const supabase = require('../config/supabase'); // Your Supabase client config
+const supabase = require('../config/supabase');
 
 const Message = {
   // 1. Create a new message

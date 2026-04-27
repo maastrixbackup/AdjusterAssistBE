@@ -394,7 +394,6 @@ const createAIDraft = async (req, res) => {
                 activity_type: 'ai_generation',
                 metadata: {
                     model: "gpt-4o",
-                    is_refinement: false
                 }
             });
             console.log("Message turn Saved with ID: ", turnResult.id);
@@ -426,12 +425,12 @@ const createAIDraft = async (req, res) => {
                         model: "gpt-4o",
                         prompt_version: "adjusterassist_v1",
                         is_refinement: false,
-                        is_variant:false
+                        is_variant: false
                     }
                 }])
                 .select()
                 .single();
-                console.log("Log Id:", logEntry.id)
+            console.log("Log Id:", logEntry.id)
 
             if (logError) throw logError;
             await Subscription.incrementUsage(userId);
@@ -533,25 +532,22 @@ const createVariantDraft = async (req, res) => {
             // .replace(/(?:suggestions|quick\s*actions|suggested\s*actions):[\s\S]*$/i, '')
             .trim();
 
-        // 7. Save to Database (Linked to Parent)
-        const turnResult = await Message.create({
-            workspace_id: fileId,
-            user_id: userId,
-            parent_id: parentMessageId,
-            variant_label: variantLabel,
-            user_input: `Generate Variant: ${variantLabel}`,
+
+        const updateData = {
             ai_response: cleanMainContent,
-            ocrInsights: ocrInsights, // Inherited
             content_type: variantLabel.toLowerCase().replace(/\s+/g, '_'),
-            claim_state: file.claim_stage || 'review_pending',
-            activity_type: 'ai_variant',
-            next_step_suggestion: nextAction || "Continue monitoring claim.",
             metadata: {
-                model: "gpt-4o",
+                ...parentMessage.metadata,
                 is_variant: true,
-                source_message_id: parentMessageId
-            }
-        });
+                last_modified_at: new Date().toISOString(),
+                refined_from_id: parentMessageId
+            },
+            next_step_suggestion: nextAction || "Continue monitoring claim.",
+            activity_type: 'ai_variant',
+            updated_at: new Date().toISOString()
+        };
+
+        const turnResult = await Message.updateById(parentMessageId, updateData);
 
         // 8. Log the Variant Action
         await supabase.from('ai_logs').insert([{
@@ -586,7 +582,7 @@ const createVariantDraft = async (req, res) => {
                 ai_response: cleanMainContent,
                 output_format: detectedType,
                 next_step_suggestion: turnResult.next_step_suggestion || parentMessage.next_step_suggestion,
-                created_at: turnResult.created_at
+                created_at: turnResult.updated_at
             }
         });
 
@@ -667,25 +663,30 @@ const refineAIDraft = async (req, res) => {
             .trim();
 
         // 7. Save to Database (Version of the parent)
-        const turnResult = await Message.create({
-            workspace_id: fileId,
-            user_id: userId,
-            parent_id: parentMessageId,
-            variant_label: null,
-            refinement_type: refinementType,
-            user_input: `Refine: ${refinementType}`,
+        const refinementUpdate = {
             ai_response: cleanMainContent,
-            ocrInsights: parentMessage.ocrInsights,
-            content_type: parentMessage.content_type,
-            claim_state: file.claim_stage || 'review_pending',
-            next_step_suggestion: nextAction || "Continue monitoring draft.",
+
+            // Update tracking fields
+            refinement_type: refinementType,
             activity_type: 'ai_refinement',
+
+            // Update Industry Insights based on the new content
+            next_step_suggestion: nextAction || "Continue monitoring draft.",
+            claim_state: file.claim_stage || 'review_pending',
+
+            // Merge metadata so we don't lose the original message's history
             metadata: {
-                model: "gpt-4o",
-                refinement_action: refinementType,
-                is_refinement: true
-            }
-        });
+                ...parentMessage.metadata,
+                last_refinement_action: refinementType,
+                is_refinement: true,
+                refined_at: new Date().toISOString(),
+                previous_version_content: parentMessage.ai_response
+            },
+            updated_at:new Date().toISOString()
+        };
+
+        // 2. Execute the update on the parentMessageId
+        const turnResult = await Message.updateById(parentMessageId, refinementUpdate);
 
         // 8. Log the Refinement
         await supabase.from('ai_logs').insert([{
@@ -698,7 +699,7 @@ const refineAIDraft = async (req, res) => {
             output_type: parentMessage.content_type,
             execution_time_ms: Date.now() - startTime,
             next_step_suggestion: nextAction || "Continue monitoring draft.",
-            metadata: { is_refinement: true, action: refinementType, model: "gpt-4o"},
+            metadata: { is_refinement: true, action: refinementType, model: "gpt-4o" },
             payload: fullPayload
 
         }]);
@@ -716,7 +717,7 @@ const refineAIDraft = async (req, res) => {
                 ai_response: cleanMainContent,
                 output_format: detectedType,
                 next_step_suggestion: nextAction || parentMessage.next_step_suggestion,
-                created_at: turnResult.created_at
+                created_at: turnResult.updated_at
             }
         });
 
