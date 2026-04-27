@@ -63,7 +63,7 @@ Formatting rules:
 - Do NOT use bullet points
 - Use plain text only
 - Use clear section labels with colons
-- Keep formatting clean and system-friendly
+- Keep formatting clean and system-friendly without any placeholders
 
 When facts are incomplete:
 - Do not refuse.
@@ -394,7 +394,7 @@ STRUCTURE (MANDATORY):
 6. Outline next steps and any required actions from involved parties
 
 WRITING STYLE:
-- Use complete, well-structured paragraphs
+- Use complete, well-structured paragraphs use insured_name for greeting
 - Avoid bullet points unless absolutely necessary
 - Ensure clarity, professionalism, and defensibility in every sentence
 
