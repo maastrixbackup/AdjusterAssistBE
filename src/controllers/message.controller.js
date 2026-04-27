@@ -582,7 +582,8 @@ const createVariantDraft = async (req, res) => {
                 ai_response: cleanMainContent,
                 output_format: detectedType,
                 next_step_suggestion: turnResult.next_step_suggestion || parentMessage.next_step_suggestion,
-                created_at: turnResult.updated_at
+                created_at: turnResult.created_at,
+                updated_at: updateData.updated_at
             }
         });
 
@@ -712,7 +713,8 @@ const refineAIDraft = async (req, res) => {
                 ai_response: cleanMainContent,
                 output_format: detectedType,
                 next_step_suggestion: refinementUpdate.next_step_suggestion,
-                created_at: turnResult.updated_at
+                created_at: turnResult.created_at,
+                updated_at: refinementUpdate.updated_at
             }
         });
 
