@@ -16,7 +16,7 @@ const fs = require('fs');
 const path = require('path');
 const { extractAiComponents } = require("../utils/aiExtractor");
 const { classifyAudience } = require("../services/audienceClassifier.js");
-const { extractClaimContext } = require("../utils/contextExtractor.js");
+const { extractClaimContext, extractUnifiedContext } = require("../utils/contextExtractor.js");
 
 // Example usage in your controller
 const uploadDir = path.join(__dirname, '../uploads');
@@ -239,7 +239,7 @@ const createAIDraft = async (req, res) => {
         ) || null;
 
         // 3. Context & Metadata Gathering
-        let conversationHistory = []; // Initialize as an array, not a string
+        let conversationHistory = [];
         try {
             const previousMessages = await Message.findByFileId(fileId);
 
@@ -268,18 +268,18 @@ const createAIDraft = async (req, res) => {
         const detectedType = output_classification.type;
         console.log("[SERVICE]: Output Format Classification", output_classification);
 
-        const { facts } = extractClaimContext(userInput, ocrInsights);
-        // console.log("FACTS: ",facts)
+        const extraction = await extractUnifiedContext(userInput, ocrInsights);
+        console.log("FACTS: ",extraction.facts)
+        console.log("Target Audience: ",extraction.recipient_role)
 
         /// PAYLOAD BUILDER
         const fullPayload = PayloadBuilder.build(file, {
             output_type: detectedType,
-            role: userProfile.role,
             inputText: userInput,
-            claim_facts: facts,
+            claim_facts: extraction.facts,
             ocrData: ocrInsights,
             files: files,
-            audienceType,
+            audience: extraction.recipient_role,
             userInfo: {
                 sender_name: userProfile.name,
                 sender_designation: userProfile.role,
@@ -419,7 +419,7 @@ const createVariantDraft = async (req, res) => {
             parentMessageId,
             variantLabel
         } = req.body;
-        console.log("DEBUG BODY:", req.body)
+        // console.log("DEBUG BODY:", req.body)
 
         // 1. Validation - Variant MUST have a parent
         if (!parentMessageId) {
@@ -432,9 +432,12 @@ const createVariantDraft = async (req, res) => {
             return res.status(404).json({ message: "Parent message not found" });
         }
 
+
         const ocrInsights = parentMessage.ocrInsights || "No previous insights.";
         const file = await File.findById(fileId);
         const userProfile = await UserModel.findById(userId) || { name: "Adjuster", role: "Field Adjuster" };
+        const { facts } = extractClaimContext(parentMessage.user_input, ocrInsights);
+
 
         const audienceType = classifyAudience(userInput);
         console.log("[SERVICE]: Audience Classification: ", audienceType);
@@ -450,12 +453,20 @@ const createVariantDraft = async (req, res) => {
         }
         console.log(`[VARIANT]: Transforming content to format: ${detectedType}`);
 
-        const fullPayload = await PayloadBuilder.buildVariant(file, {
-            variantLabel: variantLabel,
-            originalContent: userInput || parentMessage.ai_response,
-            userInfo: userProfile,
-            parentMessage: parentMessage,
-            audienceType
+        const extraction = await extractUnifiedContext(userInput, ocrInsights);
+
+        const fullPayload = await PayloadBuilder.build(file, {
+            output_type: variantLabel,
+            inputText: parentMessage.user_input ,
+            ocrData: parentMessage.ocrInsights,
+            audience:extraction.recipient_role,
+            claim_facts:extraction.facts,
+            userInfo: {
+                sender_name: userProfile.name,
+                sender_designation: userProfile.role,
+                sender_email: userProfile.email,
+                sender_company: "AdjusterAssist™"
+            }
         });
 
         const aiRawResponse = await aiService.generateAIDraft(

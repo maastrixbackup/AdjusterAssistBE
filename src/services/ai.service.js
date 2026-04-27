@@ -24,7 +24,6 @@ export const generateAIDraft = async (type, userInput, files = [], conversationH
             }
         ];
 
-
         const systemMessage = `
             ${adjusterPrompt}
             ${guardrailInjection}
@@ -80,3 +79,22 @@ export const generateFastClassification = async (systemPrompt, userInput) => {
         return "file_note";
     }
 };
+
+export const generateJSON =  async (systemPrompt, userContent) => {
+        try {
+            const response = await openai.chat.completions.create({
+                model: "gpt-4o-mini", // Use a faster/cheaper model for extraction
+                messages: [
+                    { role: "system", content: systemPrompt },
+                    { role: "user", content: userContent }
+                ],
+                response_format: { type: "json_object" }, // Forces JSON mode
+                temperature: 0, // Keep it deterministic
+            });
+
+            return JSON.parse(response.choices[0].message.content);
+        } catch (error) {
+            console.error("Extractor Service Error:", error);
+            throw new Error("Failed to parse AI extraction");
+        }
+    }

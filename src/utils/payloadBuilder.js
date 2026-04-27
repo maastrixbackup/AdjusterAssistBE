@@ -226,14 +226,15 @@ class PayloadBuilder {
         },
     };
 
-    static build(file, { output_type, role, inputText, facts ,ocrData, userInfo, files, audienceType }) {
+    static build(file, { output_type, inputText, claim_facts, ocrData, userInfo, files, audience }) {
+        console.log("Audience in Payload", { isAttorney: audience === 'attorney' })
         const typeKey = output_type?.toLowerCase() || "file_note";
         const config = this.#TYPE_CONFIGS[typeKey] || this.#TYPE_CONFIGS.file_note;
         const fullTextContext = (inputText + " " + ocrData).toLowerCase();
-        const claimFacts = facts || {};
+        const claimFacts = claim_facts || {};
         return {
             output_type: typeKey,
-            claim_role: role || "staff_adjuster",
+            claim_role: userInfo?.role || "staff_adjuster",
             sender_identity: {
                 name: userInfo?.sender_name || "Adjuster",
                 email: userInfo?.sender_email,
@@ -259,24 +260,29 @@ class PayloadBuilder {
 
             facts: {
                 summary: inputText,
-                inspection_findings: claimFacts?.inspection_findings,
-                insured_statement: claimFacts.insured_statement|| inputText.match(/#Insured (.*?)($|#)/)?.[1] || "Extract from summary if present",
-                contractor_statement: claimFacts.contractor_statement || inputText.match(/#Contractor (.*?)($|#)/)?.[1] ||"Extract from summary if present",
-                vendor_statement: claimFacts.vendor_statement,
-                document_review: claimFacts.document_review ||"System generated based on adjuster notes.",
-                coverage_position: claimFacts.coverage_position || "Pending further verification.",
-                estimate_status: claimFacts.estimate_status ||"Extract from context if exists",
-                payment_status: claimFacts.payment_status ||"Extract from context if exists",
-                next_steps: claimFacts.next_steps || inputText.match(/#Next (.*?)($|#)/)?.[1] || "Identify from summary" ||  "",
-                additional_facts: claimFacts.additional_facts || "Extract from context if exists"
+                reported_facts: claimFacts?.reported_facts || "No specific statement captured.",
+                verified_facts: claimFacts?.verified_facts || "Pending verification of coverage and payment.",
+                adjuster_observations: claimFacts?.adjuster_observations || "No physical inspection findings reported.",
+                contractor_statements: claimFacts?.contractor_statements || "No contractor estimate or statement present.",
+                vendor_documents: claimFacts?.vendor_documents || "No vendor reports available.",
+                claim_positions: claimFacts?.claim_positions || "In review.",
+                missing_information: claimFacts?.missing_information || "Identify next steps from documentation.",
+                risk_flags: [
+                    claimFacts?.risk_flags,
+                    audience.includes('attorney') ? '{"type": "attorney_involvement", "level": "high", "reason": "Attorney detected in recipient role."}' : null,
+                    audience.includes('public_adjuster') ? '{"type": "pa_involvement", "level": "medium", "reason": "PA detected in recipient role."}' : null,
+                    String(claimFacts?.claim_positions || "").toLowerCase().includes('denied') ? '{"type": "dispute", "level": "medium", "reason": "Coverage denial mentioned."}' : null
+                ]
+                    .filter(item => item && String(item).trim() !== "" && String(item) !== "[]")
+                    .join("; ") || "STANDARD_FILE"
             },
 
             communication_context: {
-                audience: config.audience || "internal",
+                audience: audience || "internal",
                 sender_identity: "Carrier adjuster",
 
-                recipient_name: file.client_name ||"Extract from summary if present",
-                recipient_role: audienceType || "internal_file",
+                recipient_name: file.client_name || "Extract from summary if present",
+                recipient_role: audience || "internal_file",
 
                 purpose: config.purpose,
                 tone_override: config.tone_override || "",
@@ -320,7 +326,7 @@ class PayloadBuilder {
         };
     }
 
-    static async buildVariant(file, { variantLabel, originalContent, userInfo, parentMessage }) {
+    static async buildVariant(file, { variantLabel, originalContent, userInfo, parentMessage, facts }) {
         // 1. Determine the config based on the variant label
         const typeKey = variantLabel?.toLowerCase().replace(/\s+/g, '_') || "file_note";
         const config = this.#TYPE_CONFIGS[typeKey] || this.#TYPE_CONFIGS.file_note;
@@ -363,12 +369,12 @@ class PayloadBuilder {
                 insured_statement: safeContent.match(/#Insured (.*?)($|#)/)?.[1] || "",
 
                 inspection_findings: "",
-                contractor_statement:"",
-                vendor_statement:"",
-                document_review:"",
-                coverage_position:"",
-                estimate_status:"",
-                payment_status:"",
+                contractor_statement: "",
+                vendor_statement: "",
+                document_review: "",
+                coverage_position: "",
+                estimate_status: "",
+                payment_status: "",
                 next_steps: "Identify from summary"
             },
 
