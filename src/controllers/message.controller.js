@@ -616,7 +616,7 @@ const refineAIDraft = async (req, res) => {
         if (!parentMessage) {
             return res.status(404).json({ message: "Original message not found." });
         }
-        const detectedType = parentMessage.content_type
+        const detectedType = parentMessage.content_type;
 
         const file = await File.findById(fileId);
         if (!file) return res.status(404).json({ message: "Workspace not found." });
@@ -666,15 +666,11 @@ const refineAIDraft = async (req, res) => {
         const refinementUpdate = {
             ai_response: cleanMainContent,
 
-            // Update tracking fields
             refinement_type: refinementType,
             activity_type: 'ai_refinement',
 
-            // Update Industry Insights based on the new content
             next_step_suggestion: nextAction || "Continue monitoring draft.",
-            claim_state: file.claim_stage || 'review_pending',
 
-            // Merge metadata so we don't lose the original message's history
             metadata: {
                 ...parentMessage.metadata,
                 last_refinement_action: refinementType,
@@ -711,7 +707,7 @@ const refineAIDraft = async (req, res) => {
             success: true,
             data: {
                 id: turnResult.id,
-                parent_id: turnResult.parent_id,
+                parent_id: parentMessageId,
                 user_input: userInput,
                 refinement_type: turnResult.refinement_type,
                 ai_response: cleanMainContent,
