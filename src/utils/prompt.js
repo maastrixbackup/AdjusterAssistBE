@@ -179,7 +179,7 @@ Must include:
 - The issue, recommendation, or scope item being addressed
 - The documentation or technical support required for further review
 - Any applicable scope limitation, pending review language, or handling boundary
-- The next step required before the file or scope can move forward
+- The next step required before the file or scope can move forward with outline next steps
 
 Writing requirements:
 - Keep the tone firm, professional, and operational

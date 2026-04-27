@@ -1,8 +1,4 @@
-/**
- * Robustly extracts the Next Step and cleans the main AI content
- * @param {string} rawResponse - The raw text from the AI
- * @returns {Object} { cleanContent, nextStep }
- */
+
 export const extractAiComponents = (rawResponse) => {
     if (!rawResponse) return { cleanContent: "", nextStep: "" };
 

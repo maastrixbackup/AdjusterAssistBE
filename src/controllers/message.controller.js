@@ -1,5 +1,4 @@
-const STATIC_RESPONSES = require("../utils/sample_response");
-const Subscription = require("../models/subscription.model");
+const Subscription = require("../models/subscription.model.js");
 const Message = require("../models/message.model");
 const File = require("../models/workspace.model");
 const aiService = require("../services/ai.service");
@@ -518,10 +517,22 @@ const createVariantDraft = async (req, res) => {
             [],
         );
 
-        const { cleanContent, nextStep } = extractAiComponents(aiRawResponse);
+        let nextAction = "Continue monitoring the claim.";
+        let dynamicSuggestions = ["Review file", "Contact insured"];
+
+        const nextStepMatch = aiRawResponse.match(/(?:next\s*steps?|recommended\s*action):\s*(.*)/i);
+        const suggestionMatch = aiRawResponse.match(/(?:suggestions|quick\s*actions|suggested\s*actions):\s*(.*)/i);
+
+        if (suggestionMatch) dynamicSuggestions = suggestionMatch[1].split('|').map(s => s.trim());
+        if (nextStepMatch) nextAction = nextStepMatch[1].trim();
+
+        const cleanMainContent = aiRawResponse
+            .replace(/(?:next\s*steps?|recommended\s*action):[\s\S]*$/i, '')
+            // .replace(/(?:suggestions|quick\s*actions|suggested\s*actions):[\s\S]*$/i, '')
+            .trim();
 
         const updateData = {
-            ai_response: cleanContent,
+            ai_response: cleanMainContent,
             content_type: variantLabel.toLowerCase().replace(/\s+/g, '_'),
             metadata: {
                 ...parentMessage.metadata,
@@ -529,7 +540,7 @@ const createVariantDraft = async (req, res) => {
                 last_modified_at: new Date().toISOString(),
                 refined_from_id: parentMessageId
             },
-            next_step_suggestion: nextStep || "Continue monitoring claim.",
+            next_step_suggestion: nextAction,
             activity_type: 'ai_variant',
             updated_at: new Date().toISOString()
         };
@@ -544,7 +555,7 @@ const createVariantDraft = async (req, res) => {
             variant_label: variantLabel,
             input_text: userInput,
             ai_response: aiRawResponse,
-            output_text: cleanContent,
+            output_text: cleanMainContent,
             output_type: variantLabel,
             ocrInsights: null,
             execution_time_ms: Date.now() - startTime,
@@ -563,12 +574,12 @@ const createVariantDraft = async (req, res) => {
             success: true,
             data: {
                 id: turnResult.id,
-                parent_id: turnResult.parent_id,
+                parent_id: turnResult.id,
                 user_input: userInput,
                 variant_label: turnResult.variant_label,
-                ai_response: cleanContent,
+                ai_response: cleanMainContent,
                 output_format: detectedType,
-                next_step_suggestion: nextStep,
+                next_step_suggestion: nextAction,
                 created_at: turnResult.created_at,
                 updated_at: updateData.updated_at
             }
