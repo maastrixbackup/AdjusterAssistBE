@@ -59,6 +59,12 @@ Formatting rules:
 - Honor must_avoid items strictly.
 - Honor special_instructions unless they conflict with the safety rules above.
 
+- Do NOT use markdown (no **, *, -, or headings)
+- Do NOT use bullet points
+- Use plain text only
+- Use clear section labels with colons
+- Keep formatting clean and system-friendly
+
 When facts are incomplete:
 - Do not refuse.
 - Draft conservatively using only what is available.
