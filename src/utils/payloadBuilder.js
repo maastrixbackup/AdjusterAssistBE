@@ -171,7 +171,59 @@ class PayloadBuilder {
             must_include: ["under review"],
             must_avoid: ["coverage applies"],
             special_instructions: "Objective internal damage summary only."
-        }
+        },
+
+        "attorney_response": {
+            audience: "external",
+            recipient_role: "attorney",
+            tone_override: "attorney_facing",
+            purpose: "attorney response",
+            greeting: true,
+            closing: true,
+
+            length: "medium",
+            format: "structured paragraph",
+            allow_softening: false,
+            allow_direct_request_language: false,
+            preserve_user_facts_verbatim: true,
+            must_include: ["position statement"],
+            must_avoid: ["admission_of_liability", "speculation"],
+            special_instructions: "Precise, controlled, legally safe, no extra wording"
+        },
+        "fnol": {
+            audience: "internal",
+            recipient_role: "interal_file",
+            tone_override: "",
+            purpose: "fnol",
+            greeting: false,
+            closing: false,
+
+            length: "short",
+            format: "structured_template",
+            allow_softening: false,
+            allow_direct_request_language: false,
+            preserve_user_facts_verbatim: true,
+            must_include: ["date_of_loss", "cause_of_loss", "reported_by", "initial_observations"],
+            must_avoid: [],
+            special_instructions: "Strict FNOL template format, no fluff"
+        },
+        "inspection_summary": {
+            audience: "internal",
+            recipient_role: "interal_file",
+            tone_override: "",
+            purpose: "inspection_summary",
+            greeting: false,
+            closing: false,
+
+            length: "medium",
+            format: "structured_template",
+            allow_softening: false,
+            allow_direct_request_language: false,
+            preserve_user_facts_verbatim: true,
+            must_include: ["areas_inspected", "damages_observed", "cause_assessment", "photos_reference"],
+            must_avoid: [],
+            special_instructions: "Clear separation of observed vs reported vs confirmed"
+        },
     };
 
     static build(file, { output_type, role, inputText, ocrData, userInfo, files }) {
@@ -222,7 +274,7 @@ class PayloadBuilder {
                 audience: config.audience || "internal",
                 sender_identity: "Carrier adjuster",
 
-                recipient_name: "Extract from summary if present", 
+                recipient_name: "Extract from summary if present",
                 recipient_role: config.recipient_role || "supervisor",
 
                 purpose: config.purpose,
@@ -256,7 +308,7 @@ class PayloadBuilder {
             },
 
             "attachments_context": {
-                "ocrData":ocrData,
+                "ocrData": ocrData,
                 "photos_received": !!files && files.some(f => f.mimetype?.startsWith('image/')) || false,
                 "estimate_received": /estimate|xactimate|scope of work|line items/i.test(ocrData) || false,
                 "invoice_received": /invoice|bill|amount due|payment terms/i.test(ocrData) || false,

@@ -152,87 +152,6 @@ const deleteDraft = async (req, res) => {
 };
 
 
-const generateNextStepDraft = async (req, res) => {
-    const userId = req.user.id;
-    try {
-        const { fileId, userInput, previousResponse, output_format } = req.body;
-
-        const targetType = getMandatoryNextStep(output_format);
-
-        // 2. FETCH CONTEXT: Get file and profile
-        const file = await File.findById(fileId);
-        if (!file) return res.status(404).json({ message: "Workspace not found" });
-        const userProfile = await UserModel.findById(userId);
-
-
-        const nextStepPayload = PayloadBuilder.build(file, {
-            output_type: targetType,
-            role: userProfile.role || "Adjuster",
-            inputText: `CONTEXT: User previously generated a ${output_format}. 
-                        PREVIOUS CONTENT: ${previousResponse} 
-                        ORIGINAL USER NOTES: ${userInput}
-                        
-                        TASK: You are now performing the mandatory next step: ${targetType}.`,
-            userInfo: {
-                sender_name: userProfile.name,
-                sender_email: userProfile.email,
-                sender_designation: userProfile.role,
-                sender_company: userProfile.company || "AdjusterAssist™"
-            }
-        });
-
-        const contextEnhancedInput = JSON.stringify(nextStepPayload);
-
-        // 4. GENERATE: Call the same AI service
-        const aiResponse = await aiService.generateAIDraft(
-            targetType,
-            contextEnhancedInput,
-            null
-        );
-
-        // 5. PARSE: Split content from the new suggested next step
-        let mainContent = aiResponse;
-        let futureAction = "Review claim file";
-        const parts = aiResponse.split(/Next steps?:\s*/i);
-        if (parts.length > 1) {
-            mainContent = parts[0].trim();
-            futureAction = parts[1].trim();
-        }
-
-        // 6. LOG TO SUPABASE
-        const { data: logData, error: logError } = await supabase
-            .from('ai_logs')
-            .insert([{
-                file_id: parseInt(fileId),
-                user_id: userId || null,
-                input_text: `Workflow Chain: ${output_format} -> ${targetType} : ${userInput}`,
-                input_type: 'workflow_continuation',
-                output_text: aiResponse,
-                output_type: targetType,
-                suggested_next_step: futureAction,
-            }])
-            .select();
-
-        // 7. TRACK USAGE
-        await Subscription.incrementUsage(userId);
-
-        // 8. FINAL RESPONSE
-        res.status(200).json({
-            success: true,
-            data: {
-                content: aiResponse,
-                output_format: targetType,
-                next_step: futureAction,
-                created_at: logData ? logData[0].created_at : new Date().toISOString(),
-                // log_id: logData ? logData[0].id : null
-            }
-        });
-
-    } catch (error) {
-        console.error("Next Step Controller Error:", error);
-        res.status(500).json({ success: false, message: "Workflow continuation failed." });
-    }
-};
 
 
 const updateDraft = async (req, res) => {
@@ -336,7 +255,14 @@ const createAIDraft = async (req, res) => {
 
         // 4. Classification & AI Generation
         console.log("[SERVICE]: Classifying Output Format...");
-        const detectedType = await classifierService.classify(userInput).catch(() => 'file_note');
+
+        const output_classification = await classifierService
+            .classify(userInput)
+            .catch(() => ({ type: 'file_note', confidence: 0.4, source: 'fallback' }));
+
+        const detectedType = output_classification.type;
+
+
 
         const fullPayload = PayloadBuilder.build(file, {
             output_type: detectedType,
@@ -394,6 +320,7 @@ const createAIDraft = async (req, res) => {
                 activity_type: 'ai_generation',
                 metadata: {
                     model: "gpt-4o",
+                    output_classification
                 }
             });
             console.log("Message turn Saved with ID: ", turnResult.id);
@@ -425,7 +352,8 @@ const createAIDraft = async (req, res) => {
                         model: "gpt-4o",
                         prompt_version: "adjusterassist_v1",
                         is_refinement: false,
-                        is_variant: false
+                        is_variant: false,
+                        output_classification
                     }
                 }])
                 .select()
@@ -499,7 +427,10 @@ const createVariantDraft = async (req, res) => {
         if (variantLabel.toLowerCase() == "email") {
             detectedType = "email_insured"
         } else {
-            detectedType = await classifierService.classify(variantLabel)
+            const output_classification = await classifierService
+                .classify(userInput)
+                .catch(() => ({ type: 'file_note', confidence: 0.4, source: 'fallback' }));
+                detectedType = output_classification.type
         }
 
         console.log(`[VARIANT]: Transforming content to format: ${detectedType}`);
@@ -538,7 +469,8 @@ const createVariantDraft = async (req, res) => {
                 ...parentMessage.metadata,
                 is_variant: true,
                 last_modified_at: new Date().toISOString(),
-                refined_from_id: parentMessageId
+                refined_from_id: parentMessageId,
+                output_classification
             },
             next_step_suggestion: nextAction,
             activity_type: 'ai_variant',
@@ -562,7 +494,8 @@ const createVariantDraft = async (req, res) => {
             metadata: {
                 model: "gpt-4o",
                 is_variant: true,
-                source_message_id: parentMessageId
+                source_message_id: parentMessageId,
+                output_classification
             },
             payload: fullPayload
         }]);
@@ -728,7 +661,6 @@ module.exports = {
     getRecentDrafts,
     deleteDraft,
     createAIDraft,
-    generateNextStepDraft,
     AllDrafts,
     updateDraft,
 
