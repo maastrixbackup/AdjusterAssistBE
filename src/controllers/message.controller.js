@@ -678,10 +678,9 @@ const refineAIDraft = async (req, res) => {
                 refined_at: new Date().toISOString(),
                 previous_version_content: parentMessage.ai_response
             },
-            updated_at:new Date().toISOString()
+            updated_at: new Date().toISOString()
         };
 
-        // 2. Execute the update on the parentMessageId
         const turnResult = await Message.updateById(parentMessageId, refinementUpdate);
 
         // 8. Log the Refinement
@@ -706,13 +705,13 @@ const refineAIDraft = async (req, res) => {
         res.status(200).json({
             success: true,
             data: {
-                id: turnResult.id,
-                parent_id: parentMessageId,
-                user_input: userInput,
+                id: parentMessageId, 
+                parent_id: parentMessage.parent_id,
+                user_input: parentMessage.userInput, 
                 refinement_type: turnResult.refinement_type,
                 ai_response: cleanMainContent,
                 output_format: detectedType,
-                next_step_suggestion: nextAction || parentMessage.next_step_suggestion,
+                next_step_suggestion: refinementUpdate.next_step_suggestion,
                 created_at: turnResult.updated_at
             }
         });
