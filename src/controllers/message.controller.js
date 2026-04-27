@@ -5,15 +5,17 @@ const aiService = require("../services/ai.service");
 const PayloadBuilder = require("../utils/payloadBuilder");
 const supabase = require("../config/supabase");
 const UserModel = require("../models/user");
-const { default: classifierService } = require("../services/classifierService");
 const { getMandatoryNextStep } = require("../utils/workflowMatrix");
 const { storeBase64Image } = require("../services/storageService");
 const { supabaseStorage } = require("../services/supabaseStorage");
 const OCRService = require("../services/ocrService")
+const { default: classifierService } = require("../services/outputClassifier.js");
+
 
 const fs = require('fs');
 const path = require('path');
 const { extractAiComponents } = require("../utils/aiExtractor");
+const { classifyAudience } = require("../services/audienceClassifier.js");
 
 // Example usage in your controller
 const uploadDir = path.join(__dirname, '../uploads');
@@ -253,23 +255,27 @@ const createAIDraft = async (req, res) => {
 
         const userProfile = await UserModel.findById(userId) || { name: "Adjuster", role: "Field Adjuster" };
 
+
         // 4. Classification & AI Generation
-        console.log("[SERVICE]: Classifying Output Format...");
+        const audienceType = classifyAudience(userInput);
+        console.log("[SERVICE]: Audience Classification: ", audienceType);
 
         const output_classification = await classifierService
             .classify(userInput)
             .catch(() => ({ type: 'file_note', confidence: 0.4, source: 'fallback' }));
 
         const detectedType = output_classification.type;
+        console.log("[SERVICE]: Output Format Classification", output_classification);
 
 
-
+        /// PAYLOAD BUILDER
         const fullPayload = PayloadBuilder.build(file, {
             output_type: detectedType,
             role: userProfile.role,
             inputText: userInput,
             ocrData: ocrInsights,
             files: files,
+            audienceType,
             userInfo: {
                 sender_name: userProfile.name,
                 sender_designation: userProfile.role,
@@ -320,7 +326,8 @@ const createAIDraft = async (req, res) => {
                 activity_type: 'ai_generation',
                 metadata: {
                     model: "gpt-4o",
-                    output_classification
+                    output_format: output_classification,
+                    audience: audienceType
                 }
             });
             console.log("Message turn Saved with ID: ", turnResult.id);
@@ -353,7 +360,8 @@ const createAIDraft = async (req, res) => {
                         prompt_version: "adjusterassist_v1",
                         is_refinement: false,
                         is_variant: false,
-                        output_classification
+                        output_format: output_classification,
+                        audience: audienceType
                     }
                 }])
                 .select()
@@ -423,6 +431,9 @@ const createVariantDraft = async (req, res) => {
         const file = await File.findById(fileId);
         const userProfile = await UserModel.findById(userId) || { name: "Adjuster", role: "Field Adjuster" };
 
+        const audienceType = classifyAudience(userInput);
+        console.log("[SERVICE]: Audience Classification: ", audienceType);
+
         let detectedType = "";
         if (variantLabel.toLowerCase() == "email") {
             detectedType = "email_insured"
@@ -430,16 +441,16 @@ const createVariantDraft = async (req, res) => {
             const output_classification = await classifierService
                 .classify(userInput)
                 .catch(() => ({ type: 'file_note', confidence: 0.4, source: 'fallback' }));
-                detectedType = output_classification.type
+            detectedType = output_classification.type
         }
-
         console.log(`[VARIANT]: Transforming content to format: ${detectedType}`);
 
         const fullPayload = await PayloadBuilder.buildVariant(file, {
             variantLabel: variantLabel,
             originalContent: userInput || parentMessage.ai_response,
             userInfo: userProfile,
-            parentMessage: parentMessage
+            parentMessage: parentMessage,
+            audienceType
         });
 
         const aiRawResponse = await aiService.generateAIDraft(
@@ -470,7 +481,8 @@ const createVariantDraft = async (req, res) => {
                 is_variant: true,
                 last_modified_at: new Date().toISOString(),
                 refined_from_id: parentMessageId,
-                output_classification
+                output_format: detectedType,
+                audience: audienceType
             },
             next_step_suggestion: nextAction,
             activity_type: 'ai_variant',
@@ -495,7 +507,8 @@ const createVariantDraft = async (req, res) => {
                 model: "gpt-4o",
                 is_variant: true,
                 source_message_id: parentMessageId,
-                output_classification
+                output_format: detectedType,
+                audience: audienceType
             },
             payload: fullPayload
         }]);

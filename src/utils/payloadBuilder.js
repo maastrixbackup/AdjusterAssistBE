@@ -226,7 +226,7 @@ class PayloadBuilder {
         },
     };
 
-    static build(file, { output_type, role, inputText, ocrData, userInfo, files }) {
+    static build(file, { output_type, role, inputText, ocrData, userInfo, files, audienceType }) {
         const typeKey = output_type?.toLowerCase() || "file_note";
         const config = this.#TYPE_CONFIGS[typeKey] || this.#TYPE_CONFIGS.file_note;
         const fullTextContext = (inputText + " " + ocrData).toLowerCase();
@@ -266,7 +266,7 @@ class PayloadBuilder {
                 coverage_position: "Pending further verification.",
                 estimate_status: "Extract from context if exists",
                 payment_status: "Extract from context if exists",
-                next_steps: "Identify from summary" || text.match(/#Next (.*?)($|#)/)?.[1] || "",
+                next_steps: inputText.match(/#Next (.*?)($|#)/)?.[1] || "Identify from summary" ||  "",
                 additional_facts: "Extract from context if exists"
             },
 
@@ -274,8 +274,8 @@ class PayloadBuilder {
                 audience: config.audience || "internal",
                 sender_identity: "Carrier adjuster",
 
-                recipient_name: "Extract from summary if present",
-                recipient_role: config.recipient_role || "supervisor",
+                recipient_name: file.client_name ||"Extract from summary if present",
+                recipient_role: audienceType || "internal_file",
 
                 purpose: config.purpose,
                 tone_override: config.tone_override || "",
