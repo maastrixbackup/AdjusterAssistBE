@@ -436,7 +436,6 @@ const createVariantDraft = async (req, res) => {
         const ocrInsights = parentMessage.ocrInsights || "No previous insights.";
         const file = await File.findById(fileId);
         const userProfile = await UserModel.findById(userId) || { name: "Adjuster", role: "Field Adjuster" };
-        const { facts } = extractClaimContext(parentMessage.user_input, ocrInsights);
 
 
         const audienceType = classifyAudience(userInput);
