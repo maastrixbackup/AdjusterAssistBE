@@ -14,6 +14,7 @@ const OCRService = require("../services/ocrService")
 
 const fs = require('fs');
 const path = require('path');
+const { extractAiComponents } = require("../utils/aiExtractor");
 
 // Example usage in your controller
 const uploadDir = path.join(__dirname, '../uploads');
@@ -515,26 +516,12 @@ const createVariantDraft = async (req, res) => {
             detectedType,
             JSON.stringify(fullPayload),
             [],
-            // parentMessage
         );
 
-        let nextAction = "Continue monitoring the claim.";
-        let dynamicSuggestions = ["Review file", "Contact insured"];
-
-        const nextStepMatch = aiRawResponse.match(/(?:next\s*steps?|recommended\s*action):\s*(.*)/i);
-        const suggestionMatch = aiRawResponse.match(/(?:suggestions|quick\s*actions|suggested\s*actions):\s*(.*)/i);
-
-        if (suggestionMatch) dynamicSuggestions = suggestionMatch[1].split('|').map(s => s.trim());
-        if (nextStepMatch) nextAction = nextStepMatch[1].trim();
-
-        const cleanMainContent = aiRawResponse
-            .replace(/(?:next\s*steps?|recommended\s*action):[\s\S]*$/i, '')
-            // .replace(/(?:suggestions|quick\s*actions|suggested\s*actions):[\s\S]*$/i, '')
-            .trim();
-
+        const { cleanContent, nextStep } = extractAiComponents(aiRawResponse);
 
         const updateData = {
-            ai_response: cleanMainContent,
+            ai_response: cleanContent,
             content_type: variantLabel.toLowerCase().replace(/\s+/g, '_'),
             metadata: {
                 ...parentMessage.metadata,
@@ -542,7 +529,7 @@ const createVariantDraft = async (req, res) => {
                 last_modified_at: new Date().toISOString(),
                 refined_from_id: parentMessageId
             },
-            next_step_suggestion: nextAction || "Continue monitoring claim.",
+            next_step_suggestion: nextStep || "Continue monitoring claim.",
             activity_type: 'ai_variant',
             updated_at: new Date().toISOString()
         };
@@ -557,7 +544,7 @@ const createVariantDraft = async (req, res) => {
             variant_label: variantLabel,
             input_text: userInput,
             ai_response: aiRawResponse,
-            output_text: cleanMainContent,
+            output_text: cleanContent,
             output_type: variantLabel,
             ocrInsights: null,
             execution_time_ms: Date.now() - startTime,
@@ -579,9 +566,9 @@ const createVariantDraft = async (req, res) => {
                 parent_id: turnResult.parent_id,
                 user_input: userInput,
                 variant_label: turnResult.variant_label,
-                ai_response: cleanMainContent,
+                ai_response: cleanContent,
                 output_format: detectedType,
-                next_step_suggestion: updateData.next_step_suggestion,
+                next_step_suggestion: nextStep,
                 created_at: turnResult.created_at,
                 updated_at: updateData.updated_at
             }
@@ -706,9 +693,9 @@ const refineAIDraft = async (req, res) => {
         res.status(200).json({
             success: true,
             data: {
-                id: parentMessageId, 
+                id: parentMessageId,
                 parent_id: parentMessage.parent_id,
-                user_input: parentMessage.userInput, 
+                user_input: parentMessage.userInput,
                 refinement_type: turnResult.refinement_type,
                 ai_response: cleanMainContent,
                 output_format: detectedType,
