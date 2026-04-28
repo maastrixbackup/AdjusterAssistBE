@@ -1,5 +1,5 @@
 import OpenAI from "openai";
-import { adjusterPrompt, getFormatInstruction } from "../utils/prompt.js";
+import { adjusterPrompt, getAudienceInstruction, getFormatInstruction } from "../utils/prompt.js";
 import { getAppliedGuardrails } from "../utils/guardrails.js";
 import fs from 'fs';
 
@@ -11,10 +11,11 @@ const openai = new OpenAI({
 /**
  * Heavy generation for the final professional draft
  */
-export const generateAIDraft = async (type, userInput, files = [], conversationHistory = [], audienceType) => {
+export const generateAIDraft = async (type, userInput, conversationHistory = [], audienceType) => {
     try {
         const formatStyle = getFormatInstruction(type);
         const guardrailInjection = getAppliedGuardrails(userInput);
+        const audienceInstruction = getAudienceInstruction(audienceType);
 
         // 1. Initialize message content with the text prompt
         const userMessageContent = [
@@ -27,6 +28,8 @@ export const generateAIDraft = async (type, userInput, files = [], conversationH
         const systemMessage = `
             ${adjusterPrompt}
             ${guardrailInjection}
+            ${audienceInstruction}
+
             VISION INSTRUCTION: Analyze all provided images (damage photos, receipts, etc.).
             If no images are provided, rely strictly on text context.
             OUTPUT REQUIREMENT (THE FORMAT): ${formatStyle}

@@ -218,10 +218,11 @@ const createAIDraft = async (req, res) => {
         }
 
         // 2. OCR Service - Extract data from new files
-        let ocrInsights = "No attachments processed.";
+        let ocrInsights = "";
         if (files.length > 0) {
             try {
                 console.log(`[OCR Service] Extracting insights from ${files.length} files...`);
+                console.log("[OCR]", ocrInsights)
                 ocrInsights = await OCRService.extractInsights(files);
             } catch (ocrErr) {
                 console.error("OCR extraction failed:", ocrErr.message);
@@ -269,8 +270,7 @@ const createAIDraft = async (req, res) => {
         console.log("[SERVICE]: Output Format Classification", output_classification);
 
         const extraction = await extractUnifiedContext(userInput, ocrInsights);
-        console.log("FACTS: ",extraction.facts)
-        console.log("Target Audience: ",extraction.recipient_role)
+        console.log("[AUDIENCE]: ",extraction.recipient_role)
 
         /// PAYLOAD BUILDER
         const fullPayload = PayloadBuilder.build(file, {
@@ -291,7 +291,6 @@ const createAIDraft = async (req, res) => {
         const aiRawResponse = await aiService.generateAIDraft(
             detectedType,
             JSON.stringify(fullPayload),
-            files,
             conversationHistory,
             audienceType
         );
@@ -432,6 +431,18 @@ const createVariantDraft = async (req, res) => {
             return res.status(404).json({ message: "Parent message not found" });
         }
 
+        let conversationHistory = [];
+        try {
+            const previousMessages = await Message.findByFileId(fileId);
+
+            conversationHistory = previousMessages.slice(-5).flatMap(msg => [
+                { role: "user", content: msg.user_input },
+                { role: "assistant", content: msg.ai_response }
+            ]);
+        } catch (e) {
+            console.error("History fetch failed:", e.message);
+        }
+
 
         const ocrInsights = parentMessage.ocrInsights || "No previous insights.";
         const file = await File.findById(fileId);
@@ -457,21 +468,23 @@ const createVariantDraft = async (req, res) => {
         const fullPayload = await PayloadBuilder.build(file, {
             output_type: variantLabel,
             inputText: parentMessage.user_input ,
-            ocrData: parentMessage.ocrInsights,
-            audience:extraction.recipient_role,
             claim_facts:extraction.facts,
+            ocrData: parentMessage.ocrInsights,
             userInfo: {
                 sender_name: userProfile.name,
                 sender_designation: userProfile.role,
                 sender_email: userProfile.email,
                 sender_company: "AdjusterAssist™"
-            }
+            },
+            files:"",
+            audience:extraction.recipient_role,
         });
 
         const aiRawResponse = await aiService.generateAIDraft(
             detectedType,
             JSON.stringify(fullPayload),
-            [],
+            conversationHistory,
+            audienceType,
         );
 
         let nextAction = "Continue monitoring the claim.";

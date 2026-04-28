@@ -227,7 +227,6 @@ class PayloadBuilder {
     };
 
     static build(file, { output_type, inputText, claim_facts, ocrData, userInfo, files, audience }) {
-        console.log("Audience in Payload", { isAttorney: audience === 'attorney' })
         const typeKey = output_type?.toLowerCase() || "file_note";
         const config = this.#TYPE_CONFIGS[typeKey] || this.#TYPE_CONFIGS.file_note;
         const fullTextContext = (inputText + " " + ocrData).toLowerCase();

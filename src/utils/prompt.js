@@ -232,7 +232,7 @@ Writing requirements:
 
   The output should read like a real adjuster email response sent directly to an insured.`,
 
-  SUPPLEMENT_RESPONSE: `Draft a professional supplement review response regarding an additional estimate, revised scope submission, or supplemental documentation.
+    SUPPLEMENT_RESPONSE: `Draft a professional supplement review response regarding an additional estimate, revised scope submission, or supplemental documentation.
 
 Primary objective:
 - Clearly communicate supplemental review status while preserving scope and documentation control.
@@ -260,7 +260,7 @@ Behavior notes:
 
 The output should read like a real adjuster supplement review response used in active claim handling.`,
 
-  COVERAGE_ANALYSIS: `Draft a professional internal coverage analysis based only on the provided claim facts, documented conditions, and current handling posture.
+    COVERAGE_ANALYSIS: `Draft a professional internal coverage analysis based only on the provided claim facts, documented conditions, and current handling posture.
 
 Primary objective:
 - Provide a defensible, fact-driven internal coverage reasoning note that clearly supports the current claim position without overstating certainty.
@@ -289,7 +289,7 @@ Behavior notes:
 
 The output should read like a real internal coverage analysis prepared by an experienced adjuster or examiner.`,
 
-  DENIAL_SUPPORT: `
+    DENIAL_SUPPORT: `
     Draft a professional internal denial support or partial denial support analysis based only on the provided claim facts, documented conditions, and current handling posture.
 
 Primary objective:
@@ -482,3 +482,189 @@ The output should read like a real inspection summary prepared for claim file re
       Use concise, claim-professional language with no placeholders or markdown.`;
 };
 
+export const getAudienceInstruction = (audienceType) => {
+  switch (audienceType) {
+
+    case 'internal_file':
+      return `
+INTERNAL FILE NOTE INSTRUCTION:
+
+Audience Type: Internal (Claim File Only)
+
+Behavior Control:
+- Tone: neutral, factual, concise
+- Detail Level: moderate, focused on documentation
+- Directness: objective and operational
+- Legal/Coverage Caution: standard (no assumptions beyond facts)
+- Salutation/Closing: DO NOT include
+- Response Type: internal documentation only
+
+Writing Rules:
+- Use reported / observed / verified language
+- Clearly distinguish facts vs statements vs findings
+- Focus on documenting activity, status, and observations
+
+Strictly Avoid:
+- Greetings or closings
+- Customer-service language
+- Conversational tone
+- Opinions or speculation
+
+Final Rule:
+Use only provided facts and claim context. Do not infer beyond documented information.
+`;
+
+    case 'insured':
+      return `
+INSURED COMMUNICATION INSTRUCTION:
+
+Audience Type: External (Policyholder)
+
+Behavior Control:
+- Tone: clear, professional, helpful
+- Detail Level: simplified and relevant
+- Directness: balanced and customer-friendly
+- Legal/Coverage Caution: moderate (avoid firm coverage statements unless confirmed)
+- Salutation/Closing: INCLUDE
+- Response Type: customer communication
+
+Writing Rules:
+- Use plain, easy-to-understand language
+- Provide status updates, next steps, or request documents
+- Keep structure clear and readable
+
+Strictly Avoid:
+- Legalistic or overly technical wording
+- Unsupported coverage statements
+- Speculation or assumptions
+
+Final Rule:
+Communicate clearly while staying aligned with actual claim status and facts.
+`;
+
+    case 'contractor':
+      return `
+CONTRACTOR COMMUNICATION INSTRUCTION:
+
+Audience Type: External (Contractor/Builder)
+
+Behavior Control:
+- Tone: scope-focused and documentation-driven
+- Detail Level: technical and relevant to scope
+- Directness: direct and task-oriented
+- Legal/Coverage Caution: limited (avoid detailed coverage discussion)
+- Salutation/Closing: INCLUDE
+- Response Type: operational coordination
+
+Writing Rules:
+- Focus on estimates, line items, scope, and documentation
+- Request or clarify supporting materials as needed
+- Reference quantities, pricing, or scope gaps where applicable
+
+Strictly Avoid:
+- Coverage explanations beyond necessity
+- Legal interpretation of policy
+
+Final Rule:
+Keep communication focused on scope, documentation, and next actions.
+`;
+
+    case 'public_adjuster':
+      return `
+PUBLIC ADJUSTER INSTRUCTION:
+
+Audience Type: External (Public Adjuster)
+
+Behavior Control:
+- Tone: firm, professional, controlled
+- Detail Level: moderate with documentation focus
+- Directness: structured and deliberate
+- Legal/Coverage Caution: high
+- Salutation/Closing: INCLUDE
+- Response Type: defensible claim communication
+
+Writing Rules:
+- Base all statements on documented facts and current claim status
+- Use controlled language such as:
+  "Based on the information available..."
+  "The review remains ongoing..."
+- Clearly identify pending items or required documentation
+
+Strictly Avoid:
+- Admissions of liability
+- Overly soft or accommodating language
+- Unnecessary explanations or speculation
+
+Final Rule:
+Maintain a firm, documentation-based position without overcommitting.
+`;
+
+    case 'attorney':
+      return `
+ATTORNEY INSTRUCTION:
+
+Audience Type: External (Attorney)
+
+Behavior Control:
+- Tone: formal, precise, legally defensible
+- Detail Level: structured and controlled
+- Directness: firm and intentional
+- Legal/Coverage Caution: very high
+- Salutation/Closing: INCLUDE
+- Response Type: formal legal communication
+
+Writing Rules:
+- Use controlled language:
+  "Based on the information available at this time..."
+  "The investigation remains ongoing..."
+- Clearly outline claim status, reviewed materials, and outstanding items
+- Maintain structured, defensible communication
+
+Strictly Avoid:
+- Admissions of liability
+- Confirming coverage unless clearly established
+- Speculation or assumptions
+- Casual or conversational tone
+- Placeholders (use "Dear Counsel" if name is not provided)
+
+Final Rule:
+Ensure every statement is defensible and aligned with current claim facts only.
+`;
+
+    case 'vendor':
+      return `
+VENDOR / MITIGATION INSTRUCTION:
+
+Audience Type: External (Vendor/Mitigation)
+
+Behavior Control:
+- Tone: operational and direct
+- Detail Level: task-specific
+- Directness: high and instruction-driven
+- Legal/Coverage Caution: restricted (no coverage discussion)
+- Salutation/Closing: OPTIONAL (minimal)
+- Response Type: operational communication
+
+Writing Rules:
+- Focus on tasks, actions, and deliverables
+- Reference photos, invoices, moisture readings, or reports
+- Keep communication concise and action-oriented
+
+Strictly Avoid:
+- Coverage determinations
+- Policy or legal explanations
+- Unnecessary narrative
+
+Final Rule:
+Drive action and clarity without introducing coverage discussion.
+`;
+
+    default:
+      return `
+GENERAL INSTRUCTION:
+- Follow a neutral, professional tone
+- Use claim facts and context
+- Avoid assumptions or unsupported statements
+`;
+  }
+};

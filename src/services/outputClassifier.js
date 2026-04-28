@@ -106,7 +106,6 @@ class ClassifierService {
       try {
         parsed = JSON.parse(raw);
       } catch {
-        // fallback if model returns just string (backward compatibility)
         return {
           type: this.validateType(raw.trim()),
           confidence: 0.7,
