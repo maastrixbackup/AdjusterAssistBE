@@ -13,7 +13,7 @@ const { default: classifierService } = require("../services/outputClassifier.js"
 const fs = require('fs');
 const path = require('path');
 const { extractAiComponents } = require("../utils/aiExtractor");
-const { classifyAudience } = require("../services/audienceClassifier.js");
+// const { classifyAudience } = require("../services/audienceClassifier.js");
 const { extractClaimContext, extractUnifiedContext } = require("../utils/contextExtractor.js");
 const ContextService = require("../services/context.service.js");
 
@@ -249,7 +249,7 @@ const createAIDraft = async (req, res) => {
 
 
         // 4. Classification & AI Generation
-        const audienceType = classifyAudience(userInput);
+        // const audienceType = classifyAudience(userInput);
 
         const output_classification = await classifierService
             .classify(userInput)
@@ -281,7 +281,7 @@ const createAIDraft = async (req, res) => {
             detectedType,
             JSON.stringify(fullPayload),
             conversationHistory,
-            audienceType
+            extraction.recipient_role
         );
 
         // 5. Parsing AI Response for metadata
@@ -320,7 +320,7 @@ const createAIDraft = async (req, res) => {
                 metadata: {
                     model: "gpt-4o",
                     output_format: output_classification,
-                    audience: audienceType
+                    audience: extraction.recipient_role
                 }
             });
             ContextService.ingestMessage(fileId, turnResult.id, userInput);
@@ -355,7 +355,7 @@ const createAIDraft = async (req, res) => {
                         is_refinement: false,
                         is_variant: false,
                         output_format: output_classification,
-                        audience: audienceType
+                        audience: extraction.recipient_role
                     }
                 }])
                 .select()
@@ -428,8 +428,6 @@ const createVariantDraft = async (req, res) => {
         const file = await File.findById(fileId);
         const userProfile = await UserModel.findById(userId) || { name: "Adjuster", role: "Field Adjuster" };
 
-        const audienceType = classifyAudience(userInput);
-
         let detectedType = "";
         if (variantLabel.toLowerCase() == "email") {
             detectedType = "email_insured"
@@ -462,7 +460,7 @@ const createVariantDraft = async (req, res) => {
             detectedType,
             JSON.stringify(fullPayload),
             conversationHistory,
-            audienceType,
+            extraction.recipient_role,
         );
 
         let nextAction = "Continue monitoring the claim.";
@@ -488,7 +486,7 @@ const createVariantDraft = async (req, res) => {
                 last_modified_at: new Date().toISOString(),
                 refined_from_id: parentMessageId,
                 output_format: detectedType,
-                audience: audienceType
+                audience: extraction.recipient_role
             },
             next_step_suggestion: nextAction,
             activity_type: 'ai_variant',
@@ -516,7 +514,7 @@ const createVariantDraft = async (req, res) => {
                 is_variant: true,
                 source_message_id: parentMessageId,
                 output_format: detectedType,
-                audience: audienceType
+                audience: extraction.recipient_role
             },
             payload: fullPayload
         }]);
