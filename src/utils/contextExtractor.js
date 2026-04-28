@@ -16,7 +16,7 @@ export const extractUnifiedContext = async (inputText, ocrData = "") => {
     5. insured: Keywords: status, policyholder, payment, customer questions,document request, repair question, payment question, general claim communication when will.
     6. vendor: Keywords: mitigation vendor, dry logs, moisture readings, pack-out, emergency services, restoration vendor, plumber report, leak detection report
 
-
+    
     ### FIELD DEFINITIONS FOR FACTS (Must be Strings):
     - summary: A concise overview of the current request.
     - reported_facts: Allegations or statements made by the insured (e.g., text after #Insured).
@@ -27,6 +27,13 @@ export const extractUnifiedContext = async (inputText, ocrData = "") => {
     - claim_positions: The current stance on the claim (e.g., "Denied", "Partial Approval", "Pending").
     - missing_information: Documentation or actions still needed (e.g., text after #Next).
     - risk_flags: A JSON string containing an array of risk objects. 
+    
+    ### STRICT FALLBACK RULES:
+    If the source text does NOT contain information for a specific field, you MUST use the following exact strings:
+    - reported_facts: "Attorney is seeking information regarding the status of the claim"
+    - claim_positions: "Claim position remains pending"
+    - missing_information: "Supporting documentation is needed before a complete claim response can be issued"
+    - For all other fields (verified_facts, adjuster_observations, contractor_statements, vendor_documents): "" (Empty String)
     Rules: 
     - If Public Adjuster: {"type": "pa_involvement", "level": "medium", "reason": "..."}
     - If Attorney: {"type": "attorney_involvement", "level": "high", "reason": "..."}

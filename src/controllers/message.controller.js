@@ -10,13 +10,12 @@ const { storeBase64Image } = require("../services/storageService");
 const { supabaseStorage } = require("../services/supabaseStorage");
 const OCRService = require("../services/ocrService")
 const { default: classifierService } = require("../services/outputClassifier.js");
-
-
 const fs = require('fs');
 const path = require('path');
 const { extractAiComponents } = require("../utils/aiExtractor");
 const { classifyAudience } = require("../services/audienceClassifier.js");
 const { extractClaimContext, extractUnifiedContext } = require("../utils/contextExtractor.js");
+const ContextService = require("../services/context.service.js");
 
 // Example usage in your controller
 const uploadDir = path.join(__dirname, '../uploads');
@@ -240,18 +239,9 @@ const createAIDraft = async (req, res) => {
         ) || null;
 
         // 3. Context & Metadata Gathering
-        let conversationHistory = [];
-        try {
-            const previousMessages = await Message.findByFileId(fileId);
-
-            conversationHistory = previousMessages.slice(-5).flatMap(msg => [
-                { role: "user", content: msg.user_input },
-                { role: "assistant", content: msg.ai_response }
-            ]);
-        } catch (e) {
-            console.error("History fetch failed:", e.message);
-        }
-
+        let conversationHistory;
+        conversationHistory = await ContextService.getRelevantContext(fileId, userInput);
+       
         const file = await File.findById(fileId);
         if (!file) return res.status(404).json({ message: "Workspace not found" });
 
@@ -260,7 +250,6 @@ const createAIDraft = async (req, res) => {
 
         // 4. Classification & AI Generation
         const audienceType = classifyAudience(userInput);
-        console.log("[SERVICE]: Audience Classification: ", audienceType);
 
         const output_classification = await classifierService
             .classify(userInput)
@@ -334,6 +323,7 @@ const createAIDraft = async (req, res) => {
                     audience: audienceType
                 }
             });
+            ContextService.ingestMessage(fileId, turnResult.id, userInput);
             console.log("Message turn Saved with ID: ", turnResult.id);
         } catch (dbErr) {
             console.error("Critical DB Error:", dbErr.message);
@@ -431,26 +421,14 @@ const createVariantDraft = async (req, res) => {
             return res.status(404).json({ message: "Parent message not found" });
         }
 
-        let conversationHistory = [];
-        try {
-            const previousMessages = await Message.findByFileId(fileId);
-
-            conversationHistory = previousMessages.slice(-5).flatMap(msg => [
-                { role: "user", content: msg.user_input },
-                { role: "assistant", content: msg.ai_response }
-            ]);
-        } catch (e) {
-            console.error("History fetch failed:", e.message);
-        }
-
+        let conversationHistory;
+        conversationHistory = await ContextService.getRelevantContext(fileId, userInput);
 
         const ocrInsights = parentMessage.ocrInsights || "No previous insights.";
         const file = await File.findById(fileId);
         const userProfile = await UserModel.findById(userId) || { name: "Adjuster", role: "Field Adjuster" };
 
-
         const audienceType = classifyAudience(userInput);
-        console.log("[SERVICE]: Audience Classification: ", audienceType);
 
         let detectedType = "";
         if (variantLabel.toLowerCase() == "email") {
@@ -518,6 +496,8 @@ const createVariantDraft = async (req, res) => {
         };
 
         const turnResult = await Message.updateById(parentMessageId, updateData);
+        ContextService.ingestMessage(fileId, updateData.id, userInput);
+
 
         // 8. Log the Variant Action
         await supabase.from('ai_logs').insert([{

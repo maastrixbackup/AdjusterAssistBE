@@ -259,15 +259,14 @@ class PayloadBuilder {
 
             facts: {
                 summary: inputText,
-                reported_facts: claimFacts?.reported_facts || "No specific statement captured.",
+                reported_facts: claimFacts?.reported_facts || "Attorney is seeking information regarding the status of the claim.",
                 verified_facts: claimFacts?.verified_facts || "Pending verification of coverage and payment.",
-                adjuster_observations: claimFacts?.adjuster_observations || "No physical inspection findings reported.",
-                contractor_statements: claimFacts?.contractor_statements || "No contractor estimate or statement present.",
-                vendor_documents: claimFacts?.vendor_documents || "No vendor reports available.",
-                claim_positions: claimFacts?.claim_positions || "In review.",
-                missing_information: claimFacts?.missing_information || "Identify next steps from documentation.",
+                adjuster_observations: claimFacts?.adjuster_observations || "",
+                contractor_statements: claimFacts?.contractor_statements || "",
+                vendor_documents: claimFacts?.vendor_documents || "",
+                claim_positions: claimFacts?.claim_positions || "Claim position remains pending",
+                missing_information: claimFacts?.missing_information || "Supporting documentation is needed before a complete claim response can be issued.",
                 risk_flags: [
-                    claimFacts?.risk_flags,
                     audience.includes('attorney') ? '{"type": "attorney_involvement", "level": "high", "reason": "Attorney representation or legal communication detected."}' : null,
                     audience.includes('public_adjuster') ? '{"type": "pa_involvement", "level": "medium", "reason": "Public adjuster communication or representation detected"}' : null,
                     String(claimFacts?.claim_positions || "").toLowerCase().includes('denied') ? '{"type": "dispute", "level": "medium", "reason": "Coverage denial mentioned."}' : null
