@@ -315,12 +315,12 @@ class PayloadBuilder {
 
             "attachments_context": {
                 "ocrData": ocrData,
-                "photos_received": !!files && files.some(f => f.mimetype?.startsWith('image/')) || false,
-                "estimate_received": /estimate|xactimate|scope of work|line items/i.test(ocrData) || false,
-                "invoice_received": /invoice|bill|amount due|payment terms/i.test(ocrData) || false,
-                "proof_of_loss_received": /proof of loss|notarized|sworn statement/i.test(ocrData) || false,
-                "mitigation_docs_received": /moisture log|psychrometric|dry log|drying certificate/i.test(ocrData) || false,
-                "expert_report_received": /engineer report|plumber report|expert opinion|cause and origin/i.test(ocrData) || false
+                "photos_received": (!!files && Array.isArray(files) && files.some(f => f.mimetype?.startsWith('image/'))) || (typeof files === 'string' && files.includes('supabase.co') && files.match(/\.(png|jpg|jpeg|webp|gif)/i)) || false,
+                "estimate_received": /estimate|xactimate|scope of work|line items/i.test(fullTextContext) || false,
+                "invoice_received": /invoice|bill|amount due|payment terms/i.test(fullTextContext) || false,
+                "proof_of_loss_received": /proof of loss|notarized|sworn statement/i.test(fullTextContext) || false,
+                "mitigation_docs_received": /moisture log|psychrometric|dry log|drying certificate/i.test(fullTextContext) || false,
+                "expert_report_received": /engineer report|plumber report|expert opinion|cause and origin/i.test(fullTextContext) || false
             }
         };
     }

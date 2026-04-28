@@ -476,7 +476,7 @@ const createVariantDraft = async (req, res) => {
                 sender_email: userProfile.email,
                 sender_company: "AdjusterAssist™"
             },
-            files:"",
+            files:parentMessage.image_input_url || parentMessage.doccuments_url,
             audience:extraction.recipient_role,
         });
 
