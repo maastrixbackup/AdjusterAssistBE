@@ -278,7 +278,7 @@ class PayloadBuilder {
             },
 
             communication_context: {
-                audience: audience || "internal",
+                audience: config.audience || "internal",
                 sender_identity: "Carrier adjuster",
 
                 recipient_name: file.client_name || "Extract from summary if present",

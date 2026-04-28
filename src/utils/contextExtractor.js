@@ -9,11 +9,13 @@ export const extractUnifiedContext = async (inputText, ocrData = "") => {
     Analyze the provided USER INPUT and OCR DATA to extract a structured JSON object.
 
     ### RULES FOR RECIPIENT_ROLE (In Priority Order):
-    1. attorney: Keywords: law firm, counsel, litigation, demand letter, suit, mediation,legal representation.
-    2. public_adjuster: Keywords: PA, letter of representation, scope dispute, supplement demand.
-    3. contractor: Keywords: contractor, repair estimate, pricing dispute, mitigation, dry log.
-    4. internal_file: Keywords: file note, coverage analysis,status note,claim summary, coverage analysis FNOL OR if no other role is clear.
-    5. insured: Keywords: status, policyholder, payment, customer questions, when will.
+    1. attorney: Keywords: attorney, law firm, counsel, litigation, demand letter, suit, mediation,legal representation, regulatory demand.
+    2. public_adjuster: Keywords: PA, letter of representation, representation, estimate dispute, scope dispute, supplement demand, request for reconsideration from PA, signed authorization/representation.
+    3. contractor: Keywords: contractor estimate, repair estimate, pricing dispute, mitigation, contractor email, scope item dispute.
+    4. internal_file: Keywords: file note, coverage analysis, status note, closing note, escalation note, claim summary, coverage analysis FNOL OR if no other role is clear.
+    5. insured: Keywords: status, policyholder, payment, customer questions,document request, repair question, payment question, general claim communication when will.
+    6. vendor: Keywords: mitigation vendor, dry logs, moisture readings, pack-out, emergency services, restoration vendor, plumber report, leak detection report
+
 
     ### FIELD DEFINITIONS FOR FACTS (Must be Strings):
     - summary: A concise overview of the current request.
@@ -29,11 +31,11 @@ export const extractUnifiedContext = async (inputText, ocrData = "") => {
     - If Public Adjuster: {"type": "pa_involvement", "level": "medium", "reason": "..."}
     - If Attorney: {"type": "attorney_involvement", "level": "high", "reason": "..."}
     - If Lawsuit/Demand: {"type": "legal_escalation", "level": "high", "reason": "..."}
-    Example: "[{\"type\": \"attorney_involvement\", \"level\": \"high\", \"reason\": \"Detected attorney representation.\"}]"
+    Example: "[{"type": "attorney_involvement", "level": "high", "reason": "Detected attorney representation."}]"
 
     ### OUTPUT FORMAT (STRICT JSON):
     {
-      "recipient_role": "attorney | public_adjuster | contractor | internal_file | insured",
+      "recipient_role": "attorney | public_adjuster | contractor | internal_file | insured | vendor",
       "facts": {
         "summary": "string",
         "reported_facts": "string",
