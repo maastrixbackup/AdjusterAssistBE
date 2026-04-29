@@ -24,7 +24,8 @@ export const generateAIDraft = async (type, userInput, conversationHistory = "",
                 text: `Context and user notes: ${userInput}`
             }
         ];
-        
+
+
         const systemMessage = `
         ### ROLE & CORE LOGIC
         ${adjusterPrompt}
