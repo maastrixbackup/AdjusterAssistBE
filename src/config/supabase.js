@@ -10,12 +10,12 @@ const supabase = createClient(supabaseUrl, supabaseKey);
     try {
         const { data, error } = await supabase.from('users').select('id').limit(1);
         if (error) {
-            console.error("❌ Supabase Connection Error:", error.message);
+            console.error("[❌ DB] Supabase Connection Error:", error.message);
         } else {
-            console.log("🚀 Supabase is connected & synced with AdjusterAssistDB");
+            console.log("[🚀 DB] Supabase is connected & synced with AdjusterAssistDB");
         }
     } catch (err) {
-        console.error("❌ Unexpected Supabase Error:", err.message);
+        console.error("[❌ ERROR] Unexpected Supabase Error:", err.message);
     }
 })();
 

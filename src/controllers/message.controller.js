@@ -1,19 +1,21 @@
-const STATIC_RESPONSES = require("../utils/sample_response");
-const Subscription = require("../models/subscription.model");
+const Subscription = require("../models/subscription.model.js");
 const Message = require("../models/message.model");
 const File = require("../models/workspace.model");
 const aiService = require("../services/ai.service");
 const PayloadBuilder = require("../utils/payloadBuilder");
 const supabase = require("../config/supabase");
 const UserModel = require("../models/user");
-const { default: classifierService } = require("../services/classifierService");
 const { getMandatoryNextStep } = require("../utils/workflowMatrix");
 const { storeBase64Image } = require("../services/storageService");
 const { supabaseStorage } = require("../services/supabaseStorage");
 const OCRService = require("../services/ocrService")
-
+const { default: classifierService } = require("../services/outputClassifier.js");
 const fs = require('fs');
 const path = require('path');
+const { extractAiComponents } = require("../utils/aiExtractor");
+// const { classifyAudience } = require("../services/audienceClassifier.js");
+const { extractClaimContext, extractUnifiedContext } = require("../utils/contextExtractor.js");
+const ContextService = require("../services/context.service.js");
 
 // Example usage in your controller
 const uploadDir = path.join(__dirname, '../uploads');
@@ -152,87 +154,6 @@ const deleteDraft = async (req, res) => {
 };
 
 
-const generateNextStepDraft = async (req, res) => {
-    const userId = req.user.id;
-    try {
-        const { fileId, userInput, previousResponse, output_format } = req.body;
-
-        const targetType = getMandatoryNextStep(output_format);
-
-        // 2. FETCH CONTEXT: Get file and profile
-        const file = await File.findById(fileId);
-        if (!file) return res.status(404).json({ message: "Workspace not found" });
-        const userProfile = await UserModel.findById(userId);
-
-
-        const nextStepPayload = PayloadBuilder.build(file, {
-            output_type: targetType,
-            role: userProfile.role || "Adjuster",
-            inputText: `CONTEXT: User previously generated a ${output_format}. 
-                        PREVIOUS CONTENT: ${previousResponse} 
-                        ORIGINAL USER NOTES: ${userInput}
-                        
-                        TASK: You are now performing the mandatory next step: ${targetType}.`,
-            userInfo: {
-                sender_name: userProfile.name,
-                sender_email: userProfile.email,
-                sender_designation: userProfile.role,
-                sender_company: userProfile.company || "AdjusterAssist™"
-            }
-        });
-
-        const contextEnhancedInput = JSON.stringify(nextStepPayload);
-
-        // 4. GENERATE: Call the same AI service
-        const aiResponse = await aiService.generateAIDraft(
-            targetType,
-            contextEnhancedInput,
-            null
-        );
-
-        // 5. PARSE: Split content from the new suggested next step
-        let mainContent = aiResponse;
-        let futureAction = "Review claim file";
-        const parts = aiResponse.split(/Next steps?:\s*/i);
-        if (parts.length > 1) {
-            mainContent = parts[0].trim();
-            futureAction = parts[1].trim();
-        }
-
-        // 6. LOG TO SUPABASE
-        const { data: logData, error: logError } = await supabase
-            .from('ai_logs')
-            .insert([{
-                file_id: parseInt(fileId),
-                user_id: userId || null,
-                input_text: `Workflow Chain: ${output_format} -> ${targetType} : ${userInput}`,
-                input_type: 'workflow_continuation',
-                output_text: aiResponse,
-                output_type: targetType,
-                suggested_next_step: futureAction,
-            }])
-            .select();
-
-        // 7. TRACK USAGE
-        await Subscription.incrementUsage(userId);
-
-        // 8. FINAL RESPONSE
-        res.status(200).json({
-            success: true,
-            data: {
-                content: aiResponse,
-                output_format: targetType,
-                next_step: futureAction,
-                created_at: logData ? logData[0].created_at : new Date().toISOString(),
-                // log_id: logData ? logData[0].id : null
-            }
-        });
-
-    } catch (error) {
-        console.error("Next Step Controller Error:", error);
-        res.status(500).json({ success: false, message: "Workflow continuation failed." });
-    }
-};
 
 
 const updateDraft = async (req, res) => {
@@ -296,10 +217,11 @@ const createAIDraft = async (req, res) => {
         }
 
         // 2. OCR Service - Extract data from new files
-        let ocrInsights = "No attachments processed.";
+        let ocrInsights = "";
         if (files.length > 0) {
             try {
                 console.log(`[OCR Service] Extracting insights from ${files.length} files...`);
+                console.log("[OCR]", ocrInsights)
                 ocrInsights = await OCRService.extractInsights(files);
             } catch (ocrErr) {
                 console.error("OCR extraction failed:", ocrErr.message);
@@ -317,33 +239,36 @@ const createAIDraft = async (req, res) => {
         ) || null;
 
         // 3. Context & Metadata Gathering
-        let conversationHistory = []; // Initialize as an array, not a string
-        try {
-            const previousMessages = await Message.findByFileId(fileId);
-
-            conversationHistory = previousMessages.slice(-5).flatMap(msg => [
-                { role: "user", content: msg.user_input },
-                { role: "assistant", content: msg.ai_response }
-            ]);
-        } catch (e) {
-            console.error("History fetch failed:", e.message);
-        }
-
+        let conversationHistory;
+        conversationHistory = await ContextService.getRelevantContext(fileId, userInput);
+       
         const file = await File.findById(fileId);
         if (!file) return res.status(404).json({ message: "Workspace not found" });
 
         const userProfile = await UserModel.findById(userId) || { name: "Adjuster", role: "Field Adjuster" };
 
-        // 4. Classification & AI Generation
-        console.log("[SERVICE]: Classifying Output Format...");
-        const detectedType = await classifierService.classify(userInput).catch(() => 'file_note');
 
+        // 4. Classification & AI Generation
+        // const audienceType = classifyAudience(userInput);
+
+        const output_classification = await classifierService
+            .classify(userInput)
+            .catch(() => ({ type: 'file_note', confidence: 0.4, source: 'fallback' }));
+
+        const detectedType = output_classification.type;
+        console.log("[SERVICE]: Output Format Classification", output_classification);
+
+        const extraction = await extractUnifiedContext(userInput, ocrInsights);
+        console.log("[AUDIENCE]: ",extraction.recipient_role)
+
+        /// PAYLOAD BUILDER
         const fullPayload = PayloadBuilder.build(file, {
             output_type: detectedType,
-            role: userProfile.role,
             inputText: userInput,
+            claim_facts: extraction.facts,
             ocrData: ocrInsights,
             files: files,
+            audience: extraction.recipient_role,
             userInfo: {
                 sender_name: userProfile.name,
                 sender_designation: userProfile.role,
@@ -355,8 +280,8 @@ const createAIDraft = async (req, res) => {
         const aiRawResponse = await aiService.generateAIDraft(
             detectedType,
             JSON.stringify(fullPayload),
-            files,
-            conversationHistory
+            conversationHistory,
+            extraction.recipient_role
         );
 
         // 5. Parsing AI Response for metadata
@@ -394,9 +319,11 @@ const createAIDraft = async (req, res) => {
                 activity_type: 'ai_generation',
                 metadata: {
                     model: "gpt-4o",
-                    is_refinement: false
+                    output_format: output_classification,
+                    audience: extraction.recipient_role
                 }
             });
+            ContextService.ingestMessage(fileId, turnResult.id, userInput);
             console.log("Message turn Saved with ID: ", turnResult.id);
         } catch (dbErr) {
             console.error("Critical DB Error:", dbErr.message);
@@ -421,14 +348,19 @@ const createAIDraft = async (req, res) => {
                     output_type: detectedType,
                     suggested_next_step: nextAction,
                     execution_time_ms: Date.now() - startTime,
+                    payload: fullPayload,
                     metadata: {
                         model: "gpt-4o",
                         prompt_version: "adjusterassist_v1",
-                        is_refinement: false
+                        is_refinement: false,
+                        is_variant: false,
+                        output_format: output_classification,
+                        audience: extraction.recipient_role
                     }
                 }])
                 .select()
                 .single();
+            console.log("Log Id:", logEntry.id)
 
             if (logError) throw logError;
             await Subscription.incrementUsage(userId);
@@ -476,7 +408,7 @@ const createVariantDraft = async (req, res) => {
             parentMessageId,
             variantLabel
         } = req.body;
-        console.log("DEBUG BODY:", req.body)
+        // console.log("DEBUG BODY:", req.body)
 
         // 1. Validation - Variant MUST have a parent
         if (!parentMessageId) {
@@ -489,31 +421,46 @@ const createVariantDraft = async (req, res) => {
             return res.status(404).json({ message: "Parent message not found" });
         }
 
+        let conversationHistory;
+        conversationHistory = await ContextService.getRelevantContext(fileId, userInput);
+
         const ocrInsights = parentMessage.ocrInsights || "No previous insights.";
         const file = await File.findById(fileId);
         const userProfile = await UserModel.findById(userId) || { name: "Adjuster", role: "Field Adjuster" };
 
         let detectedType = "";
-        if(variantLabel.toLowerCase() == "email"){
+        if (variantLabel.toLowerCase() == "email") {
             detectedType = "email_insured"
-        }else{
-            detectedType = await classifierService.classify(variantLabel)
+        } else {
+            const output_classification = await classifierService
+                .classify(userInput)
+                .catch(() => ({ type: 'file_note', confidence: 0.4, source: 'fallback' }));
+            detectedType = output_classification.type
         }
-
         console.log(`[VARIANT]: Transforming content to format: ${detectedType}`);
 
-        const fullPayload = await PayloadBuilder.buildVariant(file, {
-            variantLabel: variantLabel,
-            originalContent: userInput || parentMessage.ai_response,
-            userInfo: userProfile,
-            parentMessage: parentMessage
+        const extraction = await extractUnifiedContext(userInput, ocrInsights);
+
+        const fullPayload = await PayloadBuilder.build(file, {
+            output_type: variantLabel,
+            inputText: parentMessage.user_input ,
+            claim_facts:extraction.facts,
+            ocrData: parentMessage.ocrInsights,
+            userInfo: {
+                sender_name: userProfile.name,
+                sender_designation: userProfile.role,
+                sender_email: userProfile.email,
+                sender_company: "AdjusterAssist™"
+            },
+            files:parentMessage.image_input_url || parentMessage.doccuments_url,
+            audience:extraction.recipient_role,
         });
 
         const aiRawResponse = await aiService.generateAIDraft(
             detectedType,
             JSON.stringify(fullPayload),
-            [],
-            // parentMessage
+            conversationHistory,
+            extraction.recipient_role,
         );
 
         let nextAction = "Continue monitoring the claim.";
@@ -530,25 +477,25 @@ const createVariantDraft = async (req, res) => {
             // .replace(/(?:suggestions|quick\s*actions|suggested\s*actions):[\s\S]*$/i, '')
             .trim();
 
-        // 7. Save to Database (Linked to Parent)
-        const turnResult = await Message.create({
-            workspace_id: fileId,
-            user_id: userId,
-            parent_id: parentMessageId,
-            variant_label: variantLabel,
-            user_input: `Generate Variant: ${variantLabel}`,
+        const updateData = {
             ai_response: cleanMainContent,
-            ocrInsights: ocrInsights, // Inherited
             content_type: variantLabel.toLowerCase().replace(/\s+/g, '_'),
-            claim_state: file.claim_stage || 'review_pending',
-            activity_type: 'ai_variant',
-            next_step_suggestion: nextAction || "Continue monitoring claim.",
             metadata: {
-                model: "gpt-4o",
+                ...parentMessage.metadata,
                 is_variant: true,
-                source_message_id: parentMessageId
-            }
-        });
+                last_modified_at: new Date().toISOString(),
+                refined_from_id: parentMessageId,
+                output_format: detectedType,
+                audience: extraction.recipient_role
+            },
+            next_step_suggestion: nextAction,
+            activity_type: 'ai_variant',
+            updated_at: new Date().toISOString()
+        };
+
+        const turnResult = await Message.updateById(parentMessageId, updateData);
+        ContextService.ingestMessage(fileId, updateData.id, userInput);
+
 
         // 8. Log the Variant Action
         await supabase.from('ai_logs').insert([{
@@ -562,7 +509,14 @@ const createVariantDraft = async (req, res) => {
             output_type: variantLabel,
             ocrInsights: null,
             execution_time_ms: Date.now() - startTime,
-            metadata: { is_variant: true }
+            metadata: {
+                model: "gpt-4o",
+                is_variant: true,
+                source_message_id: parentMessageId,
+                output_format: detectedType,
+                audience: extraction.recipient_role
+            },
+            payload: fullPayload
         }]);
 
         await Subscription.incrementUsage(userId);
@@ -572,13 +526,14 @@ const createVariantDraft = async (req, res) => {
             success: true,
             data: {
                 id: turnResult.id,
-                parent_id: turnResult.parent_id,
+                parent_id: turnResult.id,
                 user_input: userInput,
                 variant_label: turnResult.variant_label,
                 ai_response: cleanMainContent,
                 output_format: detectedType,
-                next_step_suggestion: turnResult.next_step_suggestion || parentMessage.next_step_suggestion,
-                created_at: turnResult.created_at
+                next_step_suggestion: nextAction,
+                created_at: turnResult.created_at,
+                updated_at: updateData.updated_at
             }
         });
 
@@ -597,7 +552,7 @@ const refineAIDraft = async (req, res) => {
             userInput,
             fileId,
             parentMessageId,
-            refinementType   
+            refinementType
         } = req.body;
         // console.log("DEBUG BODY:", req.body)
         // 1. Validation
@@ -612,7 +567,7 @@ const refineAIDraft = async (req, res) => {
         if (!parentMessage) {
             return res.status(404).json({ message: "Original message not found." });
         }
-        const detectedType = parentMessage.content_type
+        const detectedType = parentMessage.content_type;
 
         const file = await File.findById(fileId);
         if (!file) return res.status(404).json({ message: "Workspace not found." });
@@ -659,25 +614,25 @@ const refineAIDraft = async (req, res) => {
             .trim();
 
         // 7. Save to Database (Version of the parent)
-        const turnResult = await Message.create({
-            workspace_id: fileId,
-            user_id: userId,
-            parent_id: parentMessageId,
-            variant_label: null,
-            refinement_type: refinementType,
-            user_input: `Refine: ${refinementType}`,
+        const refinementUpdate = {
             ai_response: cleanMainContent,
-            ocrInsights: parentMessage.ocrInsights,
-            content_type: parentMessage.content_type,
-            claim_state: file.claim_stage || 'review_pending',
-            next_step_suggestion: nextAction || "Continue monitoring draft.",
+
+            refinement_type: refinementType,
             activity_type: 'ai_refinement',
+
+            next_step_suggestion: nextAction || "Continue monitoring draft.",
+
             metadata: {
-                model: "gpt-4o",
-                refinement_action: refinementType,
-                is_refinement: true
-            }
-        });
+                ...parentMessage.metadata,
+                last_refinement_action: refinementType,
+                is_refinement: true,
+                refined_at: new Date().toISOString(),
+                previous_version_content: parentMessage.ai_response
+            },
+            updated_at: new Date().toISOString()
+        };
+
+        const turnResult = await Message.updateById(parentMessageId, refinementUpdate);
 
         // 8. Log the Refinement
         await supabase.from('ai_logs').insert([{
@@ -689,7 +644,10 @@ const refineAIDraft = async (req, res) => {
             ai_response: aiRawResponse,
             output_type: parentMessage.content_type,
             execution_time_ms: Date.now() - startTime,
-            metadata: { is_refinement: true, action: refinementType }
+            next_step_suggestion: nextAction || "Continue monitoring draft.",
+            metadata: { is_refinement: true, action: refinementType, model: "gpt-4o" },
+            payload: fullPayload
+
         }]);
 
         await Subscription.incrementUsage(userId);
@@ -698,14 +656,15 @@ const refineAIDraft = async (req, res) => {
         res.status(200).json({
             success: true,
             data: {
-                id: turnResult.id,
-                parent_id: turnResult.parent_id,
-                user_input: userInput,
+                id: parentMessageId,
+                parent_id: parentMessage.parent_id,
+                user_input: parentMessage.userInput,
                 refinement_type: turnResult.refinement_type,
                 ai_response: cleanMainContent,
                 output_format: detectedType,
-                next_step_suggestion: nextAction || parentMessage.next_step_suggestion,
-                created_at: turnResult.created_at
+                next_step_suggestion: refinementUpdate.next_step_suggestion,
+                created_at: turnResult.created_at,
+                updated_at: refinementUpdate.updated_at
             }
         });
 
@@ -721,7 +680,6 @@ module.exports = {
     getRecentDrafts,
     deleteDraft,
     createAIDraft,
-    generateNextStepDraft,
     AllDrafts,
     updateDraft,
 

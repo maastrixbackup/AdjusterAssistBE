@@ -4,7 +4,6 @@ const {
     testDraft, 
     createAIDraft, 
     getRecentDrafts,
-    generateNextStepDraft,
     AllDrafts,
     deleteDraft,
     updateDraft,
@@ -44,7 +43,7 @@ router.post("/variant", authMiddleware, checkUsageLimit, createVariantDraft);
 
 router.post("/refine", authMiddleware, checkUsageLimit, refineAIDraft);
 
-router.post('/generate-next-step', authMiddleware, checkUsageLimit, generateNextStepDraft);
+// router.post('/generate-next-step', authMiddleware, checkUsageLimit, generateNextStepDraft);
 
 router.delete("/delete/:draftId", authMiddleware, deleteDraft);
 // router.post("/save", authMiddleware, saveGeneratedDraft);

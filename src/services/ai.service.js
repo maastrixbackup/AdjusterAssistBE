@@ -1,5 +1,5 @@
 import OpenAI from "openai";
-import { adjusterPrompt, getFormatInstruction } from "../utils/prompt.js";
+import { adjusterPrompt, getAudienceInstruction, getFormatInstruction } from "../utils/prompt.js";
 import { getAppliedGuardrails } from "../utils/guardrails.js";
 import fs from 'fs';
 
@@ -11,15 +11,11 @@ const openai = new OpenAI({
 /**
  * Heavy generation for the final professional draft
  */
-export const generateAIDraft = async (type, userInput, files = [], conversationHistory = []) => {
-    console.log("Generating AI Draft with input:", {
-        type,
-        fileCount: files.length
-    });
-
+export const generateAIDraft = async (type, userInput, conversationHistory = "", audienceType) => {
     try {
         const formatStyle = getFormatInstruction(type);
         const guardrailInjection = getAppliedGuardrails(userInput);
+        const audienceInstruction = getAudienceInstruction(audienceType);
 
         // 1. Initialize message content with the text prompt
         const userMessageContent = [
@@ -29,13 +25,15 @@ export const generateAIDraft = async (type, userInput, files = [], conversationH
             }
         ];
 
-
         const systemMessage = `
             ${adjusterPrompt}
             ${guardrailInjection}
+            ${audienceInstruction}
+
             VISION INSTRUCTION: Analyze all provided images (damage photos, receipts, etc.).
             If no images are provided, rely strictly on text context.
             OUTPUT REQUIREMENT (THE FORMAT): ${formatStyle}
+            TARGET AUDIENCE : ${audienceType}
         `;
 
         if (conversationHistory) {
@@ -46,7 +44,10 @@ export const generateAIDraft = async (type, userInput, files = [], conversationH
             model: "gpt-4o",
             messages: [
                 { role: "system", content: systemMessage },
-                ...conversationHistory,
+                {
+                    role: "user",
+                    content: `Here is the historical context for this claim:\n${conversationHistory}`
+                },
                 { role: "user", content: userMessageContent }
             ],
             temperature: 0.4, // Slightly lower for more consistent insurance drafting
@@ -84,3 +85,22 @@ export const generateFastClassification = async (systemPrompt, userInput) => {
         return "file_note";
     }
 };
+
+export const generateJSON = async (systemPrompt, userContent) => {
+    try {
+        const response = await openai.chat.completions.create({
+            model: "gpt-4o-mini", // Use a faster/cheaper model for extraction
+            messages: [
+                { role: "system", content: systemPrompt },
+                { role: "user", content: userContent }
+            ],
+            response_format: { type: "json_object" }, // Forces JSON mode
+            temperature: 0, // Keep it deterministic
+        });
+
+        return JSON.parse(response.choices[0].message.content);
+    } catch (error) {
+        console.error("Extractor Service Error:", error);
+        throw new Error("Failed to parse AI extraction");
+    }
+}

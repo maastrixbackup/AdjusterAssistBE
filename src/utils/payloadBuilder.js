@@ -171,16 +171,69 @@ class PayloadBuilder {
             must_include: ["under review"],
             must_avoid: ["coverage applies"],
             special_instructions: "Objective internal damage summary only."
-        }
+        },
+
+        "attorney_response": {
+            audience: "external",
+            recipient_role: "attorney",
+            tone_override: "attorney_facing",
+            purpose: "attorney response",
+            greeting: true,
+            closing: true,
+
+            length: "medium",
+            format: "structured paragraph",
+            allow_softening: false,
+            allow_direct_request_language: false,
+            preserve_user_facts_verbatim: true,
+            must_include: ["position statement"],
+            must_avoid: ["admission_of_liability", "speculation"],
+            special_instructions: "Precise, controlled, legally safe, no extra wording"
+        },
+        "fnol": {
+            audience: "internal",
+            recipient_role: "interal_file",
+            tone_override: "",
+            purpose: "fnol",
+            greeting: false,
+            closing: false,
+
+            length: "short",
+            format: "structured_template",
+            allow_softening: false,
+            allow_direct_request_language: false,
+            preserve_user_facts_verbatim: true,
+            must_include: ["date_of_loss", "cause_of_loss", "reported_by", "initial_observations"],
+            must_avoid: [],
+            special_instructions: "Strict FNOL template format, no fluff"
+        },
+        "inspection_summary": {
+            audience: "internal",
+            recipient_role: "interal_file",
+            tone_override: "",
+            purpose: "inspection_summary",
+            greeting: false,
+            closing: false,
+
+            length: "medium",
+            format: "structured_template",
+            allow_softening: false,
+            allow_direct_request_language: false,
+            preserve_user_facts_verbatim: true,
+            must_include: ["areas_inspected", "damages_observed", "cause_assessment", "photos_reference"],
+            must_avoid: [],
+            special_instructions: "Clear separation of observed vs reported vs confirmed"
+        },
     };
 
-    static build(file, { output_type, role, inputText, ocrData, userInfo, files }) {
+    static build(file, { output_type, inputText, claim_facts, ocrData, userInfo, files, audience }) {
         const typeKey = output_type?.toLowerCase() || "file_note";
         const config = this.#TYPE_CONFIGS[typeKey] || this.#TYPE_CONFIGS.file_note;
-
+        const fullTextContext = (inputText + " " + ocrData).toLowerCase();
+        const claimFacts = claim_facts || {};
         return {
             output_type: typeKey,
-            claim_role: role || "staff_adjuster",
+            claim_role: userInfo?.role || "staff_adjuster",
             sender_identity: {
                 name: userInfo?.sender_name || "Adjuster",
                 email: userInfo?.sender_email,
@@ -201,30 +254,33 @@ class PayloadBuilder {
                 insured_name: file.client_name,
                 property_address: file.address || "",
                 claim_stage: file.claim_stage || "general_review",
-
                 current_issue: inputText.substring(0, 75).replace(/\n/g, " ") + "..."  ///------>>
             },
 
             facts: {
                 summary: inputText,
-                inspection_findings: "Extract from summary if present",
-                insured_statement: "Extract from summary if present" || inputText.match(/#Insured (.*?)($|#)/)?.[1] || "",
-                contractor_statement: "Extract from summary if present" || text.match(/#Contractor (.*?)($|#)/)?.[1] || "",
-                vendor_statement: "",
-                document_review: "System generated based on adjuster notes.",
-                coverage_position: "Pending further verification.",
-                estimate_status: "",
-                payment_status: "",
-                next_steps: "Identify from summary" || text.match(/#Next (.*?)($|#)/)?.[1] || "",
-                additional_facts: ""
+                reported_facts: claimFacts?.reported_facts || "Attorney is seeking information regarding the status of the claim.",
+                verified_facts: claimFacts?.verified_facts || "Pending verification of coverage and payment.",
+                adjuster_observations: claimFacts?.adjuster_observations || "",
+                contractor_statements: claimFacts?.contractor_statements || "",
+                vendor_documents: claimFacts?.vendor_documents || "",
+                claim_positions: claimFacts?.claim_positions || "Claim position remains pending",
+                missing_information: claimFacts?.missing_information || "Supporting documentation is needed before a complete claim response can be issued.",
+                risk_flags: [
+                    audience.includes('attorney') ? '{"type": "attorney_involvement", "level": "high", "reason": "Attorney representation or legal communication detected."}' : null,
+                    audience.includes('public_adjuster') ? '{"type": "pa_involvement", "level": "medium", "reason": "Public adjuster communication or representation detected"}' : null,
+                    String(claimFacts?.claim_positions || "").toLowerCase().includes('denied') ? '{"type": "dispute", "level": "medium", "reason": "Coverage denial mentioned."}' : null
+                ]
+                    .filter(item => item && String(item).trim() !== "" && String(item) !== "[]")
+                    .join("; ") || "STANDARD_FILE"
             },
 
             communication_context: {
                 audience: config.audience || "internal",
-                sender_identity: "adjuster",
+                sender_identity: "Carrier adjuster",
 
-                recipient_name: "Extract from summary if present", // must be different from file.client_name
-                recipient_role: config.recipient_role || "supervisor",
+                recipient_name: file.client_name || "Extract from summary if present",
+                recipient_role: audience || "internal_file",
 
                 purpose: config.purpose,
                 tone_override: config.tone_override || "",
@@ -244,30 +300,31 @@ class PayloadBuilder {
             },
 
             "compliance_flags": {
-                "weather_related": false,
-                "mitigation_involved": false,
-                "contents_involved": false,
-                "mold_or_odor_flag": false,
-                "emergency_repairs_flag": false,
-                "prior_damage_flag": false,
-                "coverage_sensitive": false,
-                "doi_sensitive": false,
-                "litigation_sensitive": false,
-                "high_escalation": false
+                "weather_related": /storm|hail|wind|hurricane|tornado|lightning|flood/i.test(fullTextContext) || false,
+                "mitigation_involved": /dry-out|mitigation|dehumidifier|extraction|servpro|water restoration/i.test(fullTextContext) || false,
+                "contents_involved": /personal property|contents|furniture|clothing|belongings|inventory/i.test(fullTextContext) || false,
+                "mold_or_odor_flag": /mold|mildew|fungus|odor|smell|musty/i.test(fullTextContext),
+                "emergency_repairs_flag": /immediate|tarp|board-up| boarded |emergency|plumber repair|temp repair/i.test(fullTextContext) || false,
+                "prior_damage_flag": /prior|previous|pre-existing|old damage|past claim/i.test(fullTextContext) || false,
+                "coverage_sensitive": /determination|denial|partial|coverage issue|policy limit|exclusion/i.test(fullTextContext) || false,
+                "doi_sensitive": /date of loss|occurrence date|policy effective|lapse/i.test(fullTextContext) || false,
+                "litigation_sensitive": /attorney|lawyer|legal|lawsuit|summons|public adjuster|p\.a\.|litigation/i.test(fullTextContext) || false,
+                "high_escalation": /complaint|supervisor|manager|regulatory|bad faith|doi complaint|dissatisfied/i.test(fullTextContext) || false
             },
 
             "attachments_context": {
-                "photos_received": !!files,
-                "estimate_received": false,
-                "invoice_received": false,
-                "proof_of_loss_received": false,
-                "mitigation_docs_received": false,
-                "expert_report_received": false
+                "ocrData": ocrData,
+                "photos_received": (!!files && Array.isArray(files) && files.some(f => f.mimetype?.startsWith('image/'))) || (typeof files === 'string' && files.includes('supabase.co') && files.match(/\.(png|jpg|jpeg|webp|gif)/i)) || false,
+                "estimate_received": /estimate|xactimate|scope of work|line items/i.test(fullTextContext) || false,
+                "invoice_received": /invoice|bill|amount due|payment terms/i.test(fullTextContext) || false,
+                "proof_of_loss_received": /proof of loss|notarized|sworn statement/i.test(fullTextContext) || false,
+                "mitigation_docs_received": /moisture log|psychrometric|dry log|drying certificate/i.test(fullTextContext) || false,
+                "expert_report_received": /engineer report|plumber report|expert opinion|cause and origin/i.test(fullTextContext) || false
             }
         };
     }
 
-    static async buildVariant(file, { variantLabel, originalContent, userInfo, parentMessage }) {
+    static async buildVariant(file, { variantLabel, originalContent, userInfo, parentMessage, facts }) {
         // 1. Determine the config based on the variant label
         const typeKey = variantLabel?.toLowerCase().replace(/\s+/g, '_') || "file_note";
         const config = this.#TYPE_CONFIGS[typeKey] || this.#TYPE_CONFIGS.file_note;
@@ -306,10 +363,16 @@ class PayloadBuilder {
 
             facts: {
                 summary: safeContent,
-                // We inherit insights from the parent message so the AI doesn't lose OCR data
                 ocr_insights: parentMessage?.ocrInsights || "No previous OCR data.",
-                inspection_findings: "Extract from summary or previous context",
                 insured_statement: safeContent.match(/#Insured (.*?)($|#)/)?.[1] || "",
+
+                inspection_findings: "",
+                contractor_statement: "",
+                vendor_statement: "",
+                document_review: "",
+                coverage_position: "",
+                estimate_status: "",
+                payment_status: "",
                 next_steps: "Identify from summary"
             },
 
