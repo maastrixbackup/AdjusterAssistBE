@@ -38,7 +38,7 @@ const ContextService = {
             const [{ embedding }] = response.data;
 
             const { error } = await supabase.from('claim_embeddings').insert({
-                claim_id: fileId,
+                claim_id: fileId, //// Refers to Workspace ID
                 message_id: messageId,
                 content: text,
                 embedding: embedding

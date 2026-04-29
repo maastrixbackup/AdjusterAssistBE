@@ -241,7 +241,7 @@ const createAIDraft = async (req, res) => {
         // 3. Context & Metadata Gathering
         let conversationHistory;
         conversationHistory = await ContextService.getRelevantContext(fileId, userInput);
-       
+
         const file = await File.findById(fileId);
         if (!file) return res.status(404).json({ message: "Workspace not found" });
 
@@ -259,7 +259,7 @@ const createAIDraft = async (req, res) => {
         console.log("[SERVICE]: Output Format Classification", output_classification);
 
         const extraction = await extractUnifiedContext(userInput, ocrInsights);
-        console.log("[AUDIENCE]: ",extraction.recipient_role)
+        console.log("[AUDIENCE]: ", extraction.recipient_role)
 
         /// PAYLOAD BUILDER
         const fullPayload = PayloadBuilder.build(file, {
@@ -324,6 +324,7 @@ const createAIDraft = async (req, res) => {
                 }
             });
             ContextService.ingestMessage(fileId, turnResult.id, userInput);
+            ContextService.ingestMessage(fileId, turnResult.id, aiRawResponse);
             console.log("Message turn Saved with ID: ", turnResult.id);
         } catch (dbErr) {
             console.error("Critical DB Error:", dbErr.message);
@@ -408,7 +409,7 @@ const createVariantDraft = async (req, res) => {
             parentMessageId,
             variantLabel
         } = req.body;
-        // console.log("DEBUG BODY:", req.body)
+        console.log("[VARIANT] DEBUG BODY:", req.body)
 
         // 1. Validation - Variant MUST have a parent
         if (!parentMessageId) {
@@ -443,8 +444,8 @@ const createVariantDraft = async (req, res) => {
 
         const fullPayload = await PayloadBuilder.build(file, {
             output_type: variantLabel,
-            inputText: parentMessage.user_input ,
-            claim_facts:extraction.facts,
+            inputText: parentMessage.user_input,
+            claim_facts: extraction.facts,
             ocrData: parentMessage.ocrInsights,
             userInfo: {
                 sender_name: userProfile.name,
@@ -452,8 +453,8 @@ const createVariantDraft = async (req, res) => {
                 sender_email: userProfile.email,
                 sender_company: "AdjusterAssist™"
             },
-            files:parentMessage.image_input_url || parentMessage.doccuments_url,
-            audience:extraction.recipient_role,
+            files: parentMessage.image_input_url || parentMessage.doccuments_url,
+            audience: extraction.recipient_role,
         });
 
         const aiRawResponse = await aiService.generateAIDraft(
@@ -494,7 +495,7 @@ const createVariantDraft = async (req, res) => {
         };
 
         const turnResult = await Message.updateById(parentMessageId, updateData);
-        ContextService.ingestMessage(fileId, updateData.id, userInput);
+        await ContextService.ingestMessage(fileId, turnResult.id, aiRawResponse);
 
 
         // 8. Log the Variant Action
@@ -583,19 +584,24 @@ const refineAIDraft = async (req, res) => {
 
         const specificRule = refinementMap[refinementType] || "Improve the clarity and professionalism of the text.";
 
-        // 4. Build Refinement Payload
-        // Using the logic: Take current response + apply rule = refined response
+        const extraction = await extractUnifiedContext(parentMessage.user_input, parentMessage.ocrInsights);
+        console.log("[AUDIENCE]: ", extraction.recipient_role)
+
         const fullPayload = await PayloadBuilder.buildRefinementPayload({
             originalContent: userInput || parentMessage.ai_response,
             rule: specificRule
         });
+
+        let conversationHistory;
+        conversationHistory = await ContextService.getRelevantContext(fileId, parentMessage.user_input);
 
         // 5. Call AI Service
         console.log(`[REFINE]: Applying '${refinementType}' logic to Message ${parentMessageId}`);
         const aiRawResponse = await aiService.generateAIDraft(
             parentMessage.content_type,
             JSON.stringify(fullPayload),
-            []
+            conversationHistory,
+            extraction.recipient_role
         );
 
 
@@ -633,6 +639,8 @@ const refineAIDraft = async (req, res) => {
         };
 
         const turnResult = await Message.updateById(parentMessageId, refinementUpdate);
+        ContextService.ingestMessage(fileId, turnResult.id, aiRawResponse);
+
 
         // 8. Log the Refinement
         await supabase.from('ai_logs').insert([{
@@ -657,7 +665,7 @@ const refineAIDraft = async (req, res) => {
             success: true,
             data: {
                 id: parentMessageId,
-                parent_id: parentMessage.parent_id,
+                parent_id: parentMessage.parent_id || parentMessageId,
                 user_input: parentMessage.userInput,
                 refinement_type: turnResult.refinement_type,
                 ai_response: cleanMainContent,

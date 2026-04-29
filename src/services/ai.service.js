@@ -24,16 +24,20 @@ export const generateAIDraft = async (type, userInput, conversationHistory = "",
                 text: `Context and user notes: ${userInput}`
             }
         ];
-
+        
         const systemMessage = `
-            ${adjusterPrompt}
-            ${guardrailInjection}
-            ${audienceInstruction}
+        ### ROLE & CORE LOGIC
+        ${adjusterPrompt}
 
-            VISION INSTRUCTION: Analyze all provided images (damage photos, receipts, etc.).
-            If no images are provided, rely strictly on text context.
-            OUTPUT REQUIREMENT (THE FORMAT): ${formatStyle}
-            TARGET AUDIENCE : ${audienceType}
+        ### SAFETY & COMPLIANCE
+        ${guardrailInjection}
+
+        ### CONTEXTUAL SCOPE
+        Target Audience: ${audienceType}
+        Audience Specific Instructions: ${audienceInstruction}
+
+        ### FINAL OUTPUT CONSTRAINTS (STRICT)
+        ${formatStyle}
         `;
 
         if (conversationHistory) {
