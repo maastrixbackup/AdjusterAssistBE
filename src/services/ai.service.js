@@ -1,5 +1,5 @@
 import OpenAI from "openai";
-import { adjusterPrompt, getAudienceInstruction, getFormatInstruction } from "../utils/prompt.md.js";
+import { adjusterPrompt, getAudienceInstruction, getFormatInstruction } from "../utils/prompt.js";
 import { getAppliedGuardrails } from "../utils/guardrails.js";
 import fs from 'fs';
 
