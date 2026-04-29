@@ -437,7 +437,7 @@ const createVariantDraft = async (req, res) => {
         const userProfile = await UserModel.findById(userId) || { name: "Adjuster", role: "Field Adjuster" };
 
         const labelMap = {
-            "email": "email",
+            "email": "email_insured",
             "file note": "file_note",
             "attorney response": "attorney_response",
             "xa note": "xactanalysis_response"
@@ -446,7 +446,7 @@ const createVariantDraft = async (req, res) => {
         // Convert to lowercase once and look it up
         const normalizedLabel = variantLabel.toLowerCase();
         const detectedType = labelMap[normalizedLabel] || "file_note";
-        
+
         console.log(`[VARIANT]: Transforming content to format: ${detectedType}`);
 
         const extraction = await extractUnifiedContext(userInput, ocrInsights);
