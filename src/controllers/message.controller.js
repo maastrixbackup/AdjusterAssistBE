@@ -241,6 +241,9 @@ const createAIDraft = async (req, res) => {
         // 3. Context & Metadata Gathering
         let conversationHistory;
         conversationHistory = await ContextService.getRelevantContext(fileId, userInput);
+        console.log("--- RAG CONTEXT BEING APPLIED ---");
+        console.log(conversationHistory || "No relevant embeddings found for this input.");
+        console.log("---------------------------------");
 
         const file = await File.findById(fileId);
         if (!file) return res.status(404).json({ message: "Workspace not found" });
@@ -424,6 +427,10 @@ const createVariantDraft = async (req, res) => {
 
         let conversationHistory;
         conversationHistory = await ContextService.getRelevantContext(fileId, userInput);
+        console.log("--- RAG CONTEXT BEING APPLIED ---");
+        console.log(conversationHistory || "No relevant embeddings found for this input.");
+        console.log("---------------------------------");
+
 
         const ocrInsights = parentMessage.ocrInsights || "No previous insights.";
         const file = await File.findById(fileId);
@@ -594,6 +601,9 @@ const refineAIDraft = async (req, res) => {
 
         let conversationHistory;
         conversationHistory = await ContextService.getRelevantContext(fileId, parentMessage.user_input);
+        console.log("--- RAG CONTEXT BEING APPLIED ---");
+        console.log(conversationHistory || "No relevant embeddings found for this input.");
+        console.log("---------------------------------");
 
         // 5. Call AI Service
         console.log(`[REFINE]: Applying '${refinementType}' logic to Message ${parentMessageId}`);
