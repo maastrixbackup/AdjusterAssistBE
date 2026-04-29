@@ -242,7 +242,7 @@ const createAIDraft = async (req, res) => {
         let conversationHistory;
         conversationHistory = await ContextService.getRelevantContext(fileId, userInput);
         console.log("--- RAG CONTEXT BEING APPLIED ---");
-        console.log(conversationHistory || "No relevant embeddings found for this input.");
+        console.log(!!conversationHistory || "No relevant embeddings found for this input.");
         console.log("---------------------------------");
 
         const file = await File.findById(fileId);

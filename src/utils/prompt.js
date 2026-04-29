@@ -47,6 +47,9 @@ Output-type rules:
 - claim_summary: concise claim status summary for quick review or handoff.
 - xactanalysis_response: short, direct operational claim communication suitable for claim platform/vendor coordination.
 - damage_evaluation: objective internal damage assessment summary based only on provided findings.
+- attorney_response: formal attorney-facing response; include greeting and closing; structured in paragraphs; acknowledge correspondence, state current claim status, reference reviewed information, identify missing items, and provide next steps; use controlled, non-admission language; do not admit liability or confirm coverage unless clearly established; no speculation.
+- fnol: structured internal First Notice of Loss entry; no greeting or closing; concise and factual; capture date of loss, cause of loss, reported by, and initial observations; use reported language only; do not infer or confirm beyond provided facts; follow a clean structured format.
+- inspection_summary: structured internal inspection summary; no greeting or closing; clearly separate areas inspected, damages observed, cause assessment, and photo references; distinguish between reported vs observed vs confirmed findings; objective and factual; suitable for claim file documentation.
 
 Strict Output Rules:
 - No placeholders allowed under any circumstance
