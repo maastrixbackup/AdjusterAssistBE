@@ -258,7 +258,7 @@ class PayloadBuilder {
             },
 
             facts: {
-                summary: inputText,
+                summary: claimFacts?.summary || inputText,
                 reported_facts: claimFacts?.reported_facts || "Attorney is seeking information regarding the status of the claim.",
                 verified_facts: claimFacts?.verified_facts || "Pending verification of coverage and payment.",
                 adjuster_observations: claimFacts?.adjuster_observations || "",

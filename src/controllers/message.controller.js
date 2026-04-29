@@ -436,15 +436,17 @@ const createVariantDraft = async (req, res) => {
         const file = await File.findById(fileId);
         const userProfile = await UserModel.findById(userId) || { name: "Adjuster", role: "Field Adjuster" };
 
-        let detectedType = "";
-        if (variantLabel.toLowerCase() == "email") {
-            detectedType = "email_insured"
-        } else {
-            const output_classification = await classifierService
-                .classify(userInput)
-                .catch(() => ({ type: 'file_note', confidence: 0.4, source: 'fallback' }));
-            detectedType = output_classification.type
-        }
+        const labelMap = {
+            "email": "email",
+            "file note": "file_note",
+            "attorney response": "attorney_response",
+            "xa note": "xactanalysis_response"
+        };
+
+        // Convert to lowercase once and look it up
+        const normalizedLabel = variantLabel.toLowerCase();
+        const detectedType = labelMap[normalizedLabel] || "file_note";
+        
         console.log(`[VARIANT]: Transforming content to format: ${detectedType}`);
 
         const extraction = await extractUnifiedContext(userInput, ocrInsights);
@@ -514,7 +516,7 @@ const createVariantDraft = async (req, res) => {
             input_text: userInput,
             ai_response: aiRawResponse,
             output_text: cleanMainContent,
-            output_type: variantLabel,
+            output_type: detectedType,
             ocrInsights: null,
             execution_time_ms: Date.now() - startTime,
             metadata: {
