@@ -1,5 +1,5 @@
 const OpenAI = require('openai');
-const supabase = require('../config/supabase.js'); // Ensure this is also CommonJS or handles require
+const supabase = require('../config/supabase.js'); 
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -16,7 +16,7 @@ const ContextService = {
                 query_embedding: embedding,
                 match_threshold: 0.5,
                 match_count: 5,
-                target_claim_id: fileId
+                target_claim_id: fileId,
             });
 
             if (error) throw error;

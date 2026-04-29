@@ -30,10 +30,8 @@ export const extractUnifiedContext = async (inputText, ocrData = "") => {
     
     ### STRICT FALLBACK RULES:
     If the source text does NOT contain information for a specific field, you MUST use the following exact strings:
-    - reported_facts: "Attorney is seeking information regarding the status of the claim"
-    - claim_positions: "Claim position remains pending"
-    - missing_information: "Supporting documentation is needed before a complete claim response can be issued"
-    - For all other fields (verified_facts, adjuster_observations, contractor_statements, vendor_documents): "" (Empty String)
+    - For all fields : "" (Empty String)
+
     Rules: 
     - If Public Adjuster: {"type": "pa_involvement", "level": "medium", "reason": "..."}
     - If Attorney: {"type": "attorney_involvement", "level": "high", "reason": "..."}

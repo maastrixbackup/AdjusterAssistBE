@@ -272,7 +272,7 @@ class PayloadBuilder {
                     String(claimFacts?.claim_positions || "").toLowerCase().includes('denied') ? '{"type": "dispute", "level": "medium", "reason": "Coverage denial mentioned."}' : null
                 ]
                     .filter(item => item && String(item).trim() !== "" && String(item) !== "[]")
-                    .join("; ") || "STANDARD_FILE"
+                    .join("; ") || ""
             },
 
             communication_context: {
