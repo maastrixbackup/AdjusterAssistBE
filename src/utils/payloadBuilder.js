@@ -241,7 +241,7 @@ class PayloadBuilder {
                 company: userInfo?.sender_company || "AdjusterAssist™"
             },
 
-
+            user_input: inputText,
             jurisdiction: file.jurisdiction || "CT", ///// ---->>>>>
             line_of_business: file.line_of_business || "homeowners", //////------->>>> 
 
