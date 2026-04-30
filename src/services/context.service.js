@@ -1,64 +1,68 @@
 const OpenAI = require('openai');
-const supabase = require('../config/supabase.js'); 
+const supabase = require('../config/supabase.js');
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 const ContextService = {
     rewriteQuery: async (userInput, history = []) => {
-       try {
-         const chatContext = history.map(h => `${h.role}: ${h.content}`).join("\n");
-        const response = await openai.chat.completions.create({
-            model: "gpt-4o-mini", 
-            messages: [
-                { 
-                    role: "system", 
-                    content: "Convert the user's latest command into a specific search query based on the conversation history. Focus on nouns and claim details. Example: 'Convert to FNOL' -> 'incident date, driver details, vehicle damage, location'." 
-                },
-                { role: "user", content: `History:\n${chatContext}\n\nLatest Input: ${userInput}` }
-            ],
-            temperature: 0,
-        });
-        return response.choices[0].message.content;
-       } catch (error) {
-        console.log("[RAG] Rewrite Query Error: ",error)
-       }
+        try {
+            const chatContext = history
+                .map(m => `User: ${m.user_input}\nAI: ${m.ai_response}`)
+                .join("\n\n");
+
+            const response = await openai.chat.completions.create({
+                model: "gpt-4o-mini",
+                messages: [
+                    {
+                        role: "system",
+                        content: "You are an insurance search optimizer. Use the provided chat history to turn the user's latest command into a standalone factual search query. Focus on incident details, dates, and names. Output ONLY the rewritten query."
+                    },
+                    { role: "user", content: `Recent History:\n${chatContext}\n\nUser Command: ${userInput}` }
+                ],
+                temperature: 0,
+            });
+            return response.choices[0].message.content;
+        } catch (err) {
+            return userInput;
+        }
     },
 
     getRelevantContext: async (fileId, userInput) => {
         try {
-            const embeddingResponse = await openai.embeddings.create({
+            // 1. Initial Direct Search (Same as before)
+            const directEmbeddingResponse = await openai.embeddings.create({
                 model: "text-embedding-3-small",
                 input: userInput,
             });
-            const [{ embedding }] = embeddingResponse.data;
 
-            const { data: matches, error } = await supabase.rpc('match_claim_context', {
-                query_embedding: embedding,
+            let { data: matches, error } = await supabase.rpc('match_claim_context', {
+                query_embedding: directEmbeddingResponse.data[0].embedding,
                 match_threshold: 0.5,
                 match_count: 5,
                 target_claim_id: fileId,
             });
 
-            if (error) throw error;
+            // 2. The Fallback logic
+            if ((!matches || matches.length === 0)) {
+                console.log("RAG Gap detected. Fetching history from claim_messages...");
 
-            // --- STEP 2: Conditional Check ---
-            if (matches.length === 0) {
-                console.log("[RAG] No relevant embeddings found. Fetching history to rewrite query...");
+                // Fetch 5 most recent messages from claim_messages table
+                const { data: historyData, error: historyError } = await supabase
+                    .from('claim_messages')
+                    .select('user_input, ai_response')
+                    .eq('workspace_id', fileId) // workspace_id is your FK to files
+                    .order('created_at', { ascending: false })
+                    .limit(3);
 
-                // Fetch last 5 messages for this specific claim
-                const { data: recentMessages } = await supabase
-                    .from('claim_embeddings')
-                    .select('content')
-                    .eq('claim_id', fileId)
-                    .order('id', { ascending: false })
-                    .limit(5);
+                if (!historyError && historyData && historyData.length > 0) {
+                    // Reverse to put in chronological order (Oldest to Newest)
+                    const history = historyData.reverse();
 
-                if (recentMessages && recentMessages.length > 0) {
-                    // Rewrite the query using the history
-                    const optimizedQuery = await ContextService.rewriteQuery(userInput, recentMessages);
-                    console.log("Searching for rewritten query:", optimizedQuery);
+                    // Rewrite the query
+                    const optimizedQuery = await ContextService.rewriteQuery(userInput, history);
+                    console.log("[RAG] Optimized Query for RAG:", optimizedQuery);
 
-                    // Re-run the search with optimized query
+                    // Re-embed and Re-search
                     const retryEmbedding = await openai.embeddings.create({
                         model: "text-embedding-3-small",
                         input: optimizedQuery,
@@ -66,8 +70,8 @@ const ContextService = {
 
                     const { data: retryMatches } = await supabase.rpc('match_claim_context', {
                         query_embedding: retryEmbedding.data[0].embedding,
-                        match_threshold: 0.35, // Relax threshold slightly
-                        match_count: 7,
+                        match_threshold: 0.35, // Lower threshold for rewritten queries
+                        match_count: 8,
                         target_claim_id: fileId,
                     });
 
@@ -75,7 +79,6 @@ const ContextService = {
                 }
             }
 
-            // ----------------------------------------//
             return matches.length > 0 ? matches.map(m => m.content).join("\n---\n") : "";
         } catch (error) {
             console.error("RAG Retrieval Error:", error);
