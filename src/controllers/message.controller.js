@@ -282,7 +282,8 @@ const createAIDraft = async (req, res) => {
 
         const aiRawResponse = await aiService.generateAIDraft(
             detectedType,
-            JSON.stringify(fullPayload),
+            userInput,
+            fullPayload,
             conversationHistory,
             extraction.recipient_role
         );
@@ -466,9 +467,12 @@ const createVariantDraft = async (req, res) => {
             audience: extraction.recipient_role,
         });
 
+        let prevInput= parentMessage.user_input
+        // console.log("Input:->>", prevInput)
         const aiRawResponse = await aiService.generateAIDraft(
             detectedType,
-            JSON.stringify(fullPayload),
+            prevInput,
+            fullPayload,
             conversationHistory,
             extraction.recipient_role,
         );

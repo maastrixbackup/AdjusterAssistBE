@@ -1,5 +1,5 @@
 import OpenAI from "openai";
-import { adjusterPrompt, getAudienceInstruction, getFormatInstruction } from "../utils/prompt.js";
+import { adjusterPrompt, getAudienceInstruction, getFormatInstruction, getMarkdownInstruction } from "../utils/prompt.js";
 import { getAppliedGuardrails } from "../utils/guardrails.js";
 import fs from 'fs';
 
@@ -8,11 +8,17 @@ const openai = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY,
 });
 
-export const generateAIDraft = async (type, userInput, conversationHistory = "", audienceType) => {
+export const generateAIDraft = async (type, userInput, payload, conversationHistory = "", audienceType) => {
+    console.log("Payload: ", payload)
     try {
         const formatStyle = getFormatInstruction(type);
         const guardrailInjection = getAppliedGuardrails(userInput);
         const audienceInstruction = getAudienceInstruction(audienceType);
+        const markdownInstruction = getMarkdownInstruction(
+            payload?.drafting_controls?.markdown_level
+        );
+        console.log("MARKDOWN LEVEL:", payload?.drafting_controls?.markdown_level);
+        console.log("[MD]: ", markdownInstruction)
 
         // 1. Initialize message content with the text prompt
         const userMessageContent = [
@@ -21,7 +27,6 @@ export const generateAIDraft = async (type, userInput, conversationHistory = "",
                 text: `Context and user notes: ${userInput}`
             }
         ];
-
 
         const systemMessage = `
         ### ROLE & CORE LOGIC
@@ -33,6 +38,9 @@ export const generateAIDraft = async (type, userInput, conversationHistory = "",
         ### CONTEXTUAL SCOPE
         Target Audience: ${audienceType}
         Audience Specific Instructions: ${audienceInstruction}
+
+        ### FORMATTING RULES (CRITICAL)
+        ${markdownInstruction}
 
         ### FINAL OUTPUT CONSTRAINTS (STRICT)
         ${formatStyle}
@@ -46,11 +54,21 @@ export const generateAIDraft = async (type, userInput, conversationHistory = "",
             model: "gpt-4o",
             messages: [
                 { role: "system", content: systemMessage },
+
                 {
                     role: "user",
-                    content: `Here is the historical context for this claim:\n${conversationHistory}`
+                    content: `### STRUCTURED CLAIM PAYLOAD(CRITICAL)\n${JSON.stringify(payload, null, 2)}`
                 },
-                { role: "user", content: userMessageContent }
+
+                {
+                    role: "user",
+                    content: `### CLAIM HISTORY\n${conversationHistory}`
+                },
+
+                {
+                    role: "user",
+                    content: `### USER REQUEST\n${userInput}`
+                }
             ],
             temperature: 0.4, // Slightly lower for more consistent insurance drafting
         });

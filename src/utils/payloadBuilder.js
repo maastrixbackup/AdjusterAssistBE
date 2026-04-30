@@ -12,6 +12,7 @@ class PayloadBuilder {
             // Drafting Control
             length: "standard",
             format: "paragraph",
+            markdown_level: "structured",
             allow_softening: true,
             allow_direct_request_language: true,
             preserve_user_facts_verbatim: false,
@@ -29,7 +30,8 @@ class PayloadBuilder {
 
             length: "standard",
             format: "paragraph",
-            markdown:false,
+            
+            markdown_level: "light",
             allow_softening: true,
             allow_direct_request_language: true,
             preserve_user_facts_verbatim: false,
@@ -47,7 +49,8 @@ class PayloadBuilder {
 
             length: "short",
             format: "paragraph",
-            markdown:false,
+            
+            markdown_level: "light",
             allow_softening: false,
             allow_direct_request_language: true,
             preserve_user_facts_verbatim: false,
@@ -65,7 +68,7 @@ class PayloadBuilder {
 
             length: "standard",
             format: "paragraph",
-            markdown:false,
+            markdown_level: "structured",
             allow_softening: true,
             allow_direct_request_language: true,
             preserve_user_facts_verbatim: false,
@@ -83,7 +86,7 @@ class PayloadBuilder {
 
             length: "short",
             format: "paragraph",
-            markdown:false,
+            markdown_level: "label_only",
             allow_softening: true,
             allow_direct_request_language: true,
             preserve_user_facts_verbatim: false,
@@ -101,7 +104,7 @@ class PayloadBuilder {
 
             length: "short",
             format: "paragraph",
-            markdown:false,
+            markdown_level: "structured",
             allow_softening: true,
             allow_direct_request_language: true,
             preserve_user_facts_verbatim: false,
@@ -119,7 +122,7 @@ class PayloadBuilder {
 
             length: "standard",
             format: "paragraph",
-            markdown:false,
+            markdown_level: "structured",
             allow_softening: true,
             allow_direct_request_language: false,
             preserve_user_facts_verbatim: false,
@@ -137,7 +140,8 @@ class PayloadBuilder {
 
             length: "standard",
             format: "paragraph",
-            markdown:false,
+            
+            markdown_level: "light",
             allow_softening: true,
             allow_direct_request_language: false,
             preserve_user_facts_verbatim: false,
@@ -155,7 +159,7 @@ class PayloadBuilder {
 
             length: "short",
             format: "paragraph",
-            markdown:false,
+            markdown_level: "structured",
             allow_softening: true,
             allow_direct_request_language: false,
             preserve_user_facts_verbatim: false,
@@ -173,7 +177,7 @@ class PayloadBuilder {
 
             length: "standard",
             format: "paragraph",
-            markdown:false,
+            markdown_level: "structured",
             allow_softening: false,
             allow_direct_request_language: false,
             preserve_user_facts_verbatim: false,
@@ -192,7 +196,7 @@ class PayloadBuilder {
 
             length: "medium",
             format: "structured paragraph",
-            markdown:false,
+            markdown_level: "light",
             allow_softening: false,
             allow_direct_request_language: false,
             preserve_user_facts_verbatim: true,
@@ -202,7 +206,7 @@ class PayloadBuilder {
         },
         "fnol": {
             audience: "internal",
-            recipient_role: "interal_file",
+            recipient_role: "internal_file",
             tone_override: "",
             purpose: "fnol",
             greeting: false,
@@ -210,7 +214,7 @@ class PayloadBuilder {
 
             length: "short",
             format: "structured_template",
-            markdown:false,
+            markdown_level: "label_only",
             allow_softening: false,
             allow_direct_request_language: false,
             preserve_user_facts_verbatim: true,
@@ -220,7 +224,7 @@ class PayloadBuilder {
         },
         "inspection_summary": {
             audience: "internal",
-            recipient_role: "interal_file",
+            recipient_role: "internal_file",
             tone_override: "",
             purpose: "inspection_summary",
             greeting: false,
@@ -228,7 +232,7 @@ class PayloadBuilder {
 
             length: "medium",
             format: "structured_template",
-            markdown:false,
+            markdown_level: "structured",
             allow_softening: false,
             allow_direct_request_language: false,
             preserve_user_facts_verbatim: true,
@@ -238,7 +242,7 @@ class PayloadBuilder {
         },
         "first_contact_note": {
             audience: "internal",
-            recipient_role: "interal_file",
+            recipient_role: "internal_file",
             tone_override: "neutral",
             purpose: "first_contact_note",
             greeting: false,
@@ -246,17 +250,17 @@ class PayloadBuilder {
 
             length: "medium",
             format: "structured_paragraph",
-            markdown:false,
+            markdown_level: "label_only",
             allow_softening: false,
             allow_direct_request_language: false,
             preserve_user_facts_verbatim: true,
-            must_include: ["contact_made_with_insured","claim_or_property_verification_if_discussed","deductible_or_payment_information_if_discussed","reported_cause_of_loss","reported_damages","mitigation_status","inspection_or_documentation_next_steps","coverage_position_pending_review"],    
-            must_avoid: ["unsupported_coverage_determination","invented_policy_details","customer_service_email_language","salutation","closing_signature"],
+            must_include: ["contact_made_with_insured", "claim_or_property_verification_if_discussed", "deductible_or_payment_information_if_discussed", "reported_cause_of_loss", "reported_damages", "mitigation_status", "inspection_or_documentation_next_steps", "coverage_position_pending_review"],
+            must_avoid: ["unsupported_coverage_determination", "invented_policy_details", "customer_service_email_language", "salutation", "closing_signature"],
             special_instructions: "Generate an internal first contact claim note. Document what was verified, what the insured reported, current mitigation/inspection status, and next steps. Use reported/verified/pending language. Do not invent missing details"
         },
         "closing_note": {
             audience: "internal",
-            recipient_role: "interal_file",
+            recipient_role: "internal_file",
             tone_override: "neutral",
             purpose: "inspection_summary",
             greeting: false,
@@ -264,12 +268,12 @@ class PayloadBuilder {
 
             length: "short",
             format: "structured_paragraph",
-            markdown:false,
+            markdown_level: "label_only",
             allow_softening: false,
             allow_direct_request_language: false,
             preserve_user_facts_verbatim: true,
-            must_include: ["claim_status","coverage_position","payment_status_if_known","deductible_status_if_relevant","outstanding_items_if_any","reason_for_closure"],
-            must_avoid: ["unsupported_coverage_conclusions","new_facts_not_in_record","customer_service_language","salutation","closing_signature","legal_advice"],
+            must_include: ["claim_status", "coverage_position", "payment_status_if_known", "deductible_status_if_relevant", "outstanding_items_if_any", "reason_for_closure"],
+            must_avoid: ["unsupported_coverage_conclusions", "new_facts_not_in_record", "customer_service_language", "salutation", "closing_signature", "legal_advice"],
             special_instructions: "Generate a concise internal claim closing note. Use only known facts from the claim thread, user input, documents, or OCR context. Clearly state why the claim is being closed or what status supports closure. If any information is missing, state only what is pending or unknown. Do not invent missing details. Keep wording neutral, factual, and claim-file ready"
         },
     };
@@ -339,7 +343,7 @@ class PayloadBuilder {
             drafting_controls: {
                 length: config.length || "standard",
                 format_style: config.format || "paragraph",
-                markdown: config.markdown ||  false ,
+                markdown_level: config.markdown_level || "none",
                 allow_softening_language: config.allow_softening || false,
                 allow_direct_request_language: config.allow_direct_request_language || false,
                 preserve_user_facts_verbatim: config.preserve_user_facts_verbatim || false,

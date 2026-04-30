@@ -53,11 +53,11 @@ Formatting rules:
 - Honor must_avoid items strictly.
 - Honor special_instructions unless they conflict with the safety rules above.
 
-- Do NOT use markdown (no **, *, -, or headings)
-- Do NOT use bullet points
-- Use plain text only
-- Use clear section labels with colons
-- Keep formatting clean and system-friendly without any placeholders
+FORMATTING BASELINE:
+- Follow the provided MARKDOWN RULES strictly.
+- If markdown is allowed, use it only to improve readability.
+- If markdown is restricted or label_only, keep formatting minimal and system-ready.
+- Always ensure output is clean and easy to copy into claim systems.
 
 When facts are incomplete:
 - Do not refuse.
@@ -112,7 +112,7 @@ Deliver the final response strictly as a professional FILE NOTE.
 File note requirements:
 - Write like authentic carrier claim file documentation, not a conversation recap or transcript summary.
 - Use structured professional paragraphs only.
-- Do not use markdown, bullets, bold text, or placeholders.
+- Do not use any placeholders.
 - Keep the note concise, factual, and operationally realistic.
 
 Required content:
@@ -152,7 +152,7 @@ Writing requirements:
 - Focus on claim handling posture, file progression, unresolved blockers, and decision needs
 - Avoid unnecessary narrative, emotional wording, argumentative language, or one-sided advocacy
 - Do not imply criticism of prior handling unless specifically supported by the user’s facts
-- Do not use markdown, placeholders, transcript recap language, or AI-style filler
+- Do not use placeholders, transcript recap language, or AI-style filler
 
 The output should read like a real escalation written by an experienced adjuster for management review.
 `,
@@ -173,7 +173,7 @@ Writing requirements:
 - Focus only on the task, revision, request, or instruction being communicated
 - Avoid unnecessary background narrative or explanatory filler
 - Maintain scope control and professional handling tone
-- Do not use greetings, closings, markdown, placeholders, or transcript-style recap
+- Do not use greetings, closings, placeholders, or transcript-style recap
 
 The output should read like a real XactAnalysis assignment note, revision instruction, or estimate return comment.
 `,
@@ -195,7 +195,7 @@ Writing requirements:
 - Avoid any implied approval beyond what has been confirmed
 - Clearly separate contractor recommendations from carrier-reviewed findings or accepted scope
 - Do not over-explain, soften unnecessarily, or use conversational filler
-- Do not use markdown, placeholders, transcript recap language, or AI-style phrasing
+- Do not use placeholders, transcript recap language, or AI-style phrasing
 
   The output should read like a real adjuster-to-contractor communication used in active claim handling.`,
 
@@ -216,7 +216,7 @@ Writing requirements:
 - Do not overpromise or imply final coverage, payment, or scope approval unless specifically intended
 - Keep empathy measured and genuine without sounding scripted or overly apologetic
 - Focus on clarity, status, and what the insured should expect next
-- Do not use markdown, placeholders, transcript recap language, or AI-style filler
+- Do not use placeholders, transcript recap language, or AI-style filler
 
   The output should read like a real adjuster email response sent directly to an insured.`,
 
@@ -239,7 +239,7 @@ Writing requirements:
 - Avoid implied approval, acceptance, or final scope agreement unless specifically supported by the provided facts
 - Maintain claim control throughout the response
 - Avoid unnecessary narrative, filler, argumentative language, or AI-style phrasing
-- Do not use markdown, placeholders, or transcript recap language
+- Do not use placeholders, or transcript recap language
 
 Behavior notes:
 - Acknowledge receipt cleanly
@@ -268,7 +268,7 @@ Writing requirements:
 - Do not invent exclusions, limitations, authority findings, or causation conclusions
 - Carefully separate distinct issue categories such as roof conditions, interior resulting damage, pre-existing concerns, or unrelated damages where supported by the facts
 - Avoid unnecessary narrative, filler, argumentative language, or AI-style phrasing
-- Do not use markdown, placeholders, or transcript recap language
+- Do not use placeholders, or transcript recap language
 
 Behavior notes:
 - Objective and defensible
@@ -297,7 +297,7 @@ Writing requirements:
 - Do not quote, paraphrase, or insert policy language unless exact policy language is provided in the input
 - Do not imply fraud, concealment, misrepresentation, exaggeration, or intent unless explicitly supported by the user-provided facts
 - Avoid unnecessary narrative, filler, argumentative language, or AI-style phrasing
-- Do not use markdown, placeholders, or transcript recap language
+- Do not use placeholders, or transcript recap language
 
 Behavior notes:
 - Formal
@@ -324,7 +324,7 @@ Writing requirements:
 - Prioritize clarity and usefulness over detail
 - Avoid unnecessary narrative, over-explanation, filler, or conversational language
 - Maintain a professional and neutral tone
-- Do not use markdown, placeholders, or transcript recap language
+- Do not use placeholders, or transcript recap language
 
 Behavior notes:
 - Short
@@ -350,7 +350,7 @@ Writing requirements:
 - Do not infer hidden damage, code-required replacement, or causation beyond what is specifically supported by the input
 - Use internal claim handling language suitable for file documentation, estimate support, or evaluation reference
 - Avoid unnecessary narrative, filler, argumentative language, or AI-style phrasing
-- Do not use markdown, placeholders, or transcript recap language
+- Do not use placeholders, or transcript recap language
 
 Behavior notes:
 - Objective
@@ -599,7 +599,7 @@ Behavior notes:
 
   return instructions[style] || `
       Deliver the final response strictly as a professional business communication.
-      Use concise, claim-professional language with no placeholders or markdown.`;
+      Use concise, claim-professional language with no placeholders`;
 };
 
 
@@ -788,5 +788,60 @@ GENERAL INSTRUCTION:
 - Use claim facts and context
 - Avoid assumptions or unsupported statements
 `;
+  }
+};
+
+export const getMarkdownInstruction = (markdownLevel) => {
+  switch (markdownLevel) {
+    case "none":
+      return `
+MARKDOWN RULES:
+- Do NOT use markdown formatting.
+- Return plain text only.
+- No bold, no bullets, no headers.
+- Output must be clean and copy-paste ready.
+`;
+
+    case "light":
+      return `
+MARKDOWN RULES:
+- Use minimal markdown only where it improves readability.
+- Allowed:
+  - Bold for section headers only (**Header**)
+  - Very limited bullet points if needed
+- Avoid:
+  - Excessive bolding
+  - Nested bullets
+  - Decorative formatting
+- Keep output clean and professional for copy-paste into email or claim systems.
+`;
+
+    case "structured":
+      return `
+MARKDOWN RULES:
+- Use markdown for clear structure and readability.
+- Allowed:
+  - Bold section headers (**Section Name**)
+  - Short bullet points
+  - Clear spacing between sections
+- Avoid:
+  - Large headings (#, ##)
+  - Tables
+  - Decorative formatting
+- Keep formatting professional and easy to paste into claim systems.
+`;
+
+    case "label_only":
+      return `
+MARKDOWN RULES:
+- Use NO markdown styling except simple label formatting.
+- Format as:
+  Label: Value
+- No bullets, no bold, no headers.
+- Keep strictly structured and system-ready.
+`;
+
+    default:
+      return "";
   }
 };
