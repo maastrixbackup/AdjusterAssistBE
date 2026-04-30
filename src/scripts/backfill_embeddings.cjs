@@ -22,7 +22,8 @@ async function backfill() {
             // A. Process User Input (The 'Evidence')
             if (msg.user_input && msg.user_input.length > 5) {
                 console.log(`Ingesting User Input for Message ID: ${msg.id}`);
-                await ContextService.ingestMessage(msg.workspace_id, msg.id, msg.user_input);
+                const userInputText = `[User/Insured Input]: ${msg.user_input}`;
+                await ContextService.ingestMessage(msg.workspace_id, msg.id, userInputText);
             }
 
             // B. Process AI Response (The 'Analysis')

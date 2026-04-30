@@ -72,7 +72,7 @@ class ClassifierService {
 
     TYPES & INTENT:
     - file_note: Documenting general activity/internal logs.
-    - email_insured: Updates or questions for the policyholder (Jhon, etc).
+    - email_insured: Acknoledgements, Updates or questions for the policyholder (Jhon, etc).
     - email_contractor: Requests for info or updates to builders/mitigation teams.
     - escalation_response: Handling complaints or angry insureds.
     - supplement_response: Reviewing estimates, shingle counts, or price disputes.

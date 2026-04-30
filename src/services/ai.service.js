@@ -25,19 +25,24 @@ export const generateAIDraft = async (type, userInput, conversationHistory = "",
             }
         ];
 
-        const systemMessage = `
-            ${adjusterPrompt}
-            ${guardrailInjection}
-            ${audienceInstruction}
 
-            VISION INSTRUCTION: Analyze all provided images (damage photos, receipts, etc.).
-            If no images are provided, rely strictly on text context.
-            OUTPUT REQUIREMENT (THE FORMAT): ${formatStyle}
-            TARGET AUDIENCE : ${audienceType}
+        const systemMessage = `
+        ### ROLE & CORE LOGIC
+        ${adjusterPrompt}
+
+        ### SAFETY & COMPLIANCE
+        ${guardrailInjection}
+
+        ### CONTEXTUAL SCOPE
+        Target Audience: ${audienceType}
+        Audience Specific Instructions: ${audienceInstruction}
+
+        ### FINAL OUTPUT CONSTRAINTS (STRICT)
+        ${formatStyle}
         `;
 
         if (conversationHistory) {
-            console.log("Reading Context from Previous Message Threads...")
+            console.log("[RAG PIPELINE] Reading Context from Previous Message Threads")
         }
         // 3. Call the Model (gpt-4o is the best multimodal choice)
         const completion = await openai.chat.completions.create({

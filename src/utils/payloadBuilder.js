@@ -29,6 +29,7 @@ class PayloadBuilder {
 
             length: "standard",
             format: "paragraph",
+            markdown:false,
             allow_softening: true,
             allow_direct_request_language: true,
             preserve_user_facts_verbatim: false,
@@ -46,6 +47,7 @@ class PayloadBuilder {
 
             length: "short",
             format: "paragraph",
+            markdown:false,
             allow_softening: false,
             allow_direct_request_language: true,
             preserve_user_facts_verbatim: false,
@@ -63,6 +65,7 @@ class PayloadBuilder {
 
             length: "standard",
             format: "paragraph",
+            markdown:false,
             allow_softening: true,
             allow_direct_request_language: true,
             preserve_user_facts_verbatim: false,
@@ -80,6 +83,7 @@ class PayloadBuilder {
 
             length: "short",
             format: "paragraph",
+            markdown:false,
             allow_softening: true,
             allow_direct_request_language: true,
             preserve_user_facts_verbatim: false,
@@ -97,6 +101,7 @@ class PayloadBuilder {
 
             length: "short",
             format: "paragraph",
+            markdown:false,
             allow_softening: true,
             allow_direct_request_language: true,
             preserve_user_facts_verbatim: false,
@@ -114,6 +119,7 @@ class PayloadBuilder {
 
             length: "standard",
             format: "paragraph",
+            markdown:false,
             allow_softening: true,
             allow_direct_request_language: false,
             preserve_user_facts_verbatim: false,
@@ -131,6 +137,7 @@ class PayloadBuilder {
 
             length: "standard",
             format: "paragraph",
+            markdown:false,
             allow_softening: true,
             allow_direct_request_language: false,
             preserve_user_facts_verbatim: false,
@@ -148,6 +155,7 @@ class PayloadBuilder {
 
             length: "short",
             format: "paragraph",
+            markdown:false,
             allow_softening: true,
             allow_direct_request_language: false,
             preserve_user_facts_verbatim: false,
@@ -165,6 +173,7 @@ class PayloadBuilder {
 
             length: "standard",
             format: "paragraph",
+            markdown:false,
             allow_softening: false,
             allow_direct_request_language: false,
             preserve_user_facts_verbatim: false,
@@ -183,6 +192,7 @@ class PayloadBuilder {
 
             length: "medium",
             format: "structured paragraph",
+            markdown:false,
             allow_softening: false,
             allow_direct_request_language: false,
             preserve_user_facts_verbatim: true,
@@ -200,6 +210,7 @@ class PayloadBuilder {
 
             length: "short",
             format: "structured_template",
+            markdown:false,
             allow_softening: false,
             allow_direct_request_language: false,
             preserve_user_facts_verbatim: true,
@@ -217,6 +228,7 @@ class PayloadBuilder {
 
             length: "medium",
             format: "structured_template",
+            markdown:false,
             allow_softening: false,
             allow_direct_request_language: false,
             preserve_user_facts_verbatim: true,
@@ -241,7 +253,7 @@ class PayloadBuilder {
                 company: userInfo?.sender_company || "AdjusterAssist™"
             },
 
-
+            user_input: inputText,
             jurisdiction: file.jurisdiction || "CT", ///// ---->>>>>
             line_of_business: file.line_of_business || "homeowners", //////------->>>> 
 
@@ -258,7 +270,7 @@ class PayloadBuilder {
             },
 
             facts: {
-                summary: inputText,
+                summary: claimFacts?.summary || inputText,
                 reported_facts: claimFacts?.reported_facts || "Attorney is seeking information regarding the status of the claim.",
                 verified_facts: claimFacts?.verified_facts || "Pending verification of coverage and payment.",
                 adjuster_observations: claimFacts?.adjuster_observations || "",
@@ -266,13 +278,13 @@ class PayloadBuilder {
                 vendor_documents: claimFacts?.vendor_documents || "",
                 claim_positions: claimFacts?.claim_positions || "Claim position remains pending",
                 missing_information: claimFacts?.missing_information || "Supporting documentation is needed before a complete claim response can be issued.",
-                risk_flags: [
+                risk_flags: claimFacts?.risk_flags || [
                     audience.includes('attorney') ? '{"type": "attorney_involvement", "level": "high", "reason": "Attorney representation or legal communication detected."}' : null,
                     audience.includes('public_adjuster') ? '{"type": "pa_involvement", "level": "medium", "reason": "Public adjuster communication or representation detected"}' : null,
                     String(claimFacts?.claim_positions || "").toLowerCase().includes('denied') ? '{"type": "dispute", "level": "medium", "reason": "Coverage denial mentioned."}' : null
                 ]
                     .filter(item => item && String(item).trim() !== "" && String(item) !== "[]")
-                    .join("; ") || "STANDARD_FILE"
+                    .join("; ") || ""
             },
 
             communication_context: {
@@ -291,6 +303,7 @@ class PayloadBuilder {
             drafting_controls: {
                 length: config.length || "standard",
                 format_style: config.format || "paragraph",
+                markdown: config.markdown ||  false ,
                 allow_softening_language: config.allow_softening || false,
                 allow_direct_request_language: config.allow_direct_request_language || false,
                 preserve_user_facts_verbatim: config.preserve_user_facts_verbatim || false,
@@ -324,86 +337,6 @@ class PayloadBuilder {
         };
     }
 
-    static async buildVariant(file, { variantLabel, originalContent, userInfo, parentMessage, facts }) {
-        // 1. Determine the config based on the variant label
-        const typeKey = variantLabel?.toLowerCase().replace(/\s+/g, '_') || "file_note";
-        const config = this.#TYPE_CONFIGS[typeKey] || this.#TYPE_CONFIGS.file_note;
-
-        // 2. Safety check for the substring crash you encountered
-        const safeContent = (originalContent || "").toString();
-        const currentIssueSummary = safeContent.length > 0
-            ? safeContent.substring(0, 75).replace(/\n/g, " ") + "..."
-            : "Context transformation request.";
-
-        return {
-            output_type: typeKey,
-            claim_role: "staff_adjuster",
-            sender_identity: {
-                name: userInfo?.name || "Adjuster",
-                email: userInfo?.email,
-                role: userInfo?.role || "Carrier Adjuster",
-                company: userInfo?.company || "AdjusterAssist™"
-            },
-
-            // Inherited from the File/Workspace Object
-            jurisdiction: file.jurisdiction || "CT",
-            line_of_business: file.line_of_business || "homeowners",
-
-            claim_context: {
-                claim_number: file.claim_number,
-                date_of_loss: file.date_of_loss,
-                reported_date: file.reported_date,
-                loss_type: file.loss_type || "water",
-                policy_form: file.policy_form || "",
-                insured_name: file.client_name,
-                property_address: file.address || "",
-                claim_stage: file.claim_stage || "general_review",
-                current_issue: currentIssueSummary
-            },
-
-            facts: {
-                summary: safeContent,
-                ocr_insights: parentMessage?.ocrInsights || "No previous OCR data.",
-                insured_statement: safeContent.match(/#Insured (.*?)($|#)/)?.[1] || "",
-
-                inspection_findings: "",
-                contractor_statement: "",
-                vendor_statement: "",
-                document_review: "",
-                coverage_position: "",
-                estimate_status: "",
-                payment_status: "",
-                next_steps: "Identify from summary"
-            },
-
-            communication_context: {
-                audience: config.audience || "internal",
-                sender_identity: "adjuster",
-                recipient_role: config.recipient_role || "stakeholder",
-                purpose: `Transforming existing claim data into a professional ${variantLabel}`,
-                tone_override: config.tone_override || "",
-                include_salutation: config.greeting ?? true,
-                include_closing: config.closing ?? true
-            },
-
-            drafting_controls: {
-                length: config.length || "standard",
-                format_style: config.format || "paragraph",
-                allow_softening_language: config.allow_softening || false,
-                allow_direct_request_language: config.allow_direct_request_language || false,
-                preserve_user_facts_verbatim: config.preserve_user_facts_verbatim || false,
-                must_include: config.must_include || [],
-                must_avoid: config.must_avoid || [],
-                special_instructions: config.special_instructions || ""
-            },
-
-            compliance_flags: {
-                doi_sensitive: variantLabel.toLowerCase().includes("doi"),
-                litigation_sensitive: variantLabel.toLowerCase().includes("attorney"),
-                coverage_sensitive: false
-            }
-        };
-    }
 
 
     static async buildRefinementPayload({ originalContent, rule }) {
