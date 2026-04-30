@@ -9,7 +9,6 @@ const openai = new OpenAI({
 });
 
 export const generateAIDraft = async (type, userInput, payload, conversationHistory = "", audienceType) => {
-    console.log("Payload: ", payload)
     try {
         const formatStyle = getFormatInstruction(type);
         const guardrailInjection = getAppliedGuardrails(userInput);
@@ -70,7 +69,7 @@ export const generateAIDraft = async (type, userInput, payload, conversationHist
                     content: `### USER REQUEST\n${userInput}`
                 }
             ],
-            temperature: 0.4, // Slightly lower for more consistent insurance drafting
+            temperature: 0.4,
         });
         console.log("Response Generated")
         return completion.choices[0].message.content;

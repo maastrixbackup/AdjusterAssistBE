@@ -44,13 +44,13 @@ const ContextService = {
 
             // 2. The Fallback logic
             if ((!matches || matches.length === 0)) {
-                console.log("RAG Gap detected. Fetching history from claim_messages...");
+                console.log("[RAG] RAG Gap detected. Fetching history from claim_messages...");
 
                 // Fetch 5 most recent messages from claim_messages table
                 const { data: historyData, error: historyError } = await supabase
                     .from('claim_messages')
                     .select('user_input, ai_response')
-                    .eq('workspace_id', fileId) // workspace_id is your FK to files
+                    .eq('workspace_id', fileId)
                     .order('created_at', { ascending: false })
                     .limit(3);
 
