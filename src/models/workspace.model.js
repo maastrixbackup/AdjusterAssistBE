@@ -78,7 +78,7 @@ const File = {
 
         if (error && error.code !== 'PGRST116') throw error;
         return data;
-    },
+},
 
     /**
      * 4. Update file metadata
@@ -102,16 +102,32 @@ const File = {
      * 5. Delete a file
      */
     delete: async (fileId) => {
-        const { error } = await supabase
+        const { data, error } = await supabase
             .from('files')
             .delete()
-            .eq('id', fileId);
+            .eq('id', fileId)
+            .select();
 
         if (error) {
             console.error("Supabase Delete Error:", error.message);
             throw error;
         }
-        return true;
+        return data[0];
+    },
+
+    /**
+     * 6. Get the most recent file (single latest row)
+     */
+    findMostRecent: async () => {
+        const { data, error } = await supabase
+            .from('files')
+            .select('*')
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .single();
+
+        if (error && error.code !== 'PGRST116') throw error;
+        return data;
     }
 };
 
