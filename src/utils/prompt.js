@@ -407,32 +407,64 @@ OUTPUT:
 Generate a polished "Attorney Response" that adheres strictly to the above tone, rules, and structure.
     Do not include placeholders(mainly in emails) in the final output. Replace all inputs with actual content.`,
 
-    FNOL: `Draft a First Notice of Loss (FNOL) entry using a strict internal structured format based only on the provided facts.
+    FNOL: `FNOL: Convert the existing claim facts into a First Notice of Loss (FNOL) entry using a strict internal structured format.
 
-Primary objective:
-- Accurately document the initial report of loss for internal claim file setup and early handling.
+    PRIMARY OBJECTIVE:
+    - Reorganize and preserve ALL known claim facts into FNOL format.
+    - This is a conversion task, NOT a rewrite.
 
-Must include when supported by the provided facts:
-- Date of loss
-- Cause of loss
-- Reported by (insured/claimant/other)
-- Initial observations or reported damages
+    CRITICAL CONVERSION RULE:
+    Existing parent response + claim thread facts
+    → MUST be preserved
+    → MUST be reorganized into FNOL structure
+    → MUST NOT be reduced, summarized, or generalized
 
-Writing requirements:
-- Use a structured FNOL format (not narrative)
-- Keep the response short, clear, and factual
-- Preserve user-provided facts verbatim where possible
-- Do not add assumptions, interpretations, or extra details
-- Avoid conversational language, softening, or filler
-- Do not include greetings or closings
-- Use precise internal claim documentation language
+    DO NOT:
+    - Drop known facts
+    - Replace specific facts with generic wording
+    - Introduce placeholders if data exists
+    - Invent or assume missing information
 
-Behavior notes:
-- Internal use only
-- No fluff, no commentary
-- Strict FNOL documentation style
+    FACT PRESERVATION RULES:
+    - Every specific detail provided in the input MUST be retained
+    - Maintain technical and descriptive details (e.g., cause mechanics, damage path, duration)
+    - Preserve numeric values (e.g., deductible, timelines)
+    - If multiple facts describe the loss, combine them into a clear structured description WITHOUT removing detail
 
-    The output should read like a real FNOL entry created for internal claim intake and file setup.`,
+    REQUIRED FNOL STRUCTURE (Use exact field-style format):
+
+    - Claim Number:
+    - Date of Loss:
+    - Cause of Loss:
+    - Reported By:
+    - Reported Damages:
+    - Loss Description:
+    - Mitigation Status:
+    - Deductible:
+    - Coverage Status:
+    - Next Step:
+
+    WRITING REQUIREMENTS:
+    - Use structured FNOL format (not narrative paragraph)
+    - Keep concise but COMPLETE (do not shorten at the cost of losing facts)
+    - Preserve user-provided wording as much as possible
+    - Use "reported" language unless explicitly verified
+    - If a field is not provided, write: "Not provided"
+    - Do NOT leave fields blank
+
+    BEHAVIOR NOTES:
+    - Internal documentation only
+    - No greetings or closings
+    - No conversational tone
+    - No summarization
+    - No interpretation beyond provided facts
+
+    STRICT ACCURACY RULE:
+    If a fact exists anywhere in the input or prior context, it MUST appear in the FNOL output in the appropriate section.
+
+    FINAL RULE:
+    The output must read like a real FNOL created from an existing claim file, preserving all known details while organizing them into a clean, structured intake format.`,
+    
     INSPECTION_SUMMARY: ` Draft an internal inspection summary using a structured format based only on the provided inspection details.
 
 Primary objective:
@@ -462,6 +494,7 @@ Behavior notes:
 - Clear distinction between observation and conclusion
 
     The output should read like a real inspection summary prepared for claim file review and evaluation.`,
+    
     FIRST_CONTACT_NOTE: `Generate an internal first contact claim note based only on the provided information.
 
     REQUIREMENTS:
@@ -514,6 +547,7 @@ Behavior notes:
 
     FINAL RULE:
     The output must read like a real internal first contact note prepared by an adjuster, clearly documenting the initial interaction, captured facts, and next steps in a defensible and structured manner.`,
+    
     CLOSING_NOTE: `Generate a concise internal claim closing note based only on the provided information.
 
     REQUIREMENTS:

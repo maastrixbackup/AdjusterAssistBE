@@ -8,9 +8,6 @@ const openai = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY,
 });
 
-/**
- * Heavy generation for the final professional draft
- */
 export const generateAIDraft = async (type, userInput, conversationHistory = "", audienceType) => {
     try {
         const formatStyle = getFormatInstruction(type);

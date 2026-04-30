@@ -62,7 +62,7 @@ const Message = {
   },
 
   // 6. Find recent messages (e.g., for a dashboard or quick view)
-  findRecent: async (limit = 10) => {
+  findRecent: async (limit = 5) => {
     const { data, error } = await supabase
       .from('claim_messages')
       .select('*')
