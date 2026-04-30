@@ -236,6 +236,42 @@ class PayloadBuilder {
             must_avoid: [],
             special_instructions: "Clear separation of observed vs reported vs confirmed"
         },
+        "first_contact_note": {
+            audience: "internal",
+            recipient_role: "interal_file",
+            tone_override: "neutral",
+            purpose: "first_contact_note",
+            greeting: false,
+            closing: false,
+
+            length: "medium",
+            format: "structured_paragraph",
+            markdown:false,
+            allow_softening: false,
+            allow_direct_request_language: false,
+            preserve_user_facts_verbatim: true,
+            must_include: ["contact_made_with_insured","claim_or_property_verification_if_discussed","deductible_or_payment_information_if_discussed","reported_cause_of_loss","reported_damages","mitigation_status","inspection_or_documentation_next_steps","coverage_position_pending_review"],    
+            must_avoid: ["unsupported_coverage_determination","invented_policy_details","customer_service_email_language","salutation","closing_signature"],
+            special_instructions: "Generate an internal first contact claim note. Document what was verified, what the insured reported, current mitigation/inspection status, and next steps. Use reported/verified/pending language. Do not invent missing details"
+        },
+        "closing_note": {
+            audience: "internal",
+            recipient_role: "interal_file",
+            tone_override: "neutral",
+            purpose: "inspection_summary",
+            greeting: false,
+            closing: false,
+
+            length: "short",
+            format: "structured_paragraph",
+            markdown:false,
+            allow_softening: false,
+            allow_direct_request_language: false,
+            preserve_user_facts_verbatim: true,
+            must_include: ["claim_status","coverage_position","payment_status_if_known","deductible_status_if_relevant","outstanding_items_if_any","reason_for_closure"],
+            must_avoid: ["unsupported_coverage_conclusions","new_facts_not_in_record","customer_service_language","salutation","closing_signature","legal_advice"],
+            special_instructions: "Generate a concise internal claim closing note. Use only known facts from the claim thread, user input, documents, or OCR context. Clearly state why the claim is being closed or what status supports closure. If any information is missing, state only what is pending or unknown. Do not invent missing details. Keep wording neutral, factual, and claim-file ready"
+        },
     };
 
     static build(file, { output_type, inputText, claim_facts, ocrData, userInfo, files, audience }) {

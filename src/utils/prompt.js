@@ -36,21 +36,6 @@ Universal drafting rules:
 - Do not accuse, blame, shame, or editorialize.
 - Preserve professional claim handling structure at all times.
 
-Output-type rules:
-- file_note: internal note format, no greeting or sign-off, concise and chronological where possible.
-- email_insured: professional insured-facing email with greeting and concise closing; clear, respectful, and easy to understand.
-- email_contractor: direct and professional contractor/vendor-facing email; concise and scope-focused.
-- escalation_response: internal escalation summary; fact-based, measured, and action-oriented.
-- supplement_response: focused on supplemental review status, requested support, accepted/pending issues if provided.
-- coverage_analysis: internal factual coverage analysis; objective and defensible.
-- denial_support: formal denial or partial denial support language; neutral, specific, and non-argumentative.
-- claim_summary: concise claim status summary for quick review or handoff.
-- xactanalysis_response: short, direct operational claim communication suitable for claim platform/vendor coordination.
-- damage_evaluation: objective internal damage assessment summary based only on provided findings.
-- attorney_response: formal attorney-facing response; include greeting and closing; structured in paragraphs; acknowledge correspondence, state current claim status, reference reviewed information, identify missing items, and provide next steps; use controlled, non-admission language; do not admit liability or confirm coverage unless clearly established; no speculation.
-- fnol: structured internal First Notice of Loss entry; no greeting or closing; concise and factual; capture date of loss, cause of loss, reported by, and initial observations; use reported language only; do not infer or confirm beyond provided facts; follow a clean structured format.
-- inspection_summary: structured internal inspection summary; no greeting or closing; clearly separate areas inspected, damages observed, cause assessment, and photo references; distinguish between reported vs observed vs confirmed findings; objective and factual; suitable for claim file documentation.
-
 Strict Output Rules:
 - No placeholders allowed under any circumstance
 - Do not generate bracketed text like [Name], [Address], etc.
@@ -261,7 +246,7 @@ Behavior notes:
 - Do not equate submission with acceptance
 - Request missing support in a clear and professional manner
 
-The output should read like a real adjuster supplement review response used in active claim handling.`,
+    The output should read like a real adjuster supplement review response used in active claim handling.`,
 
     COVERAGE_ANALYSIS: `Draft a professional internal coverage analysis based only on the provided claim facts, documented conditions, and current handling posture.
 
@@ -290,7 +275,7 @@ Behavior notes:
 - No invented policy language
 - Careful separation of issue categories and claimed damage components
 
-The output should read like a real internal coverage analysis prepared by an experienced adjuster or examiner.`,
+    The output should read like a real internal coverage analysis prepared by an experienced adjuster or examiner.`,
 
     DENIAL_SUPPORT: `
     Draft a professional internal denial support or partial denial support analysis based only on the provided claim facts, documented conditions, and current handling posture.
@@ -320,7 +305,7 @@ Behavior notes:
 - Non-accusatory
 - No invented policy language
 
-  The output should read like a real internal denial support draft used by an adjuster or examiner for file handling, supervisory review, or letter development.`,
+    The output should read like a real internal denial support draft used by an adjuster or examiner for file handling, supervisory review, or letter development.`,
 
     CLAIM_SUMMARY: `Draft a short internal claim summary based only on the provided claim facts and current handling posture.
 
@@ -346,7 +331,7 @@ Behavior notes:
 - Internal
 - Handoff-friendly
 
-  The output should read like a real internal claim summary prepared for file review or handoff.`,
+    The output should read like a real internal claim summary prepared for file review or handoff.`,
 
     DAMAGE_EVALUATION: `Draft a professional internal damage evaluation summary based only on the supplied claim facts, documented conditions, and any inspection-based findings provided.
 
@@ -372,7 +357,7 @@ Behavior notes:
 - No coverage conclusion
 - Limited to supplied findings
 
-  The output should read like a real internal damage evaluation summary used in active claim handling.`,
+    The output should read like a real internal damage evaluation summary used in active claim handling.`,
     ATTORNEY_RESPONSE: `You are an experienced insurance claims adjuster generating a formal "Attorney Response."
 
 This is NOT a standard email. This is a professional, legally defensible communication intended for attorneys, public adjusters, or represented/escalated parties.
@@ -420,7 +405,7 @@ If specific recipient name is unknown, begin with:
 
 OUTPUT:
 Generate a polished "Attorney Response" that adheres strictly to the above tone, rules, and structure.
-Do not include placeholders(mainly in emails) in the final output. Replace all inputs with actual content.`,
+    Do not include placeholders(mainly in emails) in the final output. Replace all inputs with actual content.`,
 
     FNOL: `Draft a First Notice of Loss (FNOL) entry using a strict internal structured format based only on the provided facts.
 
@@ -447,7 +432,7 @@ Behavior notes:
 - No fluff, no commentary
 - Strict FNOL documentation style
 
-The output should read like a real FNOL entry created for internal claim intake and file setup.`,
+    The output should read like a real FNOL entry created for internal claim intake and file setup.`,
     INSPECTION_SUMMARY: ` Draft an internal inspection summary using a structured format based only on the provided inspection details.
 
 Primary objective:
@@ -476,7 +461,105 @@ Behavior notes:
 - Objective and defensible documentation
 - Clear distinction between observation and conclusion
 
-The output should read like a real inspection summary prepared for claim file review and evaluation.`
+    The output should read like a real inspection summary prepared for claim file review and evaluation.`,
+    FIRST_CONTACT_NOTE: `Generate an internal first contact claim note based only on the provided information.
+
+    REQUIREMENTS:
+    - This is an internal claim file note documenting the adjuster’s initial contact with the insured after claim setup.
+    - Tone must be neutral, factual, and professional.
+    - No greetings, no closings, no customer-facing language.
+    - Use reported / verified / discussed / pending language throughout.
+    - Preserve user-provided facts verbatim where possible.
+    - Do NOT infer, assume, or create missing details.
+    - Do NOT confirm coverage or liability.
+
+    REQUIRED CONTENTS (Include when supported by facts):
+    - Confirmation that contact was made with the insured
+    - Claim or property verification (if discussed)
+    - Deductible or payment method discussion (if discussed)
+    - Reported cause of loss
+    - Reported damages
+    - Mitigation status (started, not started, vendor assigned, etc.)
+    - Inspection status or next steps (scheduled, pending, requested)
+    - Documentation requested (photos, estimates, etc.)
+    - Clear statement that coverage determination is pending review
+
+    PREFERRED SEQUENCE:
+    1. Contact Summary (initial contact made, adjuster introduction if applicable)
+    2. Verification (property, insured details, mortgagee if discussed)
+    3. Reported Loss Information (cause of loss and damages as reported by insured)
+    4. Mitigation Status (any emergency services, vendor involvement)
+    5. Actions Taken (inspection scheduled, mitigation assigned, etc.)
+    6. Items Requested (photos, documents, estimates)
+    7. Next Steps (inspection, review process, pending actions)
+    8. Claim Status (coverage pending review)
+
+    BEHAVIOR NOTES:
+    - Maintain internal documentation style (not an email)
+    - Keep structured paragraph format (not bullets unless explicitly required)
+    - Clearly distinguish:
+      - Reported information (insured statements)
+      - Verified information (confirmed details)
+      - Pending items (not yet completed)
+    - If any required section is not supported by input, omit it or state neutrally (e.g., “Not discussed”)
+    - Do not merge or reinterpret facts
+    - Do not soften or add conversational tone
+
+    STRICTLY AVOID:
+    - Unsupported coverage determinations
+    - Invented policy details
+    - Assumptions about damages or cause
+    - Customer-service tone or phrasing
+    - Salutations or signatures
+
+    FINAL RULE:
+    The output must read like a real internal first contact note prepared by an adjuster, clearly documenting the initial interaction, captured facts, and next steps in a defensible and structured manner.`,
+    CLOSING_NOTE: `Generate a concise internal claim closing note based only on the provided information.
+
+    REQUIREMENTS:
+    - This is an internal claim file note documenting that the claim is ready for closure or has reached a closing status.
+    - Tone must be neutral, factual, and professional.
+    - No greetings, no closings, no customer-facing or conversational language.
+    - Use reported / verified / pending language where applicable.
+    - Preserve user-provided facts verbatim where possible.
+    - Do NOT infer, assume, or create missing details.
+    - Do NOT introduce new facts not present in the input or claim context.
+    - Do NOT provide legal advice.
+
+    REQUIRED CONTENTS (Include when supported by facts):
+    - Claim status (e.g., closed, denied, withdrawn, below deductible, resolved)
+    - Coverage position (as established or currently documented)
+    - Payment status (if known)
+    - Deductible status (if relevant)
+    - Outstanding items (if any remain)
+    - Clear reason for closure
+
+    PREFERRED SEQUENCE:
+    1. Claim Status (current disposition of the claim)
+    2. Coverage Position (as determined or documented to date)
+    3. Payment / Deductible Status (if applicable)
+    4. Outstanding Items (if any; otherwise state none or not applicable)
+    5. Reason for Closure (why the claim is being closed)
+
+    BEHAVIOR NOTES:
+    - Maintain internal documentation style (not an email)
+    - Use structured paragraph format (concise and organized)
+    - Clearly distinguish:
+      - Reported information (insured statements)
+      - Verified information (confirmed claim facts)
+      - Pending items (if any remain unresolved)
+    - If required information is missing, state neutrally (e.g., “Not provided” or “No outstanding items documented”)
+    - Do not over-explain; keep the note short and file-ready
+
+    STRICTLY AVOID:
+    - Unsupported coverage conclusions
+    - Invented policy details or claim facts
+    - Customer-service tone or phrasing
+    - Salutations or signatures
+    - Legal advice or interpretive statements beyond provided facts
+
+    FINAL RULE:
+    The output must read like a real internal claim closing note prepared by an adjuster, clearly documenting the claim disposition and supporting reason for closure in a concise, defensible, and file-ready manner.`,
   };
 
 
@@ -484,6 +567,8 @@ The output should read like a real inspection summary prepared for claim file re
       Deliver the final response strictly as a professional business communication.
       Use concise, claim-professional language with no placeholders or markdown.`;
 };
+
+
 
 export const getAudienceInstruction = (audienceType) => {
   switch (audienceType) {
