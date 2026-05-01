@@ -42,23 +42,17 @@ const fixUnbalancedMarkdown = (text = "") => {
  */
 const extractSection = (text, labels = []) => {
   const normalized = normalize(text);
-
-  // Build dynamic regex for labels
   const labelPattern = labels.join("|");
 
   const regex = new RegExp(
-    `(?:^|\\n)\\s*(?:\\*\\*|__|#+\\s*)?\\s*(?:${labelPattern})\\s*(?:\\*\\*|__)?\\s*:\\s*([\\s\\S]*?)(?=\\n\\s*\\n|\\n\\s*(?:\\*\\*|__|#)|$)`,
+    `(?:^|\\n)\\s*[*\\-•]?\\s*(?:\\*\\*|__)?\\s*(?:${labelPattern})\\s*:?\\s*(?:\\*\\*|__)?\\s*([\\s\\S]*?)(?=\\n\\s*\\n|\\n\\s*[*\\-•]?\\s*(?:\\*\\*|__|#)|$)`,
     "i"
   );
 
   const match = normalized.match(regex);
   if (!match) return "";
 
-  let content = match[1].trim();
-
-  content = fixUnbalancedMarkdown(content);
-
-  return content;
+  return cleanText(match[1]);
 };
 
 /**
@@ -67,22 +61,34 @@ const extractSection = (text, labels = []) => {
 const cleanText = (text = "") => {
   let result = text;
 
-  // 1. Fix unbalanced bold (**)
+  // Fix broken bold (**)
   const boldCount = (result.match(/\*\*/g) || []).length;
   if (boldCount % 2 !== 0) {
-    result = result.replace(/\*\*$/, ""); // remove trailing broken **
+    result = result.replace(/\*\*$/, "");
   }
 
-  // 2. Remove leading bullet markers (*, -, •)
+  // Remove leading bullets
   result = result.replace(/^\s*[*\-•]+\s*/, "");
 
-  // 3. Remove stray single * at start/end
-  result = result.replace(/^\*\s*/, "").replace(/\s*\*$/, "");
+  // Remove markdown artifacts
+  result = result.replace(/(\*\*|__|[*_~`])/g, "");
 
-  // 4. Remove any remaining stray markdown artifacts at edges
-  result = result.replace(/^\*+/, "").replace(/\*+$/, "");
+  // 🔥 Remove leading colon or dash
+  result = result.replace(/^[:\-\s]+/, "");
 
-  // 5. Normalize spacing
+  // 🔥 Remove "is" / "is to" / "to"
+  result = result.replace(/^(is\s+to|is\s+|to\s+)/i, "");
+
+  // 🔥 Handle multi-line bullet lists properly
+  if (result.includes("\n")) {
+    result = result
+      .split("\n")
+      .map(line => line.replace(/^\s*[-•*]\s*/, "").trim())
+      .filter(Boolean)
+      .join(", "); // <-- cleaner than "-"
+  }
+
+  // Normalize spacing
   result = result
     .replace(/\n+/g, " ")
     .replace(/[ ]{2,}/g, " ")
@@ -131,11 +137,11 @@ const extractSuggestions = (text) => {
 const removeSections = (text) => {
   return normalize(text)
     .replace(
-      /(?:^|\n)\s*(?:\*\*|__|#+\s*)?\s*(next\s*steps?|recommended\s*action)[\s\S]*?(?=\n\s*\n|\n\s*(?:\*\*|__|#)|$)/gi,
+      /(?:^|\n)\s*[*\-•]?\s*(?:\*\*|__)?\s*(next\s*steps?|recommended\s*action)\s*:?\s*(?:\*\*|__)?[\s\S]*?(?=\n\s*\n|\n\s*[*\-•]?\s*(?:\*\*|__|#)|$)/gi,
       ""
     )
     .replace(
-      /(?:^|\n)\s*(?:\*\*|__|#+\s*)?\s*(suggestions|quick\s*actions|suggested\s*actions)[\s\S]*?(?=\n\s*\n|\n\s*(?:\*\*|__|#)|$)/gi,
+      /(?:^|\n)\s*[*\-•]?\s*(?:\*\*|__)?\s*(suggestions|quick\s*actions|suggested\s*actions)\s*:?\s*(?:\*\*|__)?[\s\S]*?(?=\n\s*\n|\n\s*[*\-•]?\s*(?:\*\*|__|#)|$)/gi,
       ""
     )
     .trim();
@@ -151,7 +157,20 @@ const parseAIResponse = (aiRawResponse = "") => {
   let dynamicSuggestions = extractSuggestions(text);
   const cleanMainContent = removeSections(text);
 
-  // ✅ FALLBACKS
+  /**
+   * ✅ STRICT FALLBACK LAYER (ONLY if primary extraction fails)
+   */
+  if (!nextAction || nextAction.length < 5) {
+    const fallbackMatch = text.match(/next\s*step[s]?\s*[:\-]?\s*(.*)/i);
+
+    if (fallbackMatch && fallbackMatch[1]) {
+      nextAction = cleanText(fallbackMatch[1]);
+    }
+  }
+
+  /**
+   * ✅ FINAL DEFAULT FALLBACK (NON-NEGOTIABLE)
+   */
   if (!nextAction || nextAction.length < 5) {
     nextAction = DEFAULT_NEXT_ACTION;
   }
@@ -170,3 +189,25 @@ const parseAIResponse = (aiRawResponse = "") => {
 module.exports = {
   parseAIResponse
 };
+
+const tests = [
+  `- **Next Step:** Await receipt of supporting documentation.`,
+  `Next Step: Schedule inspection and request photos.`,
+  `**Next Step**: Assign mitigation vendor.`,
+  `Next Step - Review estimate.`,
+  `Next Step is to schedule inspection.`,
+  `**Next Step: Schedule inspection`,
+  `•    **Next Step:**    Request documents from insured.`,
+  `**Next Step:**
+  - Schedule inspection
+  - Request photos`,
+  `next step: follow up with contractor.`,
+  `Inspection pending. Awaiting documents.`,
+];
+
+tests.forEach((input, i) => {
+  const result = parseAIResponse(input);
+  console.log(`\nTest ${i + 1}`);
+  console.log("Input:", input);
+  console.log("Output:", result.nextAction);
+});
