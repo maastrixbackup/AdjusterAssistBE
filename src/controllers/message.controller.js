@@ -16,6 +16,7 @@ const { extractAiComponents } = require("../utils/aiExtractor");
 // const { classifyAudience } = require("../services/audienceClassifier.js");
 const { extractClaimContext, extractUnifiedContext } = require("../utils/contextExtractor.js");
 const ContextService = require("../services/context.service.js");
+const { parseAIResponse } = require("../utils/responseParser");
 
 // Example usage in your controller
 const uploadDir = path.join(__dirname, '../uploads');
@@ -288,20 +289,12 @@ const createAIDraft = async (req, res) => {
             extraction.recipient_role
         );
 
-        // 5. Parsing AI Response for metadata
-        let nextAction = "Continue monitoring the claim.";
-        let dynamicSuggestions = ["Review file", "Contact insured"];
 
-        const nextStepMatch = aiRawResponse.match(/(?:next\s*steps?|recommended\s*action):\s*(.*)/i);
-        const suggestionMatch = aiRawResponse.match(/(?:suggestions|quick\s*actions|suggested\s*actions):\s*(.*)/i);
-
-        if (suggestionMatch) dynamicSuggestions = suggestionMatch[1].split('|').map(s => s.trim());
-        if (nextStepMatch) nextAction = nextStepMatch[1].trim();
-
-        const cleanMainContent = aiRawResponse
-            .replace(/(?:next\s*steps?|recommended\s*action):[\s\S]*$/i, '')
-            // .replace(/(?:suggestions|quick\s*actions|suggested\s*actions):[\s\S]*$/i, '')
-            .trim();
+        const {
+            nextAction,
+            dynamicSuggestions,
+            cleanMainContent
+        } = parseAIResponse(aiRawResponse);
 
         // 6. Database Operations - Save Main Message Turn
         let turnResult;
@@ -429,7 +422,7 @@ const createVariantDraft = async (req, res) => {
         let conversationHistory;
         conversationHistory = await ContextService.getRelevantContext(fileId, userInput);
         console.log("--- RAG CONTEXT BEING APPLIED ---");
-        console.log(conversationHistory || "No relevant embeddings found for this input.");
+        console.log(!!conversationHistory || "No relevant embeddings found for this input.");
         console.log("---------------------------------");
 
 
@@ -451,10 +444,12 @@ const createVariantDraft = async (req, res) => {
         console.log(`[VARIANT]: Transforming content to format: ${detectedType}`);
 
         const extraction = await extractUnifiedContext(userInput, ocrInsights);
+        let audience = extraction.recipient_role
+        console.log("[AUDIENCE]: ", audience)
 
         const fullPayload = await PayloadBuilder.build(file, {
-            output_type: variantLabel,
-            inputText: parentMessage.user_input,
+            output_type: detectedType,
+            inputText: userInput,
             claim_facts: extraction.facts,
             ocrData: parentMessage.ocrInsights,
             userInfo: {
@@ -464,32 +459,35 @@ const createVariantDraft = async (req, res) => {
                 sender_company: "AdjusterAssist™"
             },
             files: parentMessage.image_input_url || parentMessage.doccuments_url,
-            audience: extraction.recipient_role,
+            audience: audience,
         });
 
-        let prevInput= parentMessage.user_input
-        // console.log("Input:->>", prevInput)
+        const transformInstruction =`Convert this to ${variantLabel}`;
+        const baseContent = parentMessage.ai_response;
+
+        const combinedInput = `
+            INSTRUCTION / TASK: ${transformInstruction}
+
+            CONTENT TO TRANSFORM:
+            ${baseContent}
+        `;
+
+        inputText: combinedInput
+        let prevInput = combinedInput;
+        
         const aiRawResponse = await aiService.generateAIDraft(
             detectedType,
-            prevInput,
+            combinedInput,
             fullPayload,
             conversationHistory,
-            extraction.recipient_role,
+            audience,
         );
 
-        let nextAction = "Continue monitoring the claim.";
-        let dynamicSuggestions = ["Review file", "Contact insured"];
-
-        const nextStepMatch = aiRawResponse.match(/(?:next\s*steps?|recommended\s*action):\s*(.*)/i);
-        const suggestionMatch = aiRawResponse.match(/(?:suggestions|quick\s*actions|suggested\s*actions):\s*(.*)/i);
-
-        if (suggestionMatch) dynamicSuggestions = suggestionMatch[1].split('|').map(s => s.trim());
-        if (nextStepMatch) nextAction = nextStepMatch[1].trim();
-
-        const cleanMainContent = aiRawResponse
-            .replace(/(?:next\s*steps?|recommended\s*action):[\s\S]*$/i, '')
-            // .replace(/(?:suggestions|quick\s*actions|suggested\s*actions):[\s\S]*$/i, '')
-            .trim();
+        const {
+            nextAction,
+            dynamicSuggestions,
+            cleanMainContent
+        } = parseAIResponse(aiRawResponse);
 
         const updateData = {
             ai_response: cleanMainContent,
@@ -542,7 +540,7 @@ const createVariantDraft = async (req, res) => {
                 id: turnResult.id,
                 parent_id: turnResult.id,
                 user_input: userInput,
-                variant_label: turnResult.variant_label,
+                variant_label: variantLabel,
                 ai_response: cleanMainContent,
                 output_format: detectedType,
                 next_step_suggestion: nextAction,

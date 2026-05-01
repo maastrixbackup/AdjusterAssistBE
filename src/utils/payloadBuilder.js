@@ -31,7 +31,7 @@ class PayloadBuilder {
             length: "standard",
             format: "paragraph",
             
-            markdown_level: "light",
+            markdown_level: "none",
             allow_softening: true,
             allow_direct_request_language: true,
             preserve_user_facts_verbatim: false,
@@ -50,7 +50,7 @@ class PayloadBuilder {
             length: "short",
             format: "paragraph",
             
-            markdown_level: "light",
+            markdown_level: "none",
             allow_softening: false,
             allow_direct_request_language: true,
             preserve_user_facts_verbatim: false,
@@ -141,7 +141,7 @@ class PayloadBuilder {
             length: "standard",
             format: "paragraph",
             
-            markdown_level: "light",
+            markdown_level: "none",
             allow_softening: true,
             allow_direct_request_language: false,
             preserve_user_facts_verbatim: false,
@@ -196,7 +196,7 @@ class PayloadBuilder {
 
             length: "medium",
             format: "structured paragraph",
-            markdown_level: "light",
+            markdown_level: "none",
             allow_softening: false,
             allow_direct_request_language: false,
             preserve_user_facts_verbatim: true,

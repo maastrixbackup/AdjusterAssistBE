@@ -77,33 +77,26 @@ export const getFormatInstruction = (type) => {
   const style = type?.toUpperCase();
 
   const instructions = {
-    EMAIL: `
-Deliver the final response strictly as a professional EMAIL.
+    EMAIL: `Draft a professional insured-facing claim response that clearly explains the current claim status, handling position, or next step.
 
-Email requirements:
-- Format with:
-  Subject:
-  Greeting
-  Body
-  Next Step
-  Closing
-- The email must be fully send-ready with no placeholders, brackets, or template tags.
-- Use natural insurance claim handling language, not AI-style phrasing.
-- Keep the tone polished, practical, and professional.
+Primary objective:
+- Provide a calm, plain-language explanation that keeps the insured informed without creating confusion or unintended commitments.
 
-Audience adaptation:
-- If insured-facing: tone must be calm, clear, empathetic, and professional.
-- If vendor or contractor-facing: tone must be direct, documentation-focused, and claim-control oriented.
-- If internal: tone must be concise, operational, and businesslike.
+Must include:
+- A clear explanation of the issue, current status, or handling position
+- Appropriate empathy delivered in a natural and professional way
+- The action being taken, what is pending, or the next step in the claim process
 
-Handling rules:
-- Do not overpromise.
-- Do not imply coverage approval unless explicitly supported by the user’s instructions.
-- Clearly explain current status, what is pending, and any action required.
-- Include a clear next step or requested action within the body.
-- End with a professional closing.
+Writing requirements:
+- Use simple, respectful, easy-to-understand language
+- Keep the tone calm, professional, and policyholder-appropriate
+- Avoid technical claim jargon, internal handling language, or overly legal phrasing unless necessary
+- Do not overpromise or imply final coverage, payment, or scope approval unless specifically intended
+- Keep empathy measured and genuine without sounding scripted or overly apologetic
+- Focus on clarity, status, and what the insured should expect next
+- Do not use placeholders, transcript recap language, or AI-style filler
 
-The output must read like a real adjuster email that can be sent as-is.
+  The output should read like a real adjuster email response sent directly to an insured.
 `,
 
     FILE_NOTE: `
