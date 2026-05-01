@@ -443,12 +443,13 @@ const createVariantDraft = async (req, res) => {
 
         console.log(`[VARIANT]: Transforming content to format: ${detectedType}`);
 
-        const extraction = await extractUnifiedContext(parentMessage.user_input, ocrInsights);
-        console.log("[AUDIENCE]: ", extraction.recipient_role)
+        const extraction = await extractUnifiedContext(userInput, ocrInsights);
+        let audience = "external"
+        console.log("[AUDIENCE]: ", audience)
 
         const fullPayload = await PayloadBuilder.build(file, {
-            output_type: variantLabel,
-            inputText: parentMessage.user_input,
+            output_type: detectedType,
+            inputText: userInput,
             claim_facts: extraction.facts,
             ocrData: parentMessage.ocrInsights,
             userInfo: {
@@ -458,17 +459,28 @@ const createVariantDraft = async (req, res) => {
                 sender_company: "AdjusterAssist™"
             },
             files: parentMessage.image_input_url || parentMessage.doccuments_url,
-            audience: extraction.recipient_role,
+            audience: audience,
         });
 
-        let prevInput = parentMessage.user_input
-        // console.log("Input:->>", prevInput)
+        const transformInstruction =`Convert this to ${variantLabel}`;
+        const baseContent = parentMessage.ai_response;
+
+        const combinedInput = `
+            INSTRUCTION / TASK: ${transformInstruction}
+
+            CONTENT TO TRANSFORM:
+            ${baseContent}
+        `;
+
+        inputText: combinedInput
+        let prevInput = combinedInput;
+        
         const aiRawResponse = await aiService.generateAIDraft(
             detectedType,
-            prevInput,
+            combinedInput,
             fullPayload,
             conversationHistory,
-            extraction.recipient_role,
+            audience,
         );
 
         const {

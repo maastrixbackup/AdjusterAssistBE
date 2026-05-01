@@ -9,6 +9,11 @@ const openai = new OpenAI({
 });
 
 export const generateAIDraft = async (type, userInput, payload, conversationHistory = "", audienceType) => {
+    // console.log("TYPE : ", type ) 
+    // console.log("USERINPUT : ", userInput ) 
+    // console.log("PAYLOAD : ", payload ) 
+    // console.log("HISTORY : ", conversationHistory )
+    // console.log("AUDIENCE : ", audienceType )
     try {
         const formatStyle = getFormatInstruction(type);
         const guardrailInjection = getAppliedGuardrails(userInput);
