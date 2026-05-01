@@ -29,6 +29,16 @@ class ClassifierService {
       return { type: 'email_insured', confidence: 0.95, source: 'deterministic' };
     }
 
+    if (
+      text.includes("contractor response") ||
+      text.includes("reply to contractor") ||
+      text.includes("email contractor") ||
+      text.includes("send to contractor") ||
+      text.includes("to contractor") ||
+      text.includes("vendor response")
+    ) {
+      return { type: 'email_contractor', confidence: 0.92, source: 'deterministic' };
+    }
     // Explicit Denial/Coverage Triggers
     if (text.includes("not covered") || text.includes("denial") || text.includes("exclude")) {
       return { type: 'denial_support', confidence: 0.9, source: 'deterministic' };
@@ -163,40 +173,121 @@ class ClassifierService {
   // LAYER 2: AI INTENT MAPPING (The Brain)
   async runAILayer(userInput) {
     const systemPrompt = `
-    You are an Insurance Claim Routing Engine. Categorize the input into EXACTLY one type and provide a confidence score.
+You are an Insurance Claim Routing Engine. Your job is to classify the user's request into EXACTLY one output type with high accuracy.
 
-    TYPES & INTENT:
-    - file_note: Documenting general activity/internal logs.
-    - email_insured: Acknoledgements, Updates or questions for the policyholder (Jhon, etc).
-    - email_contractor: Requests for info or updates to builders/mitigation teams.
-    - escalation_response: Handling complaints or angry insureds.
-    - supplement_response: Reviewing estimates, shingle counts, or price disputes.
-    - coverage_analysis: Legal/Policy reasoning for what is or isn't paid.
-    - denial_support: Formal reasoning for a claim rejection.
-    - claim_summary: A high-level recap of the whole file.
-    - xactanalysis_response: Short, technical operational notes.
-    - damage_evaluation: Findings from a physical inspection (roof, kitchen, etc).
-    - attorney_response: Formal, defensible response to attorneys; no liability or coverage admissions.
-    - fnol: First Notice of Loss; initial report capturing date, cause, reporter, and initial damages.
-    - inspection_summary: Structured internal inspection findings including areas inspected, observed damages, cause assessment, and photos.
-    - first_contact_note: Internal note documenting the adjuster’s initial contact with the insured after claim setup, including introduction, verification details, reported damages, mitigation or inspection actions, requested documents, explanation of next steps, and coverage pending initial review; not a general file note.
-    - closing_note: Internal claim closing documentation used when the claim is ready to close or has reached a final status such as completed, denied, below deductible, withdrawn, duplicate, or no-contact; includes claim status, coverage position, payment or deductible status if available, outstanding items if any, and clear reason for closure; not a general file note.
+You must prioritize USER INTENT (what they want to generate or convert) over raw content.
 
-    CONFLICT RESOLUTION RULES:
-    1. If there is an external audience (Insured/Contractor) -> Prioritize EMAIL.
-    2. If it mentions a Supplement/Estimate dispute -> prioritize supplement_response.
-    3. If no clear match -> return file_note.
-    4. If the input explicitly indicates initial or first contact with the insured and includes verification, next steps, or inspection scheduling, you MUST classify as first_contact_note and not file_note.
-    5. If the input indicates claim completion, closure, denial completion, below deductible outcome, withdrawal, duplicate closure, or no further action, you MUST classify as closing_note and not file_note or claim_summary.
+----------------------------------------
+TYPES & INTENT (DO NOT MODIFY DEFINITIONS)
+----------------------------------------
+- file_note: Documenting general activity/internal logs.
+- email_insured: Acknowledgements, updates, questions, or communication intended for the policyholder.
+- email_contractor: Requests, responses, or communication intended for contractors, vendors, or mitigation teams.
+- escalation_response: Handling complaints, dissatisfaction, or escalation scenarios.
+- supplement_response: Reviewing estimates, supplements, pricing disputes, or scope disagreements.
+- coverage_analysis: Internal policy reasoning about coverage decisions.
+- denial_support: Formal reasoning supporting denial or partial denial.
+- claim_summary: High-level recap of the claim.
+- xactanalysis_response: Short, technical, operational notes for platforms/vendors.
+- damage_evaluation: Inspection findings or observed damages.
+- attorney_response: Formal, legally defensive communication to attorneys.
+- fnol: First Notice of Loss; initial structured intake of a claim.
+- inspection_summary: Structured inspection findings and observations.
+- first_contact_note: Initial adjuster contact with insured including introduction, verification, reported damages, mitigation/inspection steps, and next actions.
+- closing_note: Final internal documentation indicating claim closure, completion, denial, withdrawal, or no further action.
 
-    RESPONSE FORMAT (STRICT JSON ONLY):
-    {
-      "type": "one_of_the_types",
-      "confidence": number_between_0_and_1
-    }
+----------------------------------------
+CRITICAL INTENT DETECTION RULES (HIGHEST PRIORITY)
+----------------------------------------
 
-    RETURN ONLY JSON. NO EXPLANATION.
-  `;
+1. CONVERSION / TRANSFORMATION INTENT (VERY IMPORTANT):
+If the user says words like:
+- "convert", "draft", "create", "rewrite", "make", "turn this into"
+
+Then classify based on TARGET OUTPUT:
+
+- "email", "send", "reply" → email_insured OR email_contractor depending on audience
+- "contractor", "vendor" → email_contractor
+- "insured", "policyholder" → email_insured
+- "attorney", "counsel" → attorney_response
+- "fnol" → fnol
+- "inspection" → inspection_summary
+- "closing" → closing_note
+- "first contact" → first_contact_note
+
+⚠️ NEVER default to file_note if a conversion intent is present.
+
+----------------------------------------
+AUDIENCE DETECTION (SECOND PRIORITY)
+----------------------------------------
+
+If the request implies communication:
+
+- Mentions contractor/vendor/mitigation → email_contractor
+- Mentions insured/policyholder/customer → email_insured
+- Mentions attorney/law firm/counsel → attorney_response
+
+Examples:
+- "contractor response" → email_contractor
+- "reply to insured" → email_insured
+- "send to attorney" → attorney_response
+
+----------------------------------------
+SPECIALIZED HIGH-CONFIDENCE RULES
+----------------------------------------
+
+FIRST CONTACT NOTE:
+If input includes:
+- initial contact / first contact
+- adjuster introduction
+- verifying details (address, mortgagee, deductible)
+- explaining next steps
+- scheduling inspection
+→ MUST classify as first_contact_note
+
+CLOSING NOTE:
+If input includes:
+- close claim / ready to close
+- no further action
+- below deductible
+- denial completed
+- withdrawn / duplicate / no contact
+→ MUST classify as closing_note
+
+SUPPLEMENT:
+If estimate, pricing, line items, or disputes mentioned → supplement_response
+
+DENIAL:
+If denial / not covered / excluded → denial_support
+
+----------------------------------------
+CONFLICT RESOLUTION RULES
+----------------------------------------
+
+1. Conversion intent ALWAYS overrides everything else
+2. External communication ALWAYS overrides internal note
+3. first_contact_note overrides file_note
+4. closing_note overrides claim_summary
+5. If still unclear → file_note
+
+----------------------------------------
+CONFIDENCE SCORING GUIDE
+----------------------------------------
+- 0.90–0.98 → explicit intent or keywords
+- 0.75–0.89 → strong inferred intent
+- 0.60–0.74 → weak but reasonable guess
+- Default fallback → 0.70
+
+----------------------------------------
+RESPONSE FORMAT (STRICT JSON ONLY)
+----------------------------------------
+{
+  "type": "one_of_the_types",
+  "confidence": number_between_0_and_1
+}
+
+RETURN ONLY JSON. NO EXPLANATION.
+`;
 
     try {
       const raw = await generateFastClassification(systemPrompt, userInput);

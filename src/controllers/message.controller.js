@@ -422,7 +422,7 @@ const createVariantDraft = async (req, res) => {
         let conversationHistory;
         conversationHistory = await ContextService.getRelevantContext(fileId, userInput);
         console.log("--- RAG CONTEXT BEING APPLIED ---");
-        console.log(conversationHistory || "No relevant embeddings found for this input.");
+        console.log(!!conversationHistory || "No relevant embeddings found for this input.");
         console.log("---------------------------------");
 
 
@@ -527,7 +527,7 @@ const createVariantDraft = async (req, res) => {
                 id: turnResult.id,
                 parent_id: turnResult.id,
                 user_input: userInput,
-                variant_label: turnResult.variant_label,
+                variant_label: variantLabel,
                 ai_response: cleanMainContent,
                 output_format: detectedType,
                 next_step_suggestion: nextAction,
