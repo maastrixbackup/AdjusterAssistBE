@@ -443,7 +443,8 @@ const createVariantDraft = async (req, res) => {
 
         console.log(`[VARIANT]: Transforming content to format: ${detectedType}`);
 
-        const extraction = await extractUnifiedContext(userInput, ocrInsights);
+        const extraction = await extractUnifiedContext(parentMessage.user_input, ocrInsights);
+        console.log("[AUDIENCE]: ", extraction.recipient_role)
 
         const fullPayload = await PayloadBuilder.build(file, {
             output_type: variantLabel,
