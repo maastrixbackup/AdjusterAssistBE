@@ -444,7 +444,7 @@ const createVariantDraft = async (req, res) => {
         console.log(`[VARIANT]: Transforming content to format: ${detectedType}`);
 
         const extraction = await extractUnifiedContext(userInput, ocrInsights);
-        let audience = "external"
+        let audience = recipient_role
         console.log("[AUDIENCE]: ", audience)
 
         const fullPayload = await PayloadBuilder.build(file, {
