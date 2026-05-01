@@ -1,10 +1,8 @@
-// utils/responseParser.js
-
 const DEFAULT_NEXT_ACTION = "Continue monitoring the claim.";
 const DEFAULT_SUGGESTIONS = ["Review file", "Contact insured"];
 
 /**
- * STEP 1: Normalize (VERY IMPORTANT)
+ * Normalizes whitespace and characters
  */
 const normalize = (text = "") => {
   return text
@@ -16,22 +14,31 @@ const normalize = (text = "") => {
 };
 
 /**
- * STEP 2: HARD CLEAN (used after extraction)
+ * Strips markdown symbols for clean string comparisons
+ */
+const stripMarkdown = (text = "") => {
+  return text
+    .replace(/(\*\*|__)/g, "")
+    .replace(/[*_~`#]/g, "")
+    .trim();
+};
+
+/**
+ * Cleans the extracted fragment by removing leading verbs and artifacts
  */
 const cleanText = (text = "") => {
+  if (!text) return "";
   let result = text;
 
-  // Remove markdown
-  result = result.replace(/(\*\*|__|[*_~`])/g, "");
+  // Remove markdown symbols and list bullets
+  result = result.replace(/(\*\*|__|[*_~`#])/g, "");
+  result = result.replace(/^\s*[*\-•]+\s*/gm, "");
 
-  // Remove bullets
-  result = result.replace(/^\s*[-•*]+\s*/gm, "");
-
-  // Remove leading junk like ":" "-" "is"
+  // Remove leading punctuation and common "trigger" grammar
   result = result.replace(/^[:\-\s]+/, "");
-  result = result.replace(/^(is\s+to|is\s+|to\s+)/i, "");
+  result = result.replace(/^(is\s+to|is\s+|to\s+|next\s+step\s+is\s+|involves?\s+)/i, "");
 
-  // Fix multiline bullets → sentence
+  // Convert multi-line items into a single comma-separated string
   if (result.includes("\n")) {
     result = result
       .split("\n")
@@ -40,123 +47,85 @@ const cleanText = (text = "") => {
       .join(", ");
   }
 
-  // Normalize spacing
-  result = result
-    .replace(/\n+/g, " ")
-    .replace(/[ ]{2,}/g, " ")
-    .trim();
-
-  return result;
+  return result.replace(/\s+/g, " ").trim();
 };
 
 /**
- * STEP 3: ULTRA-ROBUST NEXT STEP DETECTION
+ * PRIMARY EXTRACTOR
+ * Handles: "**Next Step:** ...", "Next steps involve...", and "# Next Steps"
  */
 const extractNextStep = (text) => {
-  const normalized = normalize(text);
+  if (!text) return "";
 
-  /**
-   * 🔥 STRATEGY:
-   * 1. Try structured section match
-   * 2. Try inline sentence match (VERY IMPORTANT for your bug)
-   * 3. Try loose fallback
-   */
-
-  // =========================
-  // ✅ 1. STRUCTURED BLOCK
-  // =========================
-  const sectionRegex = new RegExp(
-    `(?:^|\\n)\\s*[*\\-•]?\\s*(?:\\*\\*|__)?\\s*(next\\s*steps?|next\\s*step|recommended\\s*action)\\s*:?-?\\s*(?:\\*\\*|__)?\\s*([\\s\\S]*?)(?=\\n\\s*\\n|\\n\\s*[*\\-•]?\\s*(?:\\*\\*|__|#)|$)`,
+  // 1. Check for Structured Headers (e.g., **Next Step:** or # Next Step)
+  // This looks for the label and captures until a double newline or another header
+  const headerLabels = ["next\\s*steps?", "recommended\\s*action", "suggested\\s*next\\s*step"];
+  const headerRegex = new RegExp(
+    `(?:^|\\n)\\s*[*\\-•]?\\s*(?:\\*\\*|__)?\\s*(?:${headerLabels.join("|")})\\s*:?\\s*(?:\\*\\*|__)?\\s*([\\s\\S]*?)(?=\\n\\s*(?:[*\\-•]|\\*\\*|__|#)|\\n\\n|$)`,
     "i"
   );
 
-  const sectionMatch = normalized.match(sectionRegex);
-
-  if (sectionMatch && sectionMatch[2]) {
-    return cleanText(sectionMatch[2]);
+  const headerMatch = text.match(headerRegex);
+  if (headerMatch && headerMatch[1].trim().length > 5) {
+    return cleanText(headerMatch[1]);
   }
 
-  // =========================
-  // ✅ 2. INLINE DETECTION (CRITICAL FIX)
-  // Handles:
-  // "... The next step involves arranging inspection ..."
-  // =========================
-  const inlineRegex = /next\s*step[s]?\s*(?:is|:|-)?\s*(.*?)(?:\.|\n|$)/i;
-
-  const inlineMatch = normalized.match(inlineRegex);
-
-  if (inlineMatch && inlineMatch[1]) {
-    return cleanText(inlineMatch[1]);
-  }
-
-  // =========================
-  // ✅ 3. FALLBACK (STRICT)
-  // =========================
-  const fallback = normalized.match(/next\s*step[s]?\s*[:\-]?\s*(.*)/i);
-
-  if (fallback && fallback[1]) {
-    return cleanText(fallback[1]);
+  // 2. Check for Natural Prose (e.g., "The next steps involve...")
+  const proseRegex = /(?:the\s+)?next\s*step[s]?\s*(?:is|are|involves?|includes?|would\s+be|will\s+be|consist\s+of)\s*[:\-]?\s*(.*?)(?:\. (?=[A-Z])|\n\n|$)/i;
+  const proseMatch = stripMarkdown(text).match(proseRegex);
+  
+  if (proseMatch && proseMatch[1].trim().length > 5) {
+    return cleanText(proseMatch[1]);
   }
 
   return "";
 };
 
 /**
- * SUGGESTIONS (kept simple + strong)
+ * Removes the extracted "Next Step" portion from the main body text
  */
-const extractSuggestions = (text) => {
-  const normalized = normalize(text);
+const removeNextStepFromContent = (content, nextStep) => {
+  if (!nextStep || nextStep === DEFAULT_NEXT_ACTION) return content;
 
-  const match = normalized.match(
-    /(?:suggestions|quick\s*actions|suggested\s*actions)\s*:?\s*([\s\S]*?)(?=\n\s*\n|\n[A-Z]|$)/i
-  );
+  // Create a version of content without markdown to find the index of the next step
+  const strippedContent = stripMarkdown(content);
+  const cleanAction = nextStep.split(',')[0]; // Use first part of action for matching
 
-  if (!match) return [];
+  // If the action text exists in the content, we try to remove the block it belongs to
+  if (strippedContent.includes(cleanAction)) {
+    // This regex identifies the "Next step" block (header + content) for removal
+    const removalPattern = /(?:^|\n)\s*[*\-•]?\s*(?:\*\*|__)?\s*(next\s*steps?|recommended\s*action)[\s\S]*?(?=\n\s*(?:[*\\-•]|\\*\\*|__|#)|$)/gi;
+    const removedHeaderContent = content.replace(removalPattern, "");
+    
+    // If the prose was part of a normal paragraph, we do a direct string replace
+    return removedHeaderContent.replace(nextStep, "").trim();
+  }
 
-  return match[1]
-    .split(/[\|\n,]/)
-    .map(s => cleanText(s))
-    .filter(Boolean);
-};
-
-/**
- * REMOVE SECTIONS FROM MAIN CONTENT
- */
-const removeSections = (text) => {
-  return normalize(text)
-    .replace(
-      /(?:next\s*steps?|recommended\s*action)\s*:?\s*[\s\S]*?(?=\n\s*\n|\n[A-Z]|$)/gi,
-      ""
-    )
-    .replace(
-      /(?:suggestions|quick\s*actions|suggested\s*actions)\s*:?\s*[\s\S]*?(?=\n\s*\n|\n[A-Z]|$)/gi,
-      ""
-    )
-    .trim();
+  return content;
 };
 
 /**
  * MAIN PARSER
  */
 const parseAIResponse = (aiRawResponse = "") => {
-  const text = normalize(aiRawResponse);
+  const normalized = normalize(aiRawResponse);
 
-  let nextAction = extractNextStep(text);
-  let dynamicSuggestions = extractSuggestions(text);
-  const cleanMainContent = removeSections(text);
-
-  // ✅ FINAL FALLBACK (NON-NEGOTIABLE)
-  if (!nextAction || nextAction.length < 5) {
-    nextAction = DEFAULT_NEXT_ACTION;
-  }
-
-  if (!dynamicSuggestions || dynamicSuggestions.length === 0) {
-    dynamicSuggestions = DEFAULT_SUGGESTIONS;
-  }
+  // Extract
+  const nextAction = extractNextStep(normalized) || DEFAULT_NEXT_ACTION;
+  
+  // Clean main body
+  let cleanMainContent = removeNextStepFromContent(normalized, nextAction);
+  
+  // Remove all formatting for UI consistency
+  cleanMainContent = cleanMainContent
+    .replace(/\*\*/g, "")
+    .replace(/__/g, "")
+    .replace(/[ ]{2,}/g, " ")
+    .trim();
 
   return {
     nextAction,
-    dynamicSuggestions,
+    dynamicSuggestions: DEFAULT_SUGGESTIONS,
     cleanMainContent
   };
 };
