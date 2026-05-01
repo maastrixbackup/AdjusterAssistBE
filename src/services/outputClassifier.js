@@ -17,6 +17,17 @@ class ClassifierService {
     if (text.includes("xactanalysis") || text.includes("portal note") || text.includes("xa")) {
       return { type: 'xactanalysis_response', confidence: 0.95, source: 'deterministic' };
     }
+    if (
+      /convert(s|ed)?\s+(this\s+)?to\s+email/.test(text) ||
+      /convert(s|ed)?\s+(this\s+)?into\s+email/.test(text) ||
+      /create\s+(an?\s+)?email/.test(text) ||
+      /write\s+(an?\s+)?email/.test(text) ||
+      /draft\s+(an?\s+)?email/.test(text) ||
+      /send\s+(an?\s+)?email/.test(text) ||
+      /email\s+(this|it)/.test(text)
+    ) {
+      return { type: 'email_insured', confidence: 0.95, source: 'deterministic' };
+    }
 
     // Explicit Denial/Coverage Triggers
     if (text.includes("not covered") || text.includes("denial") || text.includes("exclude")) {
@@ -25,10 +36,6 @@ class ClassifierService {
 
     if (text.includes("shingle count") || text.includes("line item") || text.includes("estimate dispute")) {
       return { type: 'supplement_response', confidence: 0.9, source: 'deterministic' };
-    }
-
-    if (text.includes("into a file note format")) {
-      return { type: 'file_note', confidence: 0.95, source: 'deterministic' };
     }
 
     if (text.includes("into a attorney response format") || text.includes("attorney")) {
@@ -64,11 +71,19 @@ class ClassifierService {
 
     // FIRST CONTACT NOTE triggers (STRICT CLIENT-DEFINED ONLY)
     if (
+      text.includes("initial") &&
+      (text.includes("call") || text.includes("contact"))
+    ) {
+      return { type: 'first_contact_note', confidence: 0.96, source: 'deterministic' };
+    }
+    if (
       text.includes("initial contact") ||
+      text.includes("initial claim") ||
       text.includes("first contact") ||
       text.includes("introduce myself") ||
       text.includes("introduced myself") ||
       text.includes("adjuster introduction") ||
+      text.includes("initial claim call summary") ||
 
       text.includes("verify property address") ||
       text.includes("verified property address") ||
@@ -135,6 +150,11 @@ class ClassifierService {
       text.includes("duplicate claim closed")
     ) {
       return { type: 'closing_note', confidence: 0.95, source: 'deterministic' };
+    }
+
+
+    if (text.includes("into a file note format")) {
+      return { type: 'file_note', confidence: 0.95, source: 'deterministic' };
     }
 
     return null;

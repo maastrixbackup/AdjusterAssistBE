@@ -17,7 +17,7 @@ export const generateAIDraft = async (type, userInput, payload, conversationHist
             payload?.drafting_controls?.markdown_level
         );
         console.log("MARKDOWN LEVEL:", payload?.drafting_controls?.markdown_level);
-        console.log("[MD]: ", markdownInstruction)
+        // console.log("[MD]: ", markdownInstruction)
 
         // 1. Initialize message content with the text prompt
         const userMessageContent = [

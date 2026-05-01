@@ -16,6 +16,7 @@ const { extractAiComponents } = require("../utils/aiExtractor");
 // const { classifyAudience } = require("../services/audienceClassifier.js");
 const { extractClaimContext, extractUnifiedContext } = require("../utils/contextExtractor.js");
 const ContextService = require("../services/context.service.js");
+const { parseAIResponse } = require("../utils/responseParser");
 
 // Example usage in your controller
 const uploadDir = path.join(__dirname, '../uploads');
@@ -288,20 +289,12 @@ const createAIDraft = async (req, res) => {
             extraction.recipient_role
         );
 
-        // 5. Parsing AI Response for metadata
-        let nextAction = "Continue monitoring the claim.";
-        let dynamicSuggestions = ["Review file", "Contact insured"];
 
-        const nextStepMatch = aiRawResponse.match(/(?:next\s*steps?|recommended\s*action):\s*(.*)/i);
-        const suggestionMatch = aiRawResponse.match(/(?:suggestions|quick\s*actions|suggested\s*actions):\s*(.*)/i);
-
-        if (suggestionMatch) dynamicSuggestions = suggestionMatch[1].split('|').map(s => s.trim());
-        if (nextStepMatch) nextAction = nextStepMatch[1].trim();
-
-        const cleanMainContent = aiRawResponse
-            .replace(/(?:next\s*steps?|recommended\s*action):[\s\S]*$/i, '')
-            // .replace(/(?:suggestions|quick\s*actions|suggested\s*actions):[\s\S]*$/i, '')
-            .trim();
+        const {
+            nextAction,
+            dynamicSuggestions,
+            cleanMainContent
+        } = parseAIResponse(aiRawResponse);
 
         // 6. Database Operations - Save Main Message Turn
         let turnResult;
@@ -467,7 +460,7 @@ const createVariantDraft = async (req, res) => {
             audience: extraction.recipient_role,
         });
 
-        let prevInput= parentMessage.user_input
+        let prevInput = parentMessage.user_input
         // console.log("Input:->>", prevInput)
         const aiRawResponse = await aiService.generateAIDraft(
             detectedType,
@@ -477,19 +470,11 @@ const createVariantDraft = async (req, res) => {
             extraction.recipient_role,
         );
 
-        let nextAction = "Continue monitoring the claim.";
-        let dynamicSuggestions = ["Review file", "Contact insured"];
-
-        const nextStepMatch = aiRawResponse.match(/(?:next\s*steps?|recommended\s*action):\s*(.*)/i);
-        const suggestionMatch = aiRawResponse.match(/(?:suggestions|quick\s*actions|suggested\s*actions):\s*(.*)/i);
-
-        if (suggestionMatch) dynamicSuggestions = suggestionMatch[1].split('|').map(s => s.trim());
-        if (nextStepMatch) nextAction = nextStepMatch[1].trim();
-
-        const cleanMainContent = aiRawResponse
-            .replace(/(?:next\s*steps?|recommended\s*action):[\s\S]*$/i, '')
-            // .replace(/(?:suggestions|quick\s*actions|suggested\s*actions):[\s\S]*$/i, '')
-            .trim();
+        const {
+            nextAction,
+            dynamicSuggestions,
+            cleanMainContent
+        } = parseAIResponse(aiRawResponse);
 
         const updateData = {
             ai_response: cleanMainContent,

@@ -29,7 +29,7 @@ const ContextService = {
 
     getRelevantContext: async (fileId, userInput) => {
         try {
-            // 1. Initial Direct Search (Same as before)
+            // 1. Initial Direct Search
             const directEmbeddingResponse = await openai.embeddings.create({
                 model: "text-embedding-3-small",
                 input: userInput,
@@ -42,27 +42,30 @@ const ContextService = {
                 target_claim_id: fileId,
             });
 
-            // 2. The Fallback logic
-            if ((!matches || matches.length === 0)) {
-                console.log("[RAG] RAG Gap detected. Fetching history from claim_messages...");
+            // 2. The Fallback: Detect "Convert/Make/Draft" commands or RAG failure
+            const isConversionCommand = /convert|make|draft|turn|create/i.test(userInput);
 
-                // Fetch 5 most recent messages from claim_messages table
+            if (isConversionCommand || !matches || matches.length === 0) {
+                console.log("[RAG] Short command or RAG Gap detected. Fetching immediate context...");
+
+                // Fetch the last 3-5 messages to satisfy the client's request
                 const { data: historyData, error: historyError } = await supabase
                     .from('claim_messages')
                     .select('user_input, ai_response')
                     .eq('workspace_id', fileId)
                     .order('created_at', { ascending: false })
-                    .limit(3);
+                    .limit(5);
 
                 if (!historyError && historyData && historyData.length > 0) {
-                    // Reverse to put in chronological order (Oldest to Newest)
-                    const history = historyData.reverse();
+                    // This is the most critical part: identifying the "Parent" response
+                    const lastAIResponse = historyData[0].ai_response;
+                    const lastUserInput = historyData[0].user_input;
 
-                    // Rewrite the query
+                    // A. Rewrite query using the history for a second RAG attempt
+                    const history = [...historyData].reverse();
                     const optimizedQuery = await ContextService.rewriteQuery(userInput, history);
-                    console.log("[RAG] Optimized Query for RAG:", optimizedQuery);
+                    console.log("[RAG] Optimised Query: ", optimizedQuery)
 
-                    // Re-embed and Re-search
                     const retryEmbedding = await openai.embeddings.create({
                         model: "text-embedding-3-small",
                         input: optimizedQuery,
@@ -70,12 +73,25 @@ const ContextService = {
 
                     const { data: retryMatches } = await supabase.rpc('match_claim_context', {
                         query_embedding: retryEmbedding.data[0].embedding,
-                        match_threshold: 0.35, // Lower threshold for rewritten queries
-                        match_count: 8,
+                        match_threshold: 0.35,
+                        match_count: 5,
                         target_claim_id: fileId,
                     });
 
-                    matches = retryMatches || [];
+                    // B. Combine Everything: Prioritize the immediate prior turn
+                    const vectorContext = (retryMatches || []).map(m => m.content).join("\n---\n");
+
+                    // We explicitly label the immediate parent so the LLM knows exactly what "this" is
+                    return `
+SOURCE_TEXT_TO_CONVERT:
+"""
+${lastAIResponse}
+"""
+
+ADDITIONAL_CLAIM_FACTS:
+${vectorContext}
+
+INSTRUCTION: Use the SOURCE_TEXT_TO_CONVERT as the primary material for the requested format.`.trim();
                 }
             }
 
