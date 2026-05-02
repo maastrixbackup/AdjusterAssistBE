@@ -3,10 +3,55 @@ const supabase = require('../config/supabase.js');
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
+const MAX_EMBEDDING_CHARS = 3000;
+
+const reWritePrompt = `You are an insurance claim search optimizer.
+
+Convert the user command into a factual claim query using:
+- loss details
+- damaged areas
+- cause of loss
+- claim status
+
+DO NOT include instructions like "convert", "draft", "create".
+
+Return ONLY the factual query.`;
+
+/**
+ * 🔹 Utility: Safe trim for embeddings
+ */
+const trimForEmbedding = (text = "") => {
+    return text.length > MAX_EMBEDDING_CHARS
+        ? text.slice(0, MAX_EMBEDDING_CHARS)
+        : text;
+};
+
+/**
+ * 🔹 Utility: Clean + dedupe context
+ */
+const cleanContext = (texts = []) => {
+    const seen = new Set();
+
+    return texts
+        .map(t => t?.trim())
+        .filter(Boolean)
+        .filter(t => {
+            if (seen.has(t)) return false;
+            seen.add(t);
+            return true;
+        })
+        .join("\n---\n");
+};
+
 const ContextService = {
+
+    /**
+     * 🔹 QUERY REWRITE (IMPROVED)
+     */
     rewriteQuery: async (userInput, history = []) => {
         try {
             const chatContext = history
+                .slice(-5)
                 .map(m => `User: ${m.user_input}\nAI: ${m.ai_response}`)
                 .join("\n\n");
 
@@ -15,40 +60,119 @@ const ContextService = {
                 messages: [
                     {
                         role: "system",
-                        content: "You are an insurance search optimizer. Use the provided chat history to turn the user's latest command into a standalone factual search query. Focus on incident details, dates, and names. Output ONLY the rewritten query."
+                        content: reWritePrompt
                     },
-                    { role: "user", content: `Recent History:\n${chatContext}\n\nUser Command: ${userInput}` }
+                    {
+                        role: "user",
+                        content: `Recent History:\n${chatContext}\n\nUser Command: ${userInput}`
+                    }
                 ],
                 temperature: 0,
             });
-            return response.choices[0].message.content;
+
+            return response.choices[0].message.content?.trim() || userInput;
         } catch (err) {
             return userInput;
         }
     },
 
+    /**
+     * 🔥 MAIN RAG FUNCTION (ENHANCED)
+     */
     getRelevantContext: async (fileId, userInput) => {
         try {
-            // 1. Initial Direct Search
+            // ✅ STEP 0: INTENT DETECTION (NEW)
+            const isConversionIntent =
+                /convert|make|draft|turn|rewrite|format|create/i.test(userInput);
+
+            const isQuestionIntent =
+                /\?|what|should|can|do i|next step|best step|guidance|advise/i.test(userInput.toLowerCase());
+
+            // 👇 THIS WILL CONTROL HOW RAG BEHAVES
+            let ragMode = "default";
+            if (isConversionIntent) ragMode = "conversion";
+            else if (isQuestionIntent) ragMode = "guidance";
+
+            console.log("[ RAG MODE ]:", ragMode);
+
+            /**
+             * ==========================================
+             * 🔹 STEP 1: FETCH RECENT CONTEXT (SMART)
+             * ==========================================
+             */
+            const { data: recentMessages } = await supabase
+                .from('claim_messages')
+                .select('user_input, ai_response')
+                .eq('workspace_id', fileId)
+                .order('created_at', { ascending: false })
+                .limit(3);
+
+            const contextSnippet = (recentMessages || [])
+                .map(m => `${m.user_input} ${m.ai_response}`)
+                .join(" ");
+
+            /**
+             * ==========================================
+             * 🔹 STEP 2: HYBRID QUERY (CLEANED)
+             * ==========================================
+             */
+            let hybridQuery;
+
+            if (ragMode === "conversion") {
+                // 🔥 Conversion = focus on LAST AI OUTPUT (VERY IMPORTANT)
+                hybridQuery = contextSnippet; // ignore userInput noise
+            }
+            else if (ragMode === "guidance") {
+                // 🔥 Guidance = focus on facts + user question
+                hybridQuery = `${userInput} ${contextSnippet}`;
+            }
+            else {
+                // Default behavior
+                hybridQuery = `${userInput} ${contextSnippet}`;
+            }
+            /**
+             * ==========================================
+             * 🔹 STEP 3: PRIMARY VECTOR SEARCH
+             * ==========================================
+             */
             const directEmbeddingResponse = await openai.embeddings.create({
                 model: "text-embedding-3-small",
-                input: userInput,
+                input: hybridQuery,
             });
 
-            let { data: matches, error } = await supabase.rpc('match_claim_context', {
+            let { data: matches } = await supabase.rpc('match_claim_context', {
                 query_embedding: directEmbeddingResponse.data[0].embedding,
                 match_threshold: 0.5,
                 match_count: 5,
                 target_claim_id: fileId,
             });
 
-            // 2. The Fallback: Detect "Convert/Make/Draft" commands or RAG failure
-            const isConversionCommand = /convert|make|draft|turn|create/i.test(userInput);
+            /**
+             * ==========================================
+             * 🔹 STEP 4: FILTER LOW QUALITY MATCHES
+             * ==========================================
+             */
+            if (matches?.length) {
+                matches = matches.filter(m => m.content && m.content.length > 30);
+            }
 
-            if (isConversionCommand || !matches || matches.length === 0) {
-                console.log("[RAG] Short command or RAG Gap detected. Fetching immediate context...");
+            /**
+             * ==========================================
+             * 🔹 STEP 5: WEAK QUERY DETECTION (IMPROVED)
+             * ==========================================
+             */
+            const isWeakQuery =
+                userInput.length < 40 ||
+                ragMode === "conversion";
 
-                // Fetch the last 3-5 messages to satisfy the client's request
+            /**
+             * ==========================================
+             * 🔹 STEP 6: FALLBACK (UNCHANGED CORE)
+             * ==========================================
+             */
+            if (isWeakQuery || !matches || matches.length === 0) {
+                console.log("[RAG] Weak query or no matches. Activating fallback...");
+
                 const { data: historyData, error: historyError } = await supabase
                     .from('claim_messages')
                     .select('user_input, ai_response')
@@ -56,32 +180,71 @@ const ContextService = {
                     .order('created_at', { ascending: false })
                     .limit(5);
 
-                if (!historyError && historyData && historyData.length > 0) {
-                    // This is the most critical part: identifying the "Parent" response
+                if (!historyError && historyData?.length > 0) {
+
                     const lastAIResponse = historyData[0].ai_response;
-                    const lastUserInput = historyData[0].user_input;
+                    if (ragMode === "guidance") {
+                        const contextSnippet = historyData
+                            .map(m => `${m.user_input} ${m.ai_response}`)
+                            .join("\n---\n");
 
-                    // A. Rewrite query using the history for a second RAG attempt
+                        return `
+                            CLAIM_CONTEXT:
+                            ${contextSnippet}
+
+                            USER_QUESTION:
+                            ${userInput}
+
+                            INSTRUCTION:
+                            Answer the question like an experienced adjuster.
+
+                            Structure:
+                            1. Direct answer
+                            2. Reasoning
+                            3. Claim-safe limitation (no coverage commitment)
+                            4. Recommended next step
+
+                            Do NOT convert format.
+                            `.trim();
+                    }
+
+                    /**
+                     * 🔹 STEP 6A: REWRITE QUERY
+                     */
                     const history = [...historyData].reverse();
-                    const optimizedQuery = await ContextService.rewriteQuery(userInput, history);
-                    console.log("[RAG] Optimised Query: ", optimizedQuery)
 
+                    const optimizedQuery = await ContextService.rewriteQuery(
+                        userInput,
+                        history
+                    );
+
+                    console.log("[RAG] Optimized Query:", optimizedQuery);
+
+                    /**
+                     * 🔹 STEP 6B: RETRY VECTOR SEARCH
+                     */
                     const retryEmbedding = await openai.embeddings.create({
                         model: "text-embedding-3-small",
-                        input: optimizedQuery,
+                        input: trimForEmbedding(optimizedQuery),
                     });
 
-                    const { data: retryMatches } = await supabase.rpc('match_claim_context', {
+                    let { data: retryMatches } = await supabase.rpc('match_claim_context', {
                         query_embedding: retryEmbedding.data[0].embedding,
                         match_threshold: 0.35,
                         match_count: 5,
                         target_claim_id: fileId,
                     });
 
-                    // B. Combine Everything: Prioritize the immediate prior turn
-                    const vectorContext = (retryMatches || []).map(m => m.content).join("\n---\n");
+                    /**
+                     * 🔹 STEP 6C: CLEAN CONTEXT
+                     */
+                    const vectorContext = cleanContext(
+                        (retryMatches || []).map(m => m.content)
+                    );
 
-                    // We explicitly label the immediate parent so the LLM knows exactly what "this" is
+                    /**
+                     * 🔹 FINAL RETURN (UNCHANGED STRUCTURE)
+                     */
                     return `
 SOURCE_TEXT_TO_CONVERT:
 """
@@ -95,37 +258,49 @@ INSTRUCTION: Use the SOURCE_TEXT_TO_CONVERT as the primary material for the requ
                 }
             }
 
-            return matches.length > 0 ? matches.map(m => m.content).join("\n---\n") : "";
+            /**
+             * ==========================================
+             * 🔹 STEP 7: RETURN CLEANED MATCHES
+             * ==========================================
+             */
+            return matches?.length
+                ? cleanContext(matches.map(m => m.content))
+                : "";
+
         } catch (error) {
             console.error("RAG Retrieval Error:", error);
             return "";
         }
     },
 
+    /**
+     * 🔹 INGESTION (UNCHANGED, JUST SAFER)
+     */
     ingestMessage: async (fileId, messageId, text) => {
         try {
             if (!text || text.length < 5) return;
 
             const response = await openai.embeddings.create({
                 model: "text-embedding-3-small",
-                input: text,
+                input: trimForEmbedding(text),
             });
+
             const [{ embedding }] = response.data;
 
             const { error } = await supabase.from('claim_embeddings').insert({
-                claim_id: fileId, //// Refers to Workspace ID
+                claim_id: fileId,
                 message_id: messageId,
                 content: text,
                 embedding: embedding
             });
 
             if (error) throw error;
-            console.log(`Successfully ingested message ${messageId} into vector store.`);
+
+            console.log(`✅ Ingested message ${messageId}`);
         } catch (error) {
             console.error("Vector Ingestion Error:", error);
         }
     }
 };
 
-// Export using CommonJS
 module.exports = ContextService;
