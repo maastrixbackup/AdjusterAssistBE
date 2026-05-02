@@ -6,7 +6,7 @@ class ClassifierService {
       'file_note', 'email_insured', 'email_contractor',
       'escalation_response', 'supplement_response', 'coverage_analysis',
       'denial_support', 'claim_summary', 'xactanalysis_response', 'damage_evaluation',
-      'attorney_response', 'fnol', 'inspection_summary', 'first_contact_note', 'closing_note'
+      'attorney_response', 'fnol', 'inspection_summary', 'first_contact_note', 'closing_note', 'claim_guidance'
     ];
   }
 
@@ -14,42 +14,171 @@ class ClassifierService {
   runDeterministicLayer(input) {
     const text = input.toLowerCase();
 
-    if (text.includes("xactanalysis") || text.includes("portal note") || text.includes("xa")) {
+    // 🔥 XACTANALYSIS / PORTAL NOTE DETECTION (IMPROVED)
+    if (
+      // Direct keywords
+      text.includes("xactanalysis") ||
+      text.includes("xact analysis") ||
+      text.includes("xactimate") ||
+      text.includes("xa note") ||
+      text.includes("xa update") ||
+
+      // Portal / system note intent
+      text.includes("portal note") ||
+      text.includes("portal update") ||
+      text.includes("add note to portal") ||
+      text.includes("update portal") ||
+
+      // Action-based detection
+      (
+        (text.includes("note") || text.includes("update")) &&
+        (
+          text.includes("xact") ||
+          text.includes("xa") ||
+          text.includes("estimate system") ||
+          text.includes("carrier portal")
+        )
+      ) ||
+      /\bxa\b/.test(text)
+    ) {
       return { type: 'xactanalysis_response', confidence: 0.95, source: 'deterministic' };
     }
+
+    // 🔥 HELP ROOM / GUIDANCE DETECTION (HIGHEST PRIORITY)
+    if (
+      text.includes("?") &&
+      (
+        text.includes("should i") ||
+        text.includes("can i") ||
+        text.includes("do i") ||
+        text.includes("am i") ||
+        text.includes("is it") ||
+        text.includes("what should") ||
+        text.includes("when should") ||
+        text.includes("how should") ||
+        text.includes("wait or") ||
+        text.includes("or wait") ||
+        text.includes("assign") ||
+        text.includes("proceed") ||
+        text.includes("next step") ||
+        text.includes("what is best") ||
+        text.includes("what is the next step") ||
+        text.includes("guidance") ||
+        text.includes("or should")
+      )
+    ) {
+      return { type: 'claim_guidance', confidence: 0.98, source: 'deterministic' };
+    }
+
+
+
+    // GENERIC EMAIL CONVERSION (SMART TARGETING)
     if (
       /convert(s|ed)?\s+(this\s+)?to\s+email/.test(text) ||
       /convert(s|ed)?\s+(this\s+)?into\s+email/.test(text) ||
       /create\s+(an?\s+)?email/.test(text) ||
       /write\s+(an?\s+)?email/.test(text) ||
       /draft\s+(an?\s+)?email/.test(text) ||
-      /send\s+(an?\s+)?email/.test(text) ||
-      /email\s+(this|it)/.test(text)
+      /email\s+(to|for)\s+(the\s+)?insured/.test(text) ||
+      /send\s+(an?\s+)?email\s+to\s+(the\s+)?insured/.test(text) ||
+      /reply\s+to\s+(the\s+)?insured/.test(text) ||
+      /respond\s+to\s+(the\s+)?insured/.test(text)
     ) {
+      // If contractor context exists → contractor email
+      if (
+        text.includes("contractor") ||
+        text.includes("vendor") ||
+        text.includes("mitigation")
+      ) {
+        return { type: 'email_contractor', confidence: 0.95, source: 'deterministic' };
+      }
+
       return { type: 'email_insured', confidence: 0.95, source: 'deterministic' };
     }
 
+    // CONTRACTOR / VENDOR RESPONSE (ENHANCED)
     if (
-      text.includes("contractor response") ||
-      text.includes("reply to contractor") ||
-      text.includes("email contractor") ||
-      text.includes("send to contractor") ||
-      text.includes("to contractor") ||
-      text.includes("vendor response")
+      (text.includes("contractor") || text.includes("vendor") || text.includes("mitigation"))
     ) {
-      return { type: 'email_contractor', confidence: 0.92, source: 'deterministic' };
+      let score = 0;
+
+      // 🔹 Financial / estimate signals
+      if (
+        text.includes("estimate") ||
+        text.includes("invoice") ||
+        text.includes("scope") ||
+        text.includes("pricing") ||
+        text.includes("bid") ||
+        text.includes("supplement")
+      ) {
+        score += 1;
+      }
+
+      // 🔹 Action / communication intent
+      if (
+        text.includes("respond") ||
+        text.includes("response") ||
+        text.includes("reply") ||
+        text.includes("email") ||
+        text.includes("send") ||
+        text.includes("create") ||
+        text.includes("draft") ||
+        text.includes("appropriate response")
+      ) {
+        score += 1;
+      }
+
+      // 🔹 Submission / request signals
+      if (
+        text.includes("submitted") ||
+        text.includes("requested") ||
+        text.includes("provided") ||
+        text.includes("sent")
+      ) {
+        score += 1;
+      }
+
+      if (score >= 2) {
+        return { type: 'email_contractor', confidence: 0.95, source: 'deterministic' };
+      }
     }
-    // Explicit Denial/Coverage Triggers
+
+
+    if (text.includes("into a attorney response format") || text.includes("attorney") || text.includes("counsel") || text.includes("law firm") || text.includes("legal response") || text.includes("to attorney")) {
+      return { type: 'attorney_response', confidence: 0.95, source: 'deterministic' };
+    }
+
     if (text.includes("not covered") || text.includes("denial") || text.includes("exclude")) {
       return { type: 'denial_support', confidence: 0.9, source: 'deterministic' };
     }
 
-    if (text.includes("shingle count") || text.includes("line item") || text.includes("estimate dispute")) {
-      return { type: 'supplement_response', confidence: 0.9, source: 'deterministic' };
+    if (text.includes("to contractor") || text.includes("for contractor")) {
+      return { type: 'email_contractor', confidence: 0.98, source: 'deterministic' };
     }
 
-    if (text.includes("into a attorney response format") || text.includes("attorney")) {
-      return { type: 'attorney_response', confidence: 0.95, source: 'deterministic' };
+    if (
+      text.includes("supplement") ||
+      text.includes("public adjuster") ||
+      text.includes("pa submitted") ||
+      text.includes("pa request") ||
+      text.includes("pa estimate") ||
+      text.includes("contractor estimate") ||
+      text.includes("supplement request") ||
+      text.includes("revised estimate") ||
+      text.includes("additional scope") ||
+      text.includes("scope dispute") ||
+      text.includes("dispute estimate") ||
+      text.includes("pricing dispute") ||
+      text.includes("full replacement") ||
+      text.includes("replace entire") ||
+      text.includes("requested full") ||
+      text.includes("over scope") ||
+      text.includes("shingle count") ||
+      text.includes("line item") ||
+      text.includes("beyond observed damage") ||
+      text.includes("estimate exceeds")
+    ) {
+      return { type: 'supplement_response', confidence: 0.95, source: 'deterministic' };
     }
 
     if (text.includes("into a email format")) {
@@ -167,6 +296,36 @@ class ClassifierService {
       return { type: 'file_note', confidence: 0.95, source: 'deterministic' };
     }
 
+    // SMART INFERENCE: "appropriate response" / "create response"
+    if (text.includes("appropriate response") || text.includes("create the appropriate response") || text.includes("create response")) {
+      // Contractor / Vendor present → email_contractor
+      if (
+        text.includes("contractor") ||
+        text.includes("vendor") ||
+        text.includes("mitigation")
+      ) {
+        return { type: 'email_contractor', confidence: 0.93, source: 'inferred' };
+      }
+
+      // Public Adjuster / Supplement context → supplement_response
+      if (
+        text.includes("public adjuster") ||
+        text.includes("pa ") ||
+        text.includes("supplement")
+      ) {
+        return { type: 'supplement_response', confidence: 0.93, source: 'inferred' };
+      }
+
+      // Insured → email_insured
+      if (
+        text.includes("insured") ||
+        text.includes("policyholder") ||
+        text.includes("customer")
+      ) {
+        return { type: 'email_insured', confidence: 0.9, source: 'inferred' };
+      }
+    }
+
     return null;
   }
 
@@ -195,10 +354,14 @@ TYPES & INTENT (DO NOT MODIFY DEFINITIONS)
 - inspection_summary: Structured inspection findings and observations.
 - first_contact_note: Initial adjuster contact with insured including introduction, verification, reported damages, mitigation/inspection steps, and next actions.
 - closing_note: Final internal documentation indicating claim closure, completion, denial, withdrawal, or no further action.
+- claim_guidance: Adjuster help-room response where the user is asking a question or seeking guidance (e.g., "should I", "what should I do", "can I proceed"). This is NOT a drafting request.
 
 ----------------------------------------
 CRITICAL INTENT DETECTION RULES (HIGHEST PRIORITY)
 ----------------------------------------
+0. GUIDANCE / QUESTION INTENT (HIGHEST PRIORITY):
+If the user is asking a question (contains "?" or phrases like "should I", "can I", "what should", "how should", "wait or", "proceed or"):
+→ MUST classify as claim_guidance
 
 1. CONVERSION / TRANSFORMATION INTENT (VERY IMPORTANT):
 If the user says words like:
@@ -255,7 +418,7 @@ If input includes:
 → MUST classify as closing_note
 
 SUPPLEMENT:
-If estimate, pricing, line items, or disputes mentioned → supplement_response
+If estimate, pricing, line items, suppliment or disputes mentioned → supplement_response
 
 DENIAL:
 If denial / not covered / excluded → denial_support
