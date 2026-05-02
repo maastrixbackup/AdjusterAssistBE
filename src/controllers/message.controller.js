@@ -17,6 +17,7 @@ const { extractAiComponents } = require("../utils/aiExtractor");
 const { extractClaimContext, extractUnifiedContext } = require("../utils/contextExtractor.js");
 const ContextService = require("../services/context.service.js");
 const { parseAIResponse } = require("../utils/responseParser");
+const { refinementMap } = require("../utils/prompt.js");
 
 // Example usage in your controller
 const uploadDir = path.join(__dirname, '../uploads');
@@ -585,13 +586,6 @@ const refineAIDraft = async (req, res) => {
         if (!file) return res.status(404).json({ message: "Workspace not found." });
 
         // 3. Define Refinement Logic (Guardrails)
-        const refinementMap = {
-            shorten: "Be extremely concise. Remove introductory fluff. Focus only on the core facts and requirements.",
-            formal: "Use high-level professional adjuster language. Replace casual phrasing with industry-standard terminology.",
-            attorney_facing: "Ensure the tone is objective, fact-based, and legally defensible. Focus on policy compliance and documented evidence.",
-            firm: "Adopt a decisive tone. State requirements or positions clearly without using soft language like 'we think' or 'perhaps'.",
-            doi_safe: "Ensure language complies with Department of Insurance standards. Use transparent, non-ambiguous terms and include necessary disclosures."
-        };
 
         const specificRule = refinementMap[refinementType] || "Improve the clarity and professionalism of the text.";
 

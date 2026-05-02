@@ -70,6 +70,41 @@ class ClassifierService {
       return { type: 'claim_guidance', confidence: 0.98, source: 'deterministic' };
     }
 
+    if (
+      (
+        text.includes("insured") ||
+        text.includes("policyholder") ||
+        text.includes("customer") ||
+        text.includes("claimant")
+      ) &&
+      (
+        text.includes("asked") ||
+        text.includes("request") ||
+        text.includes("requested") ||
+        text.includes("wants") ||
+        text.includes("needs") ||
+        text.includes("follow up") ||
+        text.includes("follow-up") ||
+        text.includes("question") ||
+        text.includes("update") ||
+        text.includes("status") ||
+        text.includes("called") ||
+        text.includes("inquired") ||
+        text.includes("checking")
+      ) &&
+      (
+        text.includes("respond") ||
+        text.includes("response") ||
+        text.includes("reply") ||
+        text.includes("email") ||
+        text.includes("send") ||
+        text.includes("create") ||
+        text.includes("draft") ||
+        text.includes("appropriate response")
+      )
+    ) {
+      return { type: 'email_insured', confidence: 0.95, source: 'deterministic' };
+    }
 
 
     // GENERIC EMAIL CONVERSION (SMART TARGETING)

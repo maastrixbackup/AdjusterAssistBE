@@ -30,7 +30,7 @@ class PayloadBuilder {
 
             length: "standard",
             format: "paragraph",
-            
+
             markdown_level: "none",
             allow_softening: true,
             allow_direct_request_language: true,
@@ -49,7 +49,7 @@ class PayloadBuilder {
 
             length: "short",
             format: "paragraph",
-            
+
             markdown_level: "none",
             allow_softening: false,
             allow_direct_request_language: true,
@@ -140,7 +140,7 @@ class PayloadBuilder {
 
             length: "standard",
             format: "paragraph",
-            
+
             markdown_level: "none",
             allow_softening: true,
             allow_direct_request_language: false,
@@ -276,6 +276,37 @@ class PayloadBuilder {
             must_avoid: ["unsupported_coverage_conclusions", "new_facts_not_in_record", "customer_service_language", "salutation", "closing_signature", "legal_advice"],
             special_instructions: "Generate a concise internal claim closing note. Use only known facts from the claim thread, user input, documents, or OCR context. Clearly state why the claim is being closed or what status supports closure. If any information is missing, state only what is pending or unknown. Do not invent missing details. Keep wording neutral, factual, and claim-file ready"
         },
+        "claim_guidance": {
+            audience: "internal",
+            recipient_role: "adjuster",
+            tone_override: "professional_adjuster_guidance",
+            purpose: "claim_handling_guidance",
+            greeting: false,
+            closing: false,
+
+            length: "medium",
+            format: "structured_guidance",
+            markdown_level: "structured",
+            allow_softening: false,
+            allow_direct_request_language: true,
+            preserve_user_facts_verbatim: true,
+            must_include: [
+                "Guidance",
+                "Claim Handling Rationale",
+                "Claim-Safe Limitation",
+                "Recommended Next Step"
+            ],
+            must_avoid: [
+                "email format",
+                "file note format",
+                "greetings",
+                "sign-offs",
+                "coverage confirmation",
+                "payment confirmation"
+            ],
+            special_instructions: `This is a guidance response. Do NOT convert into any document format. Answer the question directly using claim facts.`
+
+        },
     };
 
     static build(file, { output_type, inputText, claim_facts, ocrData, userInfo, files, audience }) {
@@ -383,20 +414,20 @@ class PayloadBuilder {
         // 1. Enhanced System Instruction
         const systemInstruction = `
         You are a Senior Insurance Claims Specialist and Editor.
-        TASK: Transform the "ORIGINAL CONTENT" based ONLY on the "REFINEMENT RULE".
+                TASK: Transform the "ORIGINAL CONTENT" based ONLY on the "REFINEMENT RULE".
         
         STRICT OPERATIONAL DIRECTIVES:
-        - CONTEXT LOCK: Do not invent new damages, dates, or claim facts. 
+                - CONTEXT LOCK: Do not invent new damages, dates, or claim facts. 
         - DATA INTEGRITY: Preserve all names, claim numbers, and financial figures exactly as they appear.
         - NO INTRODUCTIONS: Do not say "Here is the refined version" or "As an attorney-facing document...". 
         - OUTPUT ONLY: Provide the edited text and nothing else.
         
         REFINEMENT STYLE GUIDE:
-        - shorten: Remove wordiness. Focus on the 'Bottom Line'.
-        - formal: Use passive voice where appropriate and industry terminology (e.g., "Correspondence" instead of "Letter").
+                - shorten: Remove wordiness.Focus on the 'Bottom Line'.
+        - formal: Use passive voice where appropriate and industry terminology(e.g., "Correspondence" instead of "Letter").
         - attorney_facing: Focus on policy citations, factual evidence, and objective observations to withstand legal scrutiny.
-        - firm: Use decisive language. Replace "we might consider" with "the position remains".
-        - doi_safe: Ensure compliance with Department of Insurance standards; use neutral, transparent, and non-prejudicial language.
+        - firm: Use decisive language.Replace "we might consider" with "the position remains".
+        - doi_safe: Ensure compliance with Department of Insurance standards; use neutral, transparent, and non- prejudicial language.
     `;
 
         // 2. Structured Prompt
@@ -404,13 +435,13 @@ class PayloadBuilder {
         [REFINEMENT RULE]
         ${rule}
 
-        [ORIGINAL CONTENT TO BE TRANSFORMED]
-        """
+[ORIGINAL CONTENT TO BE TRANSFORMED]
+"""
         ${originalContent}
-        """
+"""
 
-        [TRANSFORMED TEXT]
-    `;
+[TRANSFORMED TEXT]
+`;
 
         // 3. Return the payload with history if available
         return {
