@@ -1,5 +1,5 @@
 import OpenAI from "openai";
-import { adjusterPrompt, getAudienceInstruction, getFormatInstruction, getMarkdownInstruction } from "../utils/prompt.js";
+import { adjusterPrompt, guidancePrompt ,getAudienceInstruction, getFormatInstruction, getMarkdownInstruction } from "../utils/prompt.js";
 import { getAppliedGuardrails } from "../utils/guardrails.js";
 import fs from 'fs';
 
@@ -18,13 +18,14 @@ export const generateAIDraft = async (type, userInput, payload, conversationHist
         const formatStyle = getFormatInstruction(type);
         const guardrailInjection = getAppliedGuardrails(userInput);
         const audienceInstruction = getAudienceInstruction(audienceType);
-        const markdownInstruction = getMarkdownInstruction(
-            payload?.drafting_controls?.markdown_level
-        );
+        const markdownInstruction =
+            type === "claim_guidance"
+                ? "Use clean paragraphs. Avoid heavy markdown, bullets only if necessary."
+                : getMarkdownInstruction(payload?.drafting_controls?.markdown_level);
+
         console.log("MARKDOWN LEVEL:", payload?.drafting_controls?.markdown_level);
         // console.log("[MD]: ", markdownInstruction)
 
-        // 1. Initialize message content with the text prompt
         const userMessageContent = [
             {
                 type: "text",
@@ -32,9 +33,13 @@ export const generateAIDraft = async (type, userInput, payload, conversationHist
             }
         ];
 
+        const basePrompt = type === "claim_guidance"
+            ? guidancePrompt
+            : adjusterPrompt;
+
         const systemMessage = `
         ### ROLE & CORE LOGIC
-        ${adjusterPrompt}
+        ${basePrompt}
 
         ### SAFETY & COMPLIANCE
         ${guardrailInjection}

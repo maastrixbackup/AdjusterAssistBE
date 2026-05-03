@@ -139,60 +139,60 @@ module.exports = {
 };
 
 
-const testCases = [
-  {
-    name: "Standard Markdown Header",
-    input: `The claim is under review.
+// const testCases = [
+//   {
+//     name: "Standard Markdown Header",
+//     input: `The claim is under review.
     
-**Next Step:**
-Arrange an inspection to assess the kitchen floor damage.
+// **Next Step:**
+// Arrange an inspection to assess the kitchen floor damage.
 
-Please let us know if you have questions.`
-  },
-  {
-    name: "Natural Prose (Inside Paragraph)",
-    input: `We have received your report regarding the refrigerator leak. The next steps involve arranging an inspection to thoroughly assess the reported damages. We also request that any outstanding documentation be provided.`
-  },
-  {
-    name: "Bullet Point Next Steps",
-    input: `Coverage verification is underway.
+// Please let us know if you have questions.`
+//   },
+//   {
+//     name: "Natural Prose (Inside Paragraph)",
+//     input: `We have received your report regarding the refrigerator leak. The next steps involve arranging an inspection to thoroughly assess the reported damages. We also request that any outstanding documentation be provided.`
+//   },
+//   {
+//     name: "Bullet Point Next Steps",
+//     input: `Coverage verification is underway.
     
-**Recommended Actions:**
-* Contact the tenant
-* Schedule a plumber
-* Review the policy deductible`
-  },
-  {
-    name: "Lowercase Trigger Phrase",
-    input: `Initial review is complete. next step is to request the photos of the basement ceiling from the insured immediately.`
-  },
-  {
-    name: "Multiple Sections with Markdown",
-    input: `### Claim Summary
-The water line disconnected.
+// **Recommended Actions:**
+// * Contact the tenant
+// * Schedule a plumber
+// * Review the policy deductible`
+//   },
+//   {
+//     name: "Lowercase Trigger Phrase",
+//     input: `Initial review is complete. next step is to request the photos of the basement ceiling from the insured immediately.`
+//   },
+//   {
+//     name: "Multiple Sections with Markdown",
+//     input: `### Claim Summary
+// The water line disconnected.
 
-### Next Steps
-1. Document the damage.
-2. Confirm the deductible.
+// ### Next Steps
+// 1. Document the damage.
+// 2. Confirm the deductible.
 
-### Suggestions
-Review file | Contact insured`
-  },
-  {
-    name: "Edge Case: Empty/Minimal Response",
-    input: "Next step: Call Riyan."
-  }
-];
+// ### Suggestions
+// Review file | Contact insured`
+//   },
+//   {
+//     name: "Edge Case: Empty/Minimal Response",
+//     input: "Next step: Call Riyan."
+//   }
+// ];
 
-// Execution loop
-console.log("--- Starting Parser Tests ---\n");
+// // Execution loop
+// console.log("--- Starting Parser Tests ---\n");
 
-testCases.forEach((test, index) => {
-  const result = parseAIResponse(test.input);
+// testCases.forEach((test, index) => {
+//   const result = parseAIResponse(test.input);
 
-  console.log(`Test #${index + 1}: ${test.name}`);
-  console.log(`[Next Action]: ${result.nextAction}`);
-  console.log(`[Main Content Length]: ${result.cleanMainContent.length} chars`);
-  console.log(`[Snippet]: ${result.cleanMainContent.substring(0, 50)}...`);
-  console.log("-----------------------------------\n");
-});
+//   console.log(`Test #${index + 1}: ${test.name}`);
+//   console.log(`[Next Action]: ${result.nextAction}`);
+//   console.log(`[Main Content Length]: ${result.cleanMainContent.length} chars`);
+//   console.log(`[Snippet]: ${result.cleanMainContent.substring(0, 50)}...`);
+//   console.log("-----------------------------------\n");
+// });
