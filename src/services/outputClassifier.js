@@ -46,7 +46,7 @@ class ClassifierService {
 
     // 🔥 HELP ROOM / GUIDANCE DETECTION (HIGHEST PRIORITY)
     if (
-      text.includes("?") &&
+      text.includes("?") ||
       (
         text.includes("should i") ||
         text.includes("can i") ||
