@@ -65,7 +65,7 @@ SIGNATURE & IDENTITY RULE (CRITICAL)
 - DO NOT include any signature block
 - DO NOT include names, job titles, or company branding
 - DO NOT include email addresses or phone numbers
-- DO NOT include "Regards", "Sincerely", or similar closings with identity
+- DO NOT include "Regards", "Sincerely", or similar closings with identity or any placeholder
 - End the response cleanly after the final sentence
 
 Signature must remain blank unless explicitly provided by the user.
