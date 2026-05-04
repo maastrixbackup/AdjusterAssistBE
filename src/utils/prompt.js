@@ -222,6 +222,11 @@ Must include:
   → “we can review”
   → “we will take a look”
   → “it appears”
+  → "at your earliest convenience"
+  → "your cooperation"
+  → "help expedite this process"
+  → "overly friendly closing language"
+  
 
 Writing requirements:
 - Keep the tone firm, professional, and operational
