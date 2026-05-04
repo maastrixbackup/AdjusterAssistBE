@@ -72,7 +72,6 @@ Output must be professional, structured, and suitable for a claim file and avoid
 
 
 
-
 export const getFormatInstruction = (type) => {
   const style = type?.toUpperCase();
 
@@ -922,6 +921,7 @@ CRITICAL RULES (NON-NEGOTIABLE)
 - DO NOT introduce new facts
 - DO NOT change claim meaning or intent
 - DO NOT remove required sections (if present)
+- DO NOT change section headings or numbering
 - PRESERVE structure, headings, and formatting
 - ONLY modify tone, clarity, or length as instructed
 - KEEP markdown formatting intact
