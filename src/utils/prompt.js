@@ -921,7 +921,7 @@ CRITICAL RULES (NON-NEGOTIABLE)
 - DO NOT introduce new facts
 - DO NOT change claim meaning or intent
 - DO NOT remove required sections (if present)
-- DO NOT change section headings or numbering
+- DO NOT change section headings or numbering and donot add any refine as heading
 - PRESERVE structure, headings, and formatting
 - ONLY modify tone, clarity, or length as instructed
 - KEEP markdown formatting intact

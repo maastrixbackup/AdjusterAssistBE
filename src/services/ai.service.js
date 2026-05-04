@@ -153,7 +153,7 @@ export const refineAIDraft = async ({
         const refinementInstruction = refinementMap[refinementType];
 
         if (refinementInstruction) {
-            console.log("[REFINEMENT]: ", refinementType)
+            console.log("[REFINEMENT] Instructions for: ", refinementType)
         }else{
             console.log("[REFINEMENT]: Invalid type: ", refinementType)
         }

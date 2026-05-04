@@ -578,8 +578,6 @@ const refineAIDraft = async (req, res) => {
             });
         }
 
-
-
         // 2. Fetch Parent Context
         const parentMessage = await Message.findById(parentMessageId);
         if (!parentMessage) {
@@ -591,8 +589,6 @@ const refineAIDraft = async (req, res) => {
         const file = await File.findById(fileId);
         if (!file) return res.status(404).json({ message: "Workspace not found." });
 
-        // 3. Refinement Rule
-        const specificRule = refinementMap[refinementType] || BASE_REFINEMENT_RULES;
 
         const extraction = await extractUnifiedContext(
             parentMessage.user_input,
@@ -600,12 +596,6 @@ const refineAIDraft = async (req, res) => {
         );
 
         console.log("[AUDIENCE]: ", extraction.recipient_role);
-
-        const fullPayload = await PayloadBuilder.buildRefinementPayload({
-            originalContent: userInput || parentMessage.ai_response,
-            rule: specificRule
-        });
-
 
         // 🔥 ✅ ONLY CHANGE: USE REFINEMENT SERVICE
         console.log(`[REFINE]: Applying '${refinementType}' logic to Message ${parentMessageId}`);
