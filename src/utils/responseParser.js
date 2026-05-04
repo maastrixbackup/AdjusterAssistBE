@@ -1,4 +1,4 @@
-const DEFAULT_NEXT_ACTION = "Continue monitoring the claim.";
+const DEFAULT_NEXT_ACTION = "Request supporting documentation from the contractor and proceed with inspection to verify the source, scope, and extent of damages.";
 const DEFAULT_SUGGESTIONS = ["Review file", "Contact insured"];
 
 /**

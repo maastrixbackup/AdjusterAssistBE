@@ -41,6 +41,6 @@ export const extractAiComponents = (rawResponse) => {
 
     return {
         cleanContent: cleanContent || rawResponse,
-        nextStep: nextStep || "Continue monitoring the claim."
+        nextStep: nextStep || "Request supporting documentation from the contractor and proceed with inspection to verify the source, scope, and extent of damages"
     };
 };

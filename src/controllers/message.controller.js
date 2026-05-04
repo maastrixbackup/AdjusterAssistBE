@@ -618,7 +618,7 @@ const refineAIDraft = async (req, res) => {
             aiRawResponse: aiRawResponse,
             refinement_type: refinementType,
             activity_type: 'ai_refinement',
-            next_step_suggestion: nextAction || "Continue monitoring draft.",
+            next_step_suggestion: nextAction || "Request supporting documentation from the contractor and proceed with inspection to verify the source, scope, and extent of damages",
             metadata: {
                 ...parentMessage.metadata,
                 last_refinement_action: refinementType,
@@ -642,7 +642,7 @@ const refineAIDraft = async (req, res) => {
             ai_response: aiRawResponse,
             output_type: parentMessage.content_type,
             execution_time_ms: Date.now() - startTime,
-            next_step_suggestion: nextAction || "Continue monitoring draft.",
+            next_step_suggestion: nextAction || "Request supporting documentation from the contractor and proceed with inspection to verify the source, scope, and extent of damages",
             metadata: { is_refinement: true, action: refinementType, model: "gpt-4o" },
             payload: fullPayload
         }]);

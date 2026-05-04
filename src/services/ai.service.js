@@ -20,7 +20,7 @@ export const generateAIDraft = async (type, userInput, payload, conversationHist
         const audienceInstruction = getAudienceInstruction(audienceType);
         const markdownInstruction =
             type === "claim_guidance"
-                ? "Use clean paragraphs. Avoid heavy markdown, bullets only if necessary."
+                ? "Use clean paragraphs. Avoid heavy markdown, bullets and bold only if necessary."
                 : getMarkdownInstruction(payload?.drafting_controls?.markdown_level);
 
         console.log("MARKDOWN LEVEL:", payload?.drafting_controls?.markdown_level);
