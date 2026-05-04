@@ -917,12 +917,12 @@ Use safe language like:
 - "subject to inspection and documentation"
 - "based on current information"
 
-**4. Recommended Next Step:**
-Give a clear, actionable next step.
 
-5. **Suggested File Note: ** (OPTIONAL but Appriciate):
+4. **Suggested File Note: ** (OPTIONAL but Appriciate):
 Provide a short internal note ONLY as a secondary section with Label "Suggested File Note: ".
 
+5. **Next Step:**
+Give a clear, actionable next step.
 
 ### CLAIM HANDLING PRIORITY LOGIC (CRITICAL)
 

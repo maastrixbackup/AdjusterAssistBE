@@ -23,6 +23,14 @@ const { refinementMap, BASE_REFINEMENT_RULES } = require("../utils/prompt.js");
 const uploadDir = path.join(__dirname, '../uploads');
 
 
+const updateWorkspaceActivity = async (fileId) => {
+    await supabase
+        .from("files")
+        .update({ last_activity_at: new Date().toISOString() })
+        .eq("id", fileId);
+};
+
+
 const testCreateMessage = async (req, res) => {
     try {
         const { workspace_id, user_input, image_input_url } = req.body;
@@ -322,6 +330,7 @@ const createAIDraft = async (req, res) => {
                     audience: extraction.recipient_role
                 }
             });
+            await updateWorkspaceActivity(fileId);
             ContextService.ingestMessage(fileId, turnResult.id, userInput);
             ContextService.ingestMessage(fileId, turnResult.id, aiRawResponse);
             console.log("Message turn Saved with ID: ", turnResult.id);
@@ -507,7 +516,7 @@ const createVariantDraft = async (req, res) => {
             activity_type: 'ai_variant',
             updated_at: new Date().toISOString()
         };
-
+        await updateWorkspaceActivity(fileId);
         const turnResult = await Message.updateById(parentMessageId, updateData);
         await ContextService.ingestMessage(fileId, turnResult.id, aiRawResponse);
 
@@ -628,6 +637,8 @@ const refineAIDraft = async (req, res) => {
             },
             updated_at: new Date().toISOString()
         };
+        
+        await updateWorkspaceActivity(fileId);
 
         const turnResult = await Message.updateById(parentMessageId, refinementUpdate);
         ContextService.ingestMessage(fileId, turnResult.id, aiRawResponse);
@@ -644,7 +655,7 @@ const refineAIDraft = async (req, res) => {
             execution_time_ms: Date.now() - startTime,
             next_step_suggestion: nextAction || "Request supporting documentation from the contractor and proceed with inspection to verify the source, scope, and extent of damages",
             metadata: { is_refinement: true, action: refinementType, model: "gpt-4o" },
-            payload: fullPayload
+            // payload: fullPayload
         }]);
 
         await Subscription.incrementUsage(userId);
@@ -670,6 +681,7 @@ const refineAIDraft = async (req, res) => {
         res.status(500).json({ success: false, message: "Refinement failed." });
     }
 };
+
 
 module.exports = {
     testCreateMessage,
