@@ -17,10 +17,18 @@ const { extractAiComponents } = require("../utils/aiExtractor");
 const { extractClaimContext, extractUnifiedContext } = require("../utils/contextExtractor.js");
 const ContextService = require("../services/context.service.js");
 const { parseAIResponse } = require("../utils/responseParser");
-const { refinementMap } = require("../utils/prompt.js");
+const { refinementMap, BASE_REFINEMENT_RULES } = require("../utils/prompt.js");
 
 // Example usage in your controller
 const uploadDir = path.join(__dirname, '../uploads');
+
+
+const updateWorkspaceActivity = async (fileId) => {
+    await supabase
+        .from("files")
+        .update({ last_activity_at: new Date().toISOString() })
+        .eq("id", fileId);
+};
 
 
 const testCreateMessage = async (req, res) => {
@@ -309,6 +317,7 @@ const createAIDraft = async (req, res) => {
                 image_input_url: primaryImageUrl,
                 doccuments_url: documentUrl,
                 ai_response: cleanMainContent,
+                aiRawResponse: aiRawResponse,
                 ocrInsights: ocrInsights,
                 content_type: detectedType,
                 claim_state: file.claim_stage || 'review pending',
@@ -321,6 +330,7 @@ const createAIDraft = async (req, res) => {
                     audience: extraction.recipient_role
                 }
             });
+            await updateWorkspaceActivity(fileId);
             ContextService.ingestMessage(fileId, turnResult.id, userInput);
             ContextService.ingestMessage(fileId, turnResult.id, aiRawResponse);
             console.log("Message turn Saved with ID: ", turnResult.id);
@@ -463,7 +473,7 @@ const createVariantDraft = async (req, res) => {
             audience: audience,
         });
 
-        const transformInstruction =`Convert this to ${variantLabel}`;
+        const transformInstruction = `Convert this to ${variantLabel}`;
         const baseContent = parentMessage.ai_response;
 
         const combinedInput = `
@@ -475,7 +485,7 @@ const createVariantDraft = async (req, res) => {
 
         inputText: combinedInput
         let prevInput = combinedInput;
-        
+
         const aiRawResponse = await aiService.generateAIDraft(
             detectedType,
             combinedInput,
@@ -492,6 +502,7 @@ const createVariantDraft = async (req, res) => {
 
         const updateData = {
             ai_response: cleanMainContent,
+            aiRawResponse: aiRawResponse,
             content_type: variantLabel.toLowerCase().replace(/\s+/g, '_'),
             metadata: {
                 ...parentMessage.metadata,
@@ -505,7 +516,7 @@ const createVariantDraft = async (req, res) => {
             activity_type: 'ai_variant',
             updated_at: new Date().toISOString()
         };
-
+        await updateWorkspaceActivity(fileId);
         const turnResult = await Message.updateById(parentMessageId, updateData);
         await ContextService.ingestMessage(fileId, turnResult.id, aiRawResponse);
 
@@ -567,75 +578,56 @@ const refineAIDraft = async (req, res) => {
             parentMessageId,
             refinementType
         } = req.body;
-        // console.log("DEBUG BODY:", req.body)
+        console.log("PAYLOAD:", req.body)
+
         // 1. Validation
-        if (!parentMessageId || !refinementType || !userInput) {
+        if (!parentMessageId || !refinementType) {
             return res.status(400).json({
-                message: "Refinement requires a parentMessageId and a specific refinementType and AI response."
+                message: "Refinement requires a parentMessageId and a specific refinementType."
             });
         }
 
-        // 2. Fetch Parent Context (Inherit OCR and state)
+        // 2. Fetch Parent Context
         const parentMessage = await Message.findById(parentMessageId);
         if (!parentMessage) {
             return res.status(404).json({ message: "Original message not found." });
         }
+
         const detectedType = parentMessage.content_type;
 
         const file = await File.findById(fileId);
         if (!file) return res.status(404).json({ message: "Workspace not found." });
 
-        // 3. Define Refinement Logic (Guardrails)
 
-        const specificRule = refinementMap[refinementType] || "Improve the clarity and professionalism of the text.";
-
-        const extraction = await extractUnifiedContext(parentMessage.user_input, parentMessage.ocrInsights);
-        console.log("[AUDIENCE]: ", extraction.recipient_role)
-
-        const fullPayload = await PayloadBuilder.buildRefinementPayload({
-            originalContent: userInput || parentMessage.ai_response,
-            rule: specificRule
-        });
-
-        let conversationHistory;
-        conversationHistory = await ContextService.getRelevantContext(fileId, parentMessage.user_input);
-        console.log("--- RAG CONTEXT BEING APPLIED ---");
-        console.log(conversationHistory || "No relevant embeddings found for this input.");
-        console.log("---------------------------------");
-
-        // 5. Call AI Service
-        console.log(`[REFINE]: Applying '${refinementType}' logic to Message ${parentMessageId}`);
-        const aiRawResponse = await aiService.generateAIDraft(
-            parentMessage.content_type,
-            JSON.stringify(fullPayload),
-            conversationHistory,
-            extraction.recipient_role
+        const extraction = await extractUnifiedContext(
+            parentMessage.user_input,
+            parentMessage.ocrInsights
         );
 
+        console.log("[AUDIENCE]: ", extraction.recipient_role);
 
-        let nextAction = "Continue monitoring the claim.";
-        let dynamicSuggestions = ["Review file", "Contact insured"];
+        // 🔥 ✅ ONLY CHANGE: USE REFINEMENT SERVICE
+        console.log(`[REFINE]: Applying '${refinementType}' logic to Message ${parentMessageId}`);
 
-        const nextStepMatch = aiRawResponse.match(/(?:next\s*steps?|recommended\s*action):\s*(.*)/i);
-        const suggestionMatch = aiRawResponse.match(/(?:suggestions|quick\s*actions|suggested\s*actions):\s*(.*)/i);
+        const aiRawResponse = await aiService.refineAIDraft({
+            refinementType,
+            originalResponse: parentMessage.aiRawResponse,
+            audienceType: extraction.recipient_role || "internal"
+        });
 
-        if (suggestionMatch) dynamicSuggestions = suggestionMatch[1].split('|').map(s => s.trim());
-        if (nextStepMatch) nextAction = nextStepMatch[1].trim();
+        const {
+            nextAction,
+            dynamicSuggestions,
+            cleanMainContent
+        } = parseAIResponse(aiRawResponse);
 
-        const cleanMainContent = aiRawResponse
-            .replace(/(?:next\s*steps?|recommended\s*action):[\s\S]*$/i, '')
-            // .replace(/(?:suggestions|quick\s*actions|suggested\s*actions):[\s\S]*$/i, '')
-            .trim();
-
-        // 7. Save to Database (Version of the parent)
+        // 7. Save
         const refinementUpdate = {
             ai_response: cleanMainContent,
-
+            aiRawResponse: aiRawResponse,
             refinement_type: refinementType,
             activity_type: 'ai_refinement',
-
-            next_step_suggestion: nextAction || "Continue monitoring draft.",
-
+            next_step_suggestion: nextAction || "Request supporting documentation from the contractor and proceed with inspection to verify the source, scope, and extent of damages",
             metadata: {
                 ...parentMessage.metadata,
                 last_refinement_action: refinementType,
@@ -645,12 +637,13 @@ const refineAIDraft = async (req, res) => {
             },
             updated_at: new Date().toISOString()
         };
+        
+        await updateWorkspaceActivity(fileId);
 
         const turnResult = await Message.updateById(parentMessageId, refinementUpdate);
         ContextService.ingestMessage(fileId, turnResult.id, aiRawResponse);
 
-
-        // 8. Log the Refinement
+        // 8. Log
         await supabase.from('ai_logs').insert([{
             file_id: parseInt(fileId),
             user_id: userId,
@@ -660,10 +653,9 @@ const refineAIDraft = async (req, res) => {
             ai_response: aiRawResponse,
             output_type: parentMessage.content_type,
             execution_time_ms: Date.now() - startTime,
-            next_step_suggestion: nextAction || "Continue monitoring draft.",
+            next_step_suggestion: nextAction || "Request supporting documentation from the contractor and proceed with inspection to verify the source, scope, and extent of damages",
             metadata: { is_refinement: true, action: refinementType, model: "gpt-4o" },
-            payload: fullPayload
-
+            // payload: fullPayload
         }]);
 
         await Subscription.incrementUsage(userId);
@@ -689,6 +681,7 @@ const refineAIDraft = async (req, res) => {
         res.status(500).json({ success: false, message: "Refinement failed." });
     }
 };
+
 
 module.exports = {
     testCreateMessage,

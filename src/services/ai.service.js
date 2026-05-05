@@ -1,5 +1,5 @@
 import OpenAI from "openai";
-import { adjusterPrompt, guidancePrompt ,getAudienceInstruction, getFormatInstruction, getMarkdownInstruction } from "../utils/prompt.js";
+import { adjusterPrompt, guidancePrompt, getAudienceInstruction, getFormatInstruction, getMarkdownInstruction, refinementMap, BASE_REFINEMENT_RULES } from "../utils/prompt.js";
 import { getAppliedGuardrails } from "../utils/guardrails.js";
 import fs from 'fs';
 
@@ -20,7 +20,7 @@ export const generateAIDraft = async (type, userInput, payload, conversationHist
         const audienceInstruction = getAudienceInstruction(audienceType);
         const markdownInstruction =
             type === "claim_guidance"
-                ? "Use clean paragraphs. Avoid heavy markdown, bullets only if necessary."
+                ? "Use clean paragraphs. Avoid heavy markdown, bullets and bold only if necessary."
                 : getMarkdownInstruction(payload?.drafting_controls?.markdown_level);
 
         console.log("MARKDOWN LEVEL:", payload?.drafting_controls?.markdown_level);
@@ -133,3 +133,72 @@ export const generateJSON = async (systemPrompt, userContent) => {
         throw new Error("Failed to parse AI extraction");
     }
 }
+
+/**
+ * 🔥 REFINEMENT SERVICE (TRANSFORMATION MODE)
+ * - Does NOT generate new content
+ * - ONLY refines existing response
+ * - Preserves structure, facts, and format
+ */
+export const refineAIDraft = async ({
+    refinementType,
+    originalResponse,
+    audienceType = "internal"
+}) => {
+    try {
+        if (!originalResponse || originalResponse.length < 10) {
+            throw new Error("Invalid original response for refinement");
+        }
+
+        const refinementInstruction = refinementMap[refinementType];
+
+        if (refinementInstruction) {
+            console.log("[REFINEMENT] Instructions for: ", refinementType)
+        }else{
+            console.log("[REFINEMENT]: Invalid type: ", refinementType)
+        }
+
+        const audienceInstruction = getAudienceInstruction(audienceType);
+
+        const systemMessage = `
+### ROLE
+You are an expert insurance claim response editor.
+
+### REFINEMENT MODE (CRITICAL)
+${refinementInstruction}
+
+### AUDIENCE CONTEXT
+Target Audience: ${audienceType}
+Audience Instruction: ${audienceInstruction}
+
+### FINAL RULE
+Return ONLY the refined response.
+DO NOT add explanations.
+`;
+
+        const completion = await openai.chat.completions.create({
+            model: "gpt-4o",
+            messages: [
+                { role: "system", content: systemMessage },
+
+                {
+                    role: "user",
+                    content: `
+### ORIGINAL RESPONSE (TO BE REFINED)
+${originalResponse}
+`
+                }
+            ],
+            temperature: 0.2, // 🔥 lower = safer, less hallucination
+        });
+
+        console.log(`[REFINEMENT]: ${refinementType} applied`);
+
+        return completion.choices[0].message.content;
+
+    } catch (error) {
+        console.error("Refinement Service Error:", error);
+        throw new Error("Failed to refine AI response");
+    }
+};
+
