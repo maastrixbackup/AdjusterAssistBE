@@ -52,9 +52,6 @@ const getProfile = async (req, res) => {
     }
 };
 
-/**
- * Retrieves all users with their plan statuses
- */
 const getAllUsers = async (req, res) => {
     try {
         const users = await User.findAll();
