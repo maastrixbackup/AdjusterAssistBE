@@ -16,7 +16,6 @@ class ClassifierService {
   runDeterministicLayer(input) {
     const text = input.toLowerCase().trim();
 
-    // 🔥 GLOBAL INTENT SIGNALS (NEW - DOES NOT REMOVE ANYTHING)
     const hasEmailIntent =
       text.includes("email") ||
       text.includes("reply") ||
@@ -41,6 +40,7 @@ class ClassifierService {
       text.includes("insured") ||
       text.includes("policyholder") ||
       text.includes("customer") ||
+      text.includes("client") ||
       text.includes("claimant");
 
     const isAttorney =
@@ -276,7 +276,7 @@ class ClassifierService {
       /\bwhat should i\b/.test(text) ||
       /\bhow should i\b/.test(text) ||
       /\bwhat is the next step\b/.test(text) ||
-      (text.includes("?") && (text.includes("should") || text.includes("guidance") || text.includes("proceed")))
+      (text.includes("?") && (text.includes("should") || text.includes("is this") ||text.includes("guidance") || text.includes("proceed")))
     ) {
       return { type: 'claim_guidance', confidence: 0.95, source: 'deterministic' };
     }
@@ -297,13 +297,13 @@ class ClassifierService {
   smartFallback(input, aiResult) {
     const text = input.toLowerCase();
 
-    // 🚫 If AI already gave strong non-file_note → trust it
+    // If AI already gave strong non-file_note → trust it
     if (aiResult.type !== 'file_note' && aiResult.confidence >= 0.75) {
       console.log("[TYPE]: ",aiResult.type)
       return aiResult;
     }
 
-    // 🔥 CRITICAL FIX: Never allow obvious drafting intent → file_note
+    // CRITICAL FIX: Never allow obvious drafting intent → file_note
     if (
       text.includes("email") ||
       text.includes("reply") ||
@@ -330,7 +330,7 @@ class ClassifierService {
       }
     }
 
-    // 🔥 SUPPLEMENT CONTEXT GUARD
+    // SUPPLEMENT CONTEXT GUARD
     if (
       text.includes("supplement") ||
       text.includes("estimate") ||
@@ -341,7 +341,7 @@ class ClassifierService {
       return { type: 'supplement_response', confidence: 0.82, source: 'fallback' };
     }
 
-    // 🔥 ATTORNEY GUARD
+    // ATTORNEY GUARD
     if (
       text.includes("attorney") ||
       text.includes("counsel") ||
@@ -350,9 +350,9 @@ class ClassifierService {
       return { type: 'attorney_response', confidence: 0.85, source: 'fallback' };
     }
 
-    // 🔥 GUIDANCE GUARD (question missed by AI)
+    // GUIDANCE GUARD (question missed by AI)
     if (
-      /\bshould i\b|\bcan i\b|\bwhat should\b|\bhow do i\b|\?/.test(text)
+      /\bshould i\b|\bcan i\b|\bwhat should\b|\bhow do i\b|\bis this\b|\?/.test(text)
     ) {
       return { type: 'claim_guidance', confidence: 0.80, source: 'fallback' };
     }

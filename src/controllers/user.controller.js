@@ -1,5 +1,6 @@
 const User = require("../models/user"); 
 const Subscription = require("../models/subscription.model");
+const { uploadAvatar } = require("../services/profileStorageService");
 
 /**
  * Retrieves the logged-in user's detailed profile and subscription
@@ -52,9 +53,6 @@ const getProfile = async (req, res) => {
     }
 };
 
-/**
- * Retrieves all users with their plan statuses
- */
 const getAllUsers = async (req, res) => {
     try {
         const users = await User.findAll();
@@ -89,4 +87,49 @@ const getAllUsers = async (req, res) => {
     }
 };
 
-module.exports = { getProfile, getAllUsers };
+const updateProfile = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { name, phone, company, expo_push_token } = req.body;
+    let { avatar_url } = req.body; // Default to existing URL if provided
+
+    // 1. Handle Image Upload if a file was sent
+    if (req.file) {
+      avatar_url = await uploadAvatar(
+        req.file.buffer,
+        `${userId}-${Date.now()}`,
+        req.file.mimetype
+      );
+    }
+
+    // 2. Construct update object
+    const updateFields = {};
+    if (name !== undefined) updateFields.name = name;
+    if (phone !== undefined) updateFields.phone = phone;
+    if (company !== undefined) updateFields.company = company;
+    if (expo_push_token !== undefined) updateFields.expo_push_token = expo_push_token;
+    
+    // Always update avatar_url if we got a new one from Supabase
+    if (avatar_url !== undefined) updateFields.avatar_url = avatar_url;
+
+    if (Object.keys(updateFields).length === 0) {
+      return res.status(400).json({ message: "No fields provided for update" });
+    }
+
+    // 3. Update Database
+    const updatedUser = await User.updateProfile(userId, updateFields);
+
+    return res.status(200).json({
+      message: "Profile updated successfully",
+      user: updatedUser,
+      avatar_url: avatar_url // Return the new URL to the frontend
+    });
+  } catch (error) {
+    console.error("Update Error:", error.message);
+    return res.status(500).json({ 
+      error: error.message || "Internal Server Error" 
+    });
+  }
+};
+
+module.exports = { getProfile, getAllUsers, updateProfile };

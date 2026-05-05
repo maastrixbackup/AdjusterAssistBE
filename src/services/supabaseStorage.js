@@ -5,11 +5,6 @@ import path from "path"
 const BUCKET_NAME = 'claims-attachments';
 
 export const supabaseStorage = {
-  /**
-   * Uploads files to categorized folders and preserves extensions
-   * @param {Array} files - Multer files array
-   * @returns {Promise<Array<string>>} - Array of public URLs
-   */
   async uploadAttachments(files) {
     if (!files || files.length === 0) return [];
 

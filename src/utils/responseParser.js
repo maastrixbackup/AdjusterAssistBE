@@ -89,16 +89,19 @@ const extractNextStep = (text) => {
 const removeNextStepFromContent = (content, nextStep) => {
   if (!nextStep || nextStep === DEFAULT_NEXT_ACTION) return content;
 
-  // 1. Attempt to remove based on header pattern[cite: 1]
-  const removalPattern = /(?:^|\n)\s*[*\-•]?\s*(?:\*\*|__)?\s*(next\s*steps?|recommended\s*action)[\s\S]*?(?=\n\s*(?:[*\\-•]|\\*\\*|__|#)|$)/gi;
+  const removalPattern = /(?:^|\n)\s*(?:\*\*|__)?\s*(?:next\s*steps?|recommended\s*action)\s*(?:\*\*|__)?\s*:?\s*[\s\S]*?(?=\n\s*(?:\*\*|__)[^:\n]+:|\n{2,}|$)/gi;
   let newContent = content.replace(removalPattern, "");
 
-  // 2. Attempt to remove based on the prose sentence[cite: 1]
-  // We look for a phrase starting with "Next step" that contains the extracted action
-  const cleanAction = nextStep.split(',')[0].trim();
+ const cleanAction = nextStep.trim();
   if (cleanAction.length > 5) {
-    const prosePattern = new RegExp(`(?:the\\s+)?next\\s*step[s]?\\s*(?:is|are|involves?|includes?|would\\s+be|will\\s+be|consist\\s+of)[^.]*${cleanAction.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}[^.]*\\.`, "i");
-    newContent = newContent.replace(prosePattern, "");
+    const escaped = cleanAction.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+const prosePattern = new RegExp(
+  `${escaped.replace(/\s+/g, '\\s+')}`,
+  "i"
+);
+
+newContent = newContent.replace(prosePattern, "");
   }
 
   return newContent.trim();
