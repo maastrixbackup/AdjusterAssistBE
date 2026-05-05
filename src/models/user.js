@@ -53,8 +53,8 @@ const UserModel = {
       .from('users')
       .update({
         password: newHashedPassword,
-        reset_token: null,          // Clear token after use
-        reset_token_expires: null   // Clear expiry after use
+        reset_token: null,          
+        reset_token_expires: null   
       })
       .eq('id', id)
       .select();
@@ -98,8 +98,20 @@ const UserModel = {
 
     if (error) throw error;
     return data[0];
-  }
+  },
 
+  //9. Update user profile (name, avatar_url, etc.)
+  async updateProfile(userId, profileData) {
+    const { data, error } = await supabase
+      .from('users')
+      .update(profileData)
+      .eq('id', userId)
+      .select()
+      .single();
+    
+      if (error) throw error;
+    return data;
+  }
 };
 
 

@@ -89,4 +89,35 @@ const getAllUsers = async (req, res) => {
     }
 };
 
-module.exports = { getProfile, getAllUsers };
+const updateProfile = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { name, phone, company, avatar_url, expo_push_token } = req.body;
+
+    // Construct update object with only provided fields
+    const updateFields = {};
+    if (name !== undefined) updateFields.name = name;
+    if (phone !== undefined) updateFields.phone = phone;
+    if (company !== undefined) updateFields.company = company;
+    if (avatar_url !== undefined) updateFields.avatar_url = avatar_url;
+    if (expo_push_token !== undefined) updateFields.expo_push_token = expo_push_token;
+
+    if (Object.keys(updateFields).length === 0) {
+      return res.status(400).json({ message: "No fields provided for update" });
+    }
+
+    const updatedUser = await User.updateProfile(userId, updateFields);
+
+    return res.status(200).json({
+      message: "Profile updated successfully",
+      user: updatedUser
+    });
+  } catch (error) {
+    console.error("Update Error:", error.message);
+    return res.status(500).json({ 
+      error: error.message || "Internal Server Error" 
+    });
+  }
+};
+
+module.exports = { getProfile, getAllUsers, updateProfile };
