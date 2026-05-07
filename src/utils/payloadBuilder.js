@@ -77,7 +77,7 @@ class PayloadBuilder {
             special_instructions: "Internal escalation summary.",
         },
         "xactanalysis_response": {
-            audience: "external_or_platform",
+            audience: "external",
             recipient_role: "vendor",
             tone_override: "",
             purpose: "Xact Analysis note",
