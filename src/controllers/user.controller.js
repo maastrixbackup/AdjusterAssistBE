@@ -90,10 +90,18 @@ const getAllUsers = async (req, res) => {
 const updateProfile = async (req, res) => {
   try {
     const userId = req.user.id;
-    const { name, phone, company, expo_push_token } = req.body;
-    let { avatar_url } = req.body; // Default to existing URL if provided
+    const { 
+      name, 
+      phone, 
+      company, 
+      expo_push_token, 
+      is_signature_enabled, 
+      signature_details 
+    } = req.body;
+    
+    let { avatar_url } = req.body;
 
-    // 1. Handle Image Upload if a file was sent
+    // 1. Handle Image Upload
     if (req.file) {
       avatar_url = await uploadAvatar(
         req.file.buffer,
@@ -108,9 +116,20 @@ const updateProfile = async (req, res) => {
     if (phone !== undefined) updateFields.phone = phone;
     if (company !== undefined) updateFields.company = company;
     if (expo_push_token !== undefined) updateFields.expo_push_token = expo_push_token;
-    
-    // Always update avatar_url if we got a new one from Supabase
     if (avatar_url !== undefined) updateFields.avatar_url = avatar_url;
+
+    // --- NEW SIGNATURE FIELDS ---
+    if (is_signature_enabled !== undefined) {
+        updateFields.is_signature_enabled = is_signature_enabled;
+    }
+
+    // If signature_details is sent, ensure it's handled as an object
+    if (signature_details !== undefined) {
+        // Option A: If sending the whole object from frontend
+        updateFields.signature_details = typeof signature_details === 'string' 
+            ? JSON.parse(signature_details) 
+            : signature_details;
+    }
 
     if (Object.keys(updateFields).length === 0) {
       return res.status(400).json({ message: "No fields provided for update" });
@@ -122,7 +141,7 @@ const updateProfile = async (req, res) => {
     return res.status(200).json({
       message: "Profile updated successfully",
       user: updatedUser,
-      avatar_url: avatar_url // Return the new URL to the frontend
+      avatar_url: avatar_url 
     });
   } catch (error) {
     console.error("Update Error:", error.message);
