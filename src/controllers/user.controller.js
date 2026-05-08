@@ -96,7 +96,8 @@ const updateProfile = async (req, res) => {
       company, 
       expo_push_token, 
       is_signature_enabled, 
-      signature_details 
+      signature_details,
+      push_enabled,
     } = req.body;
     
     let { avatar_url } = req.body;
@@ -116,6 +117,7 @@ const updateProfile = async (req, res) => {
     if (phone !== undefined) updateFields.phone = phone;
     if (company !== undefined) updateFields.company = company;
     if (expo_push_token !== undefined) updateFields.expo_push_token = expo_push_token;
+    if (push_enabled !== undefined) updateFields.push_enabled = push_enabled;
     if (avatar_url !== undefined) updateFields.avatar_url = avatar_url;
 
     // --- NEW SIGNATURE FIELDS ---
