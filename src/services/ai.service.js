@@ -2,28 +2,27 @@ import OpenAI from "openai";
 import { adjusterPrompt, guidancePrompt, getAudienceInstruction, getFormatInstruction, getMarkdownInstruction, refinementMap, BASE_REFINEMENT_RULES } from "../utils/prompt.js";
 import { getAppliedGuardrails } from "../utils/guardrails.js";
 import fs from 'fs';
+import { getSignaturePrompt } from "../utils/signature.js";
+import { signatureMiddleware } from "../middlewares/cleanSignature.js";
 
 // Initialize OpenAI once
 const openai = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY,
 });
 
-export const generateAIDraft = async (type, userInput, payload, conversationHistory = "", audienceType) => {
-    // console.log("TYPE : ", type ) 
-    // console.log("USERINPUT : ", userInput ) 
-    // console.log("PAYLOAD : ", payload ) 
-    // console.log("HISTORY : ", conversationHistory )
-    // console.log("AUDIENCE : ", audienceType )
+export const generateAIDraft = async (type, userInput, payload, conversationHistory = "", audienceType, userProfile) => {
     try {
         const formatStyle = getFormatInstruction(type);
         const guardrailInjection = getAppliedGuardrails(userInput);
         const audienceInstruction = getAudienceInstruction(audienceType);
+        const signaturePrompt = getSignaturePrompt(type, userProfile);
+        console.log("[AI] Signature Prompt: ", signaturePrompt);
         const markdownInstruction =
             type === "claim_guidance"
                 ? "Use clean paragraphs. Avoid heavy markdown, bullets and bold only if necessary."
                 : getMarkdownInstruction(payload?.drafting_controls?.markdown_level);
 
-        console.log("MARKDOWN LEVEL:", payload?.drafting_controls?.markdown_level);
+        console.log("[AI] MARKDOWN LEVEL:", payload?.drafting_controls?.markdown_level);
         // console.log("[MD]: ", markdownInstruction)
 
         const userMessageContent = [
@@ -50,6 +49,7 @@ export const generateAIDraft = async (type, userInput, payload, conversationHist
 
         ### FORMATTING RULES (CRITICAL)
         ${markdownInstruction}
+        ${signaturePrompt}
 
         ### FINAL OUTPUT CONSTRAINTS (STRICT)
         ${formatStyle}
@@ -81,10 +81,25 @@ export const generateAIDraft = async (type, userInput, payload, conversationHist
             ],
             temperature: 0.4,
         });
-        console.log("Response Generated")
-        return completion.choices[0].message.content;
+
+        const rawContent = completion.choices[0].message.content;
+
+        const isSignatureEnabled = payload?.user_profile?.is_signature_enabled || false;
+        const finalContent = signatureMiddleware(rawContent, isSignatureEnabled);
+
+        // Console Log Verification
+        if (!isSignatureEnabled && rawContent !== finalContent) {
+            console.log("⚠️  [SIGNATURE CONTROL]: AI hallucinated a signature. Middleware successfully stripped it.");
+        } else if (!isSignatureEnabled && rawContent === finalContent) {
+            console.log("✅ [SIGNATURE CONTROL]: AI followed instructions perfectly. No cleaning required.");
+        } else {
+            console.log("ℹ️  [SIGNATURE CONTROL]: Signature enabled for this draft.");
+        }
+
+        console.log("[AI] Response Processed");
+        return finalContent;
     } catch (error) {
-        console.error("OpenAI Service Error:", error);
+        console.error("[AI] OpenAI Service Error:", error);
         throw error;
     }
 };
@@ -109,7 +124,7 @@ export const generateFastClassification = async (systemPrompt, userInput) => {
         return content.replace(/['".]/g, "");
 
     } catch (error) {
-        console.error("Fast Classification AI Error:", error);
+        console.error("[AI] Fast Classification AI Error:", error);
         // Fallback rule as per Enterprise Spec
         return "file_note";
     }
@@ -154,7 +169,7 @@ export const refineAIDraft = async ({
 
         if (refinementInstruction) {
             console.log("[REFINEMENT] Instructions for: ", refinementType)
-        }else{
+        } else {
             console.log("[REFINEMENT]: Invalid type: ", refinementType)
         }
 

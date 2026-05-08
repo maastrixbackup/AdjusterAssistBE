@@ -295,7 +295,8 @@ const createAIDraft = async (req, res) => {
             userInput,
             fullPayload,
             conversationHistory,
-            extraction.recipient_role
+            extraction.recipient_role,
+            userProfile
         );
 
 
