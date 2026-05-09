@@ -5,5 +5,6 @@ const authMiddleware = require('../middlewares/auth.middleware');
 
 router.post('/save-token', authMiddleware,  notificationController.saveToken );
 router.post('/test-send', authMiddleware, notificationController.sendTestNotification );
+router.post('/broadcast', authMiddleware, notificationController.sendBroadcastNotification );
 
 module.exports = router;
