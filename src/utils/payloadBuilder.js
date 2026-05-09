@@ -318,9 +318,9 @@ class PayloadBuilder {
             output_type: typeKey,
             claim_role: userInfo?.role || "staff_adjuster",
             sender_identity: {
-                name: userInfo?.sender_name || "Adjuster",
+                name: userInfo?.sender_name,
                 email: userInfo?.sender_email,
-                role: userInfo?.sender_designation || "Carrier Adjuster",
+                role: userInfo?.sender_designation,
                 company: userInfo?.sender_company || "AdjusterAssist™"
             },
 
