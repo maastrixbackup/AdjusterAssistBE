@@ -283,10 +283,10 @@ const createAIDraft = async (req, res) => {
             files: files,
             audience: extraction.recipient_role,
             userInfo: {
-                sender_name: userProfile.name,
-                sender_designation: userProfile.role,
-                sender_email: userProfile.email,
-                sender_company: "AdjusterAssist™"
+                sender_name: userProfile.signature_details.name || userProfile.name,
+                sender_designation: userProfile.signature_details.designation || userProfile.role,
+                sender_email:  userProfile.email,
+                sender_company: userProfile.signature_details.company || userProfile.company || "AdjusterAssist™"
             }
         });
 
@@ -465,10 +465,10 @@ const createVariantDraft = async (req, res) => {
             claim_facts: extraction.facts,
             ocrData: parentMessage.ocrInsights,
             userInfo: {
-                sender_name: userProfile.name,
-                sender_designation: userProfile.role,
-                sender_email: userProfile.email,
-                sender_company: "AdjusterAssist™"
+                sender_name: userProfile.signature_details.name || userProfile.name,
+                sender_designation: userProfile.signature_details.designation || userProfile.role,
+                sender_email:  userProfile.email,
+                sender_company: userProfile.signature_details.company || userProfile.company || "AdjusterAssist™"
             },
             files: parentMessage.image_input_url || parentMessage.doccuments_url,
             audience: audience,
@@ -493,6 +493,7 @@ const createVariantDraft = async (req, res) => {
             fullPayload,
             conversationHistory,
             audience,
+            userProfile
         );
 
         const {
