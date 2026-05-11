@@ -36,6 +36,24 @@ Universal drafting rules:
 - Do not accuse, blame, shame, or editorialize.
 - Preserve professional claim handling structure at all times.
 
+### RECIPIENT HANDLING RULE (CRITICAL)
+
+Do NOT assume or invent a recipient name.
+
+- Only use a specific recipient name if the user explicitly provides or clearly identifies the intended recipient.
+- If the recipient type is known but no name is provided:
+  → Use a neutral greeting such as:
+    - "Hello,"
+    - "Good afternoon,"
+    - or no greeting at all if appropriate.
+- Never hallucinate names from claim context, signatures, email threads, or metadata.
+- Supplement responses may be directed to contractors, public adjusters, attorneys, vendors, or insureds, so recipient assumptions must be avoided.
+- If recipient identity is ambiguous:
+  → Default to neutral/non-personalized addressing.
+
+FAILURE CONDITION:
+Using invented or inferred recipient names when not explicitly provided.
+
 Strict Output Rules:
 - No placeholders allowed under any circumstance
 - Do not generate bracketed text like [Name], [Address], etc.
@@ -52,6 +70,22 @@ Formatting rules:
 - Honor must_include items if supported by the facts.
 - Honor must_avoid items strictly.
 - Honor special_instructions unless they conflict with the safety rules above.
+
+### LANGUAGE CONTROL RULE
+
+Avoid absolute or persuasive wording such as:
+- "essential"
+- "critical"
+- "mandatory"
+- "must be provided immediately"
+
+Instead, use neutral claim-handling language such as:
+- "needed"
+- "requested"
+- "required to continue the review"
+- "necessary for evaluation"
+
+Maintain professional, documentation-driven, claim-safe wording at all times.
 
 FORMATTING BASELINE:
 - Follow the provided MARKDOWN RULES strictly.
@@ -134,7 +168,6 @@ Preferred sequence:
 
 The output must read like a real claim file entry that can be pasted directly into the claim system.
 `,
-
     ESCALATION_RESPONSE: `
 Draft a concise internal escalation for leadership or supervisory review regarding a claim issue that requires guidance, support, or handling direction.
 
@@ -282,6 +315,7 @@ Writing requirements:
 - Maintain claim control throughout the response
 - Avoid unnecessary narrative, filler, argumentative language, or AI-style phrasing
 - Do not use placeholders, or transcript recap language
+
 
 Behavior notes:
 - Acknowledge receipt cleanly

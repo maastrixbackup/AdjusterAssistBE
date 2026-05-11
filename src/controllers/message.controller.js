@@ -505,7 +505,7 @@ const createVariantDraft = async (req, res) => {
         const updateData = {
             ai_response: cleanMainContent,
             ai_raw_response: aiRawResponse,
-            content_type: variantLabel.toLowerCase().replace(/\s+/g, '_'),
+            content_type: detectedType,
             metadata: {
                 ...parentMessage.metadata,
                 is_variant: true,

@@ -149,12 +149,6 @@ export const generateJSON = async (systemPrompt, userContent) => {
     }
 }
 
-/**
- * 🔥 REFINEMENT SERVICE (TRANSFORMATION MODE)
- * - Does NOT generate new content
- * - ONLY refines existing response
- * - Preserves structure, facts, and format
- */
 export const refineAIDraft = async ({
     refinementType,
     originalResponse,
