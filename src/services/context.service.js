@@ -1,5 +1,5 @@
 const OpenAI = require('openai');
-const supabase = require('../config/supabase.js');
+const {supabaseAdmin} = require('../config/supabase.js');
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -100,7 +100,7 @@ const ContextService = {
              * 🔹 STEP 1: FETCH RECENT CONTEXT (SMART)
              * ==========================================
              */
-            const { data: recentMessages } = await supabase
+            const { data: recentMessages } = await supabaseAdmin
                 .from('claim_messages')
                 .select('user_input, ai_response')
                 .eq('workspace_id', fileId)
@@ -140,7 +140,7 @@ const ContextService = {
                 input: hybridQuery,
             });
 
-            let { data: matches } = await supabase.rpc('match_claim_context', {
+            let { data: matches } = await supabaseAdmin.rpc('match_claim_context', {
                 query_embedding: directEmbeddingResponse.data[0].embedding,
                 match_threshold: 0.5,
                 match_count: 5,
@@ -173,7 +173,7 @@ const ContextService = {
             if (isWeakQuery || !matches || matches.length === 0) {
                 console.log("[RAG] Weak query or no matches. Activating fallback...");
 
-                const { data: historyData, error: historyError } = await supabase
+                const { data: historyData, error: historyError } = await supabaseAdmin
                     .from('claim_messages')
                     .select('user_input, ai_response')
                     .eq('workspace_id', fileId)
@@ -228,7 +228,7 @@ const ContextService = {
                         input: trimForEmbedding(optimizedQuery),
                     });
 
-                    let { data: retryMatches } = await supabase.rpc('match_claim_context', {
+                    let { data: retryMatches } = await supabaseAdmin.rpc('match_claim_context', {
                         query_embedding: retryEmbedding.data[0].embedding,
                         match_threshold: 0.35,
                         match_count: 5,
@@ -287,7 +287,7 @@ INSTRUCTION: Use the SOURCE_TEXT_TO_CONVERT as the primary material for the requ
 
             const [{ embedding }] = response.data;
 
-            const { error } = await supabase.from('claim_embeddings').insert({
+            const { error } = await supabaseAdmin.from('claim_embeddings').insert({
                 claim_id: fileId,
                 message_id: messageId,
                 content: text,

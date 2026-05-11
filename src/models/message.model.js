@@ -1,89 +1,111 @@
-const supabase = require('../config/supabase');
+const { supabaseAdmin } = require('../config/supabase');
 
 const Message = {
-  // 1. Create a new message
-  create: async (messageData) => {
-    const { data, error } = await supabase
-      .from('claim_messages')
-      .insert([messageData])
-      .select()
-      .single();
+    /**
+     * 1. Create a new interaction (Message)
+     * messageData should include: workspace_id, user_id (UUID), user_input, ai_response, etc.
+     */
+    create: async (messageData) => {
+        const { data, error } = await supabaseAdmin
+            .from('claim_messages')
+            .insert([messageData])
+            .select()
+            .single();
 
-    if (error) throw error;
-    return data;
-  },
+        if (error) {
+            console.error("Message Creation Error:", error.message);
+            throw error;
+        }
+        return data;
+    },
 
-  // 2. Find by message ID
-  findById: async (id) => {
-    const { data, error } = await supabase
-      .from('claim_messages')
-      .select('*')
-      .eq('id', id)
-      .single();
+    /**
+     * 2. Find a single message by its serial ID
+     */
+    findById: async (id) => {
+        const { data, error } = await supabaseAdmin
+            .from('claim_messages')
+            .select('*')
+            .eq('id', id)
+            .single();
 
-    if (error) throw error;
-    return data;
-  },
+        if (error && error.code !== 'PGRST116') {
+            console.error("Error finding message:", error.message);
+            throw error;
+        }
+        return data;
+    },
 
-  // 3. Find by Workspace ID (Mapping findByFileId to workspace_id per your schema)
-  findByFileId: async (workspaceId) => {
-    const { data, error } = await supabase
-      .from('claim_messages')
-      .select('*')
-      .eq('workspace_id', workspaceId)
-      .order('created_at', { ascending: true });
+    /**
+     * 3. Fetch the conversation history for a specific workspace (Claim)
+     */
+    findByWorkspaceId: async (workspaceId) => {
+        const { data, error } = await supabaseAdmin
+            .from('claim_messages')
+            .select('*')
+            .eq('workspace_id', workspaceId)
+            .order('created_at', { ascending: true });
 
-    if (error) throw error;
-    return data;
-  },
+        if (error) {
+            console.error("Error fetching workspace history:", error.message);
+            throw error;
+        }
+        return data;
+    },
 
-  // 4. Update message by ID
-  updateById: async (id, updateData) => {
-    const { data, error } = await supabase
-      .from('claim_messages')
-      .update(updateData)
-      .eq('id', id)
-      .select()
-      .single();
+    /**
+     * 4. Update message (e.g., mark response_used = true or update refinement)
+     */
+    updateById: async (id, updateData) => {
+        const { data, error } = await supabaseAdmin
+            .from('claim_messages')
+            .update({
+                ...updateData,
+                updated_at: new Date().toISOString()
+            })
+            .eq('id', id)
+            .select()
+            .single();
 
-    if (error) throw error;
-    return data;
-  },
+        if (error) {
+            console.error("Message Update Error:", error.message);
+            throw error;
+        }
+        return data;
+    },
 
-  // 5. Delete message by ID
-  deleteById: async (id) => {
-    const { error } = await supabase
-      .from('claim_messages')
-      .delete()
-      .eq('id', id);
+    /**
+     * 5. Delete message (Careful: CASCADE is active in DB for versions/parents)
+     */
+    deleteById: async (id) => {
+        const { error } = await supabaseAdmin
+            .from('claim_messages')
+            .delete()
+            .eq('id', id);
 
-    if (error) throw error;
-    return true;
-  },
+        if (error) {
+            console.error("Message Deletion Error:", error.message);
+            throw error;
+        }
+        return true;
+    },
 
-  // 6. Find recent messages (e.g., for a dashboard or quick view)
-  findRecent: async (limit = 5) => {
-    const { data, error } = await supabase
-      .from('claim_messages')
-      .select('*')
-      .order('created_at', { ascending: false })
-      .limit(limit);
+    /**
+     * 6. Find all messages for an adjuster (UUID based)
+     */
+    findAllByUser: async (userId) => {
+        const { data, error } = await supabaseAdmin
+            .from('claim_messages')
+            .select('*')
+            .eq('user_id', userId) // userId is a UUID string
+            .order('created_at', { ascending: false });
 
-    if (error) throw error;
-    return data;
-  },
-
-  // 7. Find all messages for a specific user
-  findAllByUser: async (userId) => {
-    const { data, error } = await supabase
-      .from('claim_messages')
-      .select('*')
-      .eq('user_id', userId)
-      .order('created_at', { ascending: false });
-
-    if (error) throw error;
-    return data;
-  }
+        if (error) {
+            console.error("Error fetching user messages:", error.message);
+            throw error;
+        }
+        return data;
+    }
 };
 
 module.exports = Message;

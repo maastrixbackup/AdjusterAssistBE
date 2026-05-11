@@ -3,7 +3,7 @@ const cors = require("cors");
 require('dotenv').config();
 
 const authRoutes = require('./routes/auth.routes');
-const userRoutes = require('./routes/user.routes');
+const userRoutes = require('./routes/profile.routes');
 const draftRoutes = require('./routes/message.route');
 const subscriptionRoutes = require('./routes/subscription.routes');
 const fileRoutes = require('./routes/workspace.routes');
@@ -12,7 +12,7 @@ const notificationsRoutes = require('./routes/notifications.routes')
 const swaggerUi = require("swagger-ui-express");
 const swaggerDocument = require("../swagger.json");
 const { sendPushNotification } = require("./utils/notificationHelper");
-const supabase = require("./config/supabase");
+const {supabaseAdmin} = require("./config/supabase");
 
 const app = express();
 

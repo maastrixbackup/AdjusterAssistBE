@@ -146,6 +146,7 @@ const updateProfile = async (req, res) => {
       avatar_url: avatar_url 
     });
   } catch (error) {
+    console.log(error)
     console.error("Update Error:", error.message);
     return res.status(500).json({ 
       error: error.message || "Internal Server Error" 

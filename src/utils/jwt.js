@@ -1,4 +1,4 @@
-const supabase = require("../config/supabase");
+const {supabase} = require("../config/supabase");
 const verifyToken = async (token) => {
     try {
         // We call getUser(token) which verifies the JWT with Supabase Auth servers

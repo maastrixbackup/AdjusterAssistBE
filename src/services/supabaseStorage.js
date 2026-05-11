@@ -1,4 +1,4 @@
-import supabase from "../config/supabase.js";
+import {supabaseAdmin} from "../config/supabase.js";
 import fs from "fs";
 import path from "path"
 
@@ -28,7 +28,7 @@ export const supabaseStorage = {
         // 3. Read and Upload
         const fileBuffer = fs.readFileSync(file.path);
 
-        const { error } = await supabase.storage
+        const { error } = await supabaseAdmin.storage
           .from(BUCKET_NAME)
           .upload(filePath, fileBuffer, {
             contentType: file.mimetype,
@@ -38,7 +38,7 @@ export const supabaseStorage = {
         if (error) throw error;
 
         // 4. Get Public URL
-        const { data: { publicUrl } } = supabase.storage
+        const { data: { publicUrl } } = supabaseAdmin.storage
           .from(BUCKET_NAME)
           .getPublicUrl(filePath);
 

@@ -19,7 +19,6 @@ const Subscription = {
 
   // 2. Increments usage during draft generation
   async incrementUsage(userId) {
-    // target_user_id must match the parameter name in the SQL function above
     const { error } = await supabaseAdmin.rpc("increment_subscription_usage", {
       target_user_id: userId,
     });

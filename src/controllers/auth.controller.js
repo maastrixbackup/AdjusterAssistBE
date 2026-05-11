@@ -77,7 +77,7 @@ const signup = async (req, res) => {
             email,
             password,
             options: {
-                data: { full_name: name, role: 'ca' }
+                data: { full_name: name, role: role }
             }
         });
 
