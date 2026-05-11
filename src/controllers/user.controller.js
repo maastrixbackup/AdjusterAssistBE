@@ -1,4 +1,4 @@
-const User = require("../models/user"); 
+const Profile = require("../models/profile"); 
 const Subscription = require("../models/subscription.model");
 const { uploadAvatar } = require("../services/profileStorageService");
 
@@ -17,10 +17,10 @@ const getProfile = async (req, res) => {
         const userId = req.user.id;
         
         // FIX: Use findById because 'userId' is a numeric ID, not an email
-        const user = await User.findById(userId);
+        const user = await Profile.findById(userId);
 
         if (!user) {
-            return res.status(404).json({ success: false, message: "User not found" });
+            return res.status(404).json({ success: false, message: "Profile not found" });
         }
 
         const subscription = await Subscription.getStats(userId);
@@ -53,9 +53,9 @@ const getProfile = async (req, res) => {
     }
 };
 
-const getAllUsers = async (req, res) => {
+const getAllProfiles = async (req, res) => {
     try {
-        const users = await User.findAll();
+        const users = await Profile.findAll();
 
         const usersWithStats = await Promise.all(users.map(async (user) => {
             const sub = await Subscription.getStats(user.id);
@@ -138,7 +138,7 @@ const updateProfile = async (req, res) => {
     }
 
     // 3. Update Database
-    const updatedUser = await User.updateProfile(userId, updateFields);
+    const updatedUser = await Profile.updateProfile(userId, updateFields);
 
     return res.status(200).json({
       message: "Profile updated successfully",
@@ -153,4 +153,4 @@ const updateProfile = async (req, res) => {
   }
 };
 
-module.exports = { getProfile, getAllUsers, updateProfile };
+module.exports = { getProfile, updateProfile, getAllProfiles };

@@ -1,14 +1,15 @@
-const supabase = require("../config/supabase");
+const { supabaseAdmin } = require("../config/supabase");
 
 const Subscription = {
   // 1. Unified Stats Fetcher
   async getStats(userId) {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from("subscriptions")
       .select("plan_type, usage_limit, current_usage, expires_at")
       .eq("user_id", userId)
       .single();
 
+    // PGRST116 means "No rows found", which we handle in the reset logic
     if (error && error.code !== "PGRST116") {
       console.error("Error fetching stats:", error.message);
       throw error;
@@ -17,20 +18,23 @@ const Subscription = {
   },
 
   // 2. Increments usage during draft generation
-  // Uses the RPC function we created in Step 1 for thread-safety
   async incrementUsage(userId) {
-    const { error } = await supabase.rpc("increment_subscription_usage", {
+    // target_user_id must match the parameter name in the SQL function above
+    const { error } = await supabaseAdmin.rpc("increment_subscription_usage", {
       target_user_id: userId,
     });
 
-    if (error) throw error;
+    if (error) {
+      console.error("RPC Increment Error:", error.message);
+      throw error;
+    }
     return true;
   },
 
   // 3. Upgrade logic for Pro/Enterprise plans
   async updateTier(userId, planData) {
     const { plan_type, usage_limit, expires_at } = planData;
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from("subscriptions")
       .update({
         plan_type,
@@ -47,43 +51,39 @@ const Subscription = {
 
   // 4. Initialization for new users
   async initFreeTier(userId) {
-    const initialExpiry = new Date();
-    initialExpiry.setDate(initialExpiry.getDate() + 30);
+    // Set a default expiry date for the free tier (e.g., 1 month from now)
+    const expiresAt = new Date();
+    expiresAt.setMonth(expiresAt.getMonth() + 1);
 
-    const { data, error } = await supabase.from("subscriptions").insert([
-      {
-        user_id: userId,
-        plan_type: "free",
-        usage_limit: 5,
-        current_usage: 0,
-        expires_at: initialExpiry.toISOString(),
-        status: "active",
-      },
-    ]);
+    const { data, error } = await supabaseAdmin
+      .from('subscriptions')
+      .insert([
+        {
+          user_id: userId,
+          plan_type: 'free',
+          usage_limit: 10,
+          current_usage: 0,
+          expires_at: expiresAt.toISOString(), // Don't leave this null
+          status: 'active'
+        }
+      ]);
 
-    if (error) throw error;
+    if (error) {
+      console.error("Subscription Init Error:", error);
+      throw error;
+    }
     return data;
   },
 
-  // 5. The Monthly Reset & Auto-Repair Logic
+  // 5. Monthly Reset & Auto-Repair Logic
   async checkAndResetMonthlyUsage(userId) {
     try {
-      // 1. Safety Check: Verify the user actually exists in Supabase first
-      const { data: userExists, error: userError } = await supabase
-        .from('users')
-        .select('id')
-        .eq('id', userId)
-        .single();
-
-      if (userError || !userExists) {
-        console.warn(`⚠️ Sync Skipped: User ${userId} not found in Supabase. (Likely stale JWT)`);
-        return; // Exit early so it doesn't try to insert/update and crash
-      }
-
+      // 1. Check if sub exists
       let sub = await this.getStats(userId);
 
-      // 2. Initialize if missing
+      // 2. Initialize if missing (Auto-Repair)
       if (!sub) {
+        console.log(`🔧 Initializing missing subscription for user: ${userId}`);
         await this.initFreeTier(userId);
         return;
       }
@@ -96,24 +96,20 @@ const Subscription = {
         const nextExpiry = new Date();
         nextExpiry.setMonth(nextExpiry.getMonth() + 1);
 
-        const { error } = await supabase
+        const { error } = await supabaseAdmin
           .from("subscriptions")
           .update({
-            plan_type: "free",
-            usage_limit: 5,
-            current_usage: 0,
+            current_usage: 0, // Reset usage
             expires_at: nextExpiry.toISOString(),
             status: "active",
           })
           .eq("user_id", userId);
 
         if (error) throw error;
-
-        const action = sub.plan_type === "free" ? "Refreshed" : "Downgraded";
-        console.log(`🚀 ${action} user ${userId} to Free Tier.`);
+        console.log(`🚀 Usage Refreshed for user ${userId}. Plan: ${sub.plan_type}`);
       }
     } catch (error) {
-      // Log the specific error message to help debug constraint issues
+      // We log but don't crash the app (per your middleware strategy)
       console.error("Error in checkAndResetMonthlyUsage:", error.message);
     }
   }

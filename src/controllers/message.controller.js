@@ -4,7 +4,7 @@ const File = require("../models/workspace.model");
 const aiService = require("../services/ai.service");
 const PayloadBuilder = require("../utils/payloadBuilder");
 const supabase = require("../config/supabase");
-const UserModel = require("../models/user");
+const Profile = require("../models/profile.js");
 const { getMandatoryNextStep } = require("../utils/workflowMatrix");
 const { storeBase64Image } = require("../services/profileStorageService.js");
 const { supabaseStorage } = require("../services/supabaseStorage");
@@ -258,7 +258,7 @@ const createAIDraft = async (req, res) => {
         const file = await File.findById(fileId);
         if (!file) return res.status(404).json({ message: "Workspace not found" });
 
-        const userProfile = await UserModel.findById(userId) || { name: "Adjuster", role: "Field Adjuster" };
+        const userProfile = await Profile.findById(userId) || { name: "Adjuster", role: "Field Adjuster" };
 
 
         // 4. Classification & AI Generation
@@ -440,7 +440,7 @@ const createVariantDraft = async (req, res) => {
 
         const ocrInsights = parentMessage.ocrInsights || "No previous insights.";
         const file = await File.findById(fileId);
-        const userProfile = await UserModel.findById(userId) || { name: "Adjuster", role: "Field Adjuster" };
+        const userProfile = await Profile.findById(userId) || { name: "Adjuster", role: "Field Adjuster" };
 
         const labelMap = {
             "email": "email_insured",

@@ -6,11 +6,12 @@ const { sendSubscriptionUpgradeEmail } = require("../services/email.service");
  */
 const getMySubscription = async (req, res) => {
     try {
-        // req.user.id comes from your Auth Middleware
+        // req.user.id is a UUID string from the Supabase Auth Middleware
         const stats = await Subscription.getStats(req.user.id);
         
-        // If the user somehow isn't initialized yet, we trigger the repair logic
+        // Auto-Repair: If user has no record in 'subscriptions' table yet
         if (!stats) {
+            console.log(`🔧 Auto-initializing subscription for UUID: ${req.user.id}`);
             await Subscription.initFreeTier(req.user.id);
             const newStats = await Subscription.getStats(req.user.id);
             
@@ -18,17 +19,22 @@ const getMySubscription = async (req, res) => {
                 success: true,
                 subscription: {
                     ...newStats,
-                    remaining: newStats.usage_limit - newStats.current_usage
+                    remaining: (newStats.usage_limit || 0) - (newStats.current_usage || 0),
+                    is_unlimited: newStats.plan_type === 'enterprise'
                 }
             });
         }
+
+        const usageLimit = stats.usage_limit || 0;
+        const currentUsage = stats.current_usage || 0;
 
         res.status(200).json({ 
             success: true, 
             subscription: {
                 ...stats,
-                // Calculate remaining drafts for the React Native UI
-                remaining: Math.max(0, stats.usage_limit - stats.current_usage)
+                // UI Helper: Calculate remaining drafts for the Mobile App
+                remaining: stats.plan_type === 'enterprise' ? 'unlimited' : Math.max(0, usageLimit - currentUsage),
+                is_unlimited: stats.plan_type === 'enterprise'
             } 
         });
     } catch (error) {
@@ -43,7 +49,7 @@ const getMySubscription = async (req, res) => {
 const upgradeSubscription = async (req, res) => {
     try {
         const { planType } = req.body; 
-        const userId = req.user.id;
+        const userId = req.user.id; // This is a UUID string
 
         // Configuration mapping for Adjuster Assist tiers
         const planConfigs = {
@@ -59,22 +65,22 @@ const upgradeSubscription = async (req, res) => {
         const expiryDate = new Date();
         expiryDate.setDate(expiryDate.getDate() + config.days);
 
-        // Update the tier in Supabase
+        // Pass the UUID and the config to the Supabase update function
         await Subscription.updateTier(userId, {
             plan_type: planType.toLowerCase(),
             usage_limit: config.limit,
-            expires_at: expiryDate.toISOString() // PostgreSQL preference
+            expires_at: expiryDate.toISOString() 
         });
 
-        // Async email notification
+        // Async email notification - we don't block the response for this
         sendSubscriptionUpgradeEmail(req.user.email, planType).catch(err => {
-            console.error("Upgrade Email Failed:", err.message);
+            console.error("Upgrade Email Failed for UUID:", userId, err.message);
         });
 
         res.status(200).json({ 
             success: true, 
             message: `Successfully upgraded to ${planType.toUpperCase()}!`,
-            newLimit: config.limit === 999999 ? 'unlimited' : config.limit
+            newLimit: config.limit >= 999999 ? 'unlimited' : config.limit
         });
     } catch (error) {
         console.error("Upgrade Process Error:", error.message);
