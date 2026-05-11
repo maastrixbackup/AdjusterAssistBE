@@ -4,16 +4,17 @@ const checkUsageLimit = async (req, res, next) => {
   try {
     const userId = req.user.id; 
     
-    // 1. Use getStats to stay consistent with your Model method names
+    // 1. Fetch stats and trigger the Monthly Reset check
+    // This ensures if their month just ended, they get fresh credits NOW.
+    await Subscription.checkAndResetMonthlyUsage(userId);
     let sub = await Subscription.getStats(userId);
 
-    // 2. Fallback: If no record exists, try to initialize it
+    // 2. Fallback: If no record exists (Profile exists but no sub row)
     if (!sub) {
       await Subscription.initFreeTier(userId);
       sub = await Subscription.getStats(userId);
     }
 
-    // 3. Final safety check
     if (!sub) {
       return res.status(403).json({ 
         success: false, 
@@ -21,18 +22,32 @@ const checkUsageLimit = async (req, res, next) => {
       });
     }
 
-    // 4. Check if they have reached their limit
+    // 3. ENTERPRISE BYPASS: Enterprise users have no limits
+    if (sub.plan_type === 'enterprise') {
+        return next();
+    }
+
+    // 4. EXPIRY CHECK: Block if the plan has expired and isn't 'free'
+    const now = new Date();
+    if (sub.plan_type !== 'free' && new Date(sub.expires_at) < now) {
+        return res.status(403).json({ 
+            success: false, 
+            message: "Your subscription has expired. Please renew your plan.",
+            expired: true
+        });
+    }
+
+    // 5. USAGE LIMIT CHECK
     if (sub.current_usage >= sub.usage_limit) {
       return res.status(403).json({ 
         success: false,
-        message: "Monthly draft limit reached.",
+        message: "Monthly draft limit reached. Please upgrade your plan.",
         plan: sub.plan_type,
         used: sub.current_usage,
         limit: sub.usage_limit
       });
     }
 
-    // If limit not reached, proceed to create the draft
     next(); 
   } catch (error) {
     console.error("Usage Limit Middleware Error:", error);

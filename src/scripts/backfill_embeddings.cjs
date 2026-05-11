@@ -1,11 +1,11 @@
-const supabase = require('../config/supabase.js').default || require('../config/supabase.js');
+const {supabaseAdmin} = require('../config/supabase.js').default || require('../config/supabase.js');
 const ContextService = require('../services/context.service.js');
 
 async function backfill() {
     console.log("--- Starting Backfill Process for Workspace Messages ---");
 
     // 1. Fetch existing messages
-    const { data: messages, error } = await supabase
+    const { data: messages, error } = await supabaseAdmin
         .from('claim_messages')
         .select('id, workspace_id, user_input, ai_response')
         .order('created_at', { ascending: true });

@@ -1,4 +1,4 @@
-const supabase = require('../config/supabase'); 
+const {supabaseAdmin} = require('../config/supabase'); 
 const { sendPushNotificationToUser, sendPushNotificationToMultipleUsers } = require('../services/pushNotification.service');
 
 exports.saveToken = async (req, res) => {
@@ -11,7 +11,7 @@ exports.saveToken = async (req, res) => {
     }
 
     // Update the 'users' table column 'expo_push_token'
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('users')
       .update({ expo_push_token: pushToken })
       .eq('id', userId);
@@ -33,7 +33,7 @@ exports.sendTestNotification = async (req, res) => {
     const userId = req.user.id;
 
     // 1. Get user with token from Supabase
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('users')
       .select('expo_push_token')
       .eq('id', userId)
@@ -80,7 +80,7 @@ exports.sendBroadcastNotification = async (req, res) => {
     }
 
     // 1. Get ALL users who have a push token
-    const { data: users, error } = await supabase
+    const { data: users, error } = await supabaseAdmin
       .from('users')
       .select('expo_push_token')
       .not('expo_push_token', 'is', null);

@@ -1,9 +1,9 @@
-const supabase = require("../config/supabase")
+const {supabase} = require("../config/supabase")
 
 const uploadAvatar = async (fileBuffer, fileName, mimeType) => {
   try {
     const { data, error } = await supabase.storage
-      .from('profile_image') // Make sure this bucket exists in Supabase
+      .from('profile_image') 
       .upload(fileName, fileBuffer, {
         contentType: mimeType,
         upsert: true,

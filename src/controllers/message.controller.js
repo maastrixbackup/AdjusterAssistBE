@@ -3,8 +3,8 @@ const Message = require("../models/message.model");
 const File = require("../models/workspace.model");
 const aiService = require("../services/ai.service");
 const PayloadBuilder = require("../utils/payloadBuilder");
-const supabase = require("../config/supabase");
-const UserModel = require("../models/user");
+const {supabaseAdmin} = require("../config/supabase");
+const Profile = require("../models/profile.js");
 const { getMandatoryNextStep } = require("../utils/workflowMatrix");
 const { storeBase64Image } = require("../services/profileStorageService.js");
 const { supabaseStorage } = require("../services/supabaseStorage");
@@ -24,7 +24,7 @@ const uploadDir = path.join(__dirname, '../uploads');
 
 
 const updateWorkspaceActivity = async (fileId) => {
-    await supabase
+    await supabaseAdmin
         .from("files")
         .update({ last_activity_at: new Date().toISOString() })
         .eq("id", fileId);
@@ -87,7 +87,7 @@ const getFileDrafts = async (req, res) => {
             return res.status(400).json({ success: false, message: "File ID is required" });
         }
 
-        const drafts = await Message.findByFileId(fileId);
+        const drafts = await Message.findByWorkspaceId(fileId);
 
         res.status(200).json({
             success: true,
@@ -162,8 +162,6 @@ const deleteDraft = async (req, res) => {
         res.status(500).json({ success: false, message: "Error deleting draft" });
     }
 };
-
-
 
 
 const updateDraft = async (req, res) => {
@@ -258,7 +256,7 @@ const createAIDraft = async (req, res) => {
         const file = await File.findById(fileId);
         if (!file) return res.status(404).json({ message: "Workspace not found" });
 
-        const userProfile = await UserModel.findById(userId) || { name: "Adjuster", role: "Field Adjuster" };
+        const userProfile = await Profile.findById(userId);
 
 
         // 4. Classification & AI Generation
@@ -316,10 +314,10 @@ const createAIDraft = async (req, res) => {
                 variant_label: "Original",
                 user_input: userInput,
                 image_input_url: primaryImageUrl,
-                doccuments_url: documentUrl,
+                documents_url: documentUrl,
                 ai_response: cleanMainContent,
-                aiRawResponse: aiRawResponse,
-                ocrInsights: ocrInsights,
+                ai_raw_response: aiRawResponse,
+                ocr_insights: ocrInsights,
                 content_type: detectedType,
                 claim_state: file.claim_stage || 'review pending',
                 next_step_suggestion: nextAction,
@@ -328,7 +326,8 @@ const createAIDraft = async (req, res) => {
                 metadata: {
                     model: "gpt-4o",
                     output_format: output_classification,
-                    audience: extraction.recipient_role
+                    audience: extraction.recipient_role,
+                    signature: userProfile.is_signature_enabled
                 }
             });
             await updateWorkspaceActivity(fileId);
@@ -342,7 +341,7 @@ const createAIDraft = async (req, res) => {
 
         // 7. Secondary Logging & Usage Tracking
         try {
-            const { data: logEntry, error: logError } = await supabase
+            const { data: logEntry, error: logError } = await supabaseAdmin
                 .from('ai_logs')
                 .insert([{
                     file_id: parseInt(fileId),
@@ -351,8 +350,8 @@ const createAIDraft = async (req, res) => {
                     input_text: userInput,
                     input_type: primaryImageUrl ? 'attachment+text' : 'text',
                     input_image: primaryImageUrl,
-                    doccuments_url: documentUrl,
-                    ocrInsights: ocrInsights,
+                    documents_url: documentUrl,
+                    ocr_insights: ocrInsights,
                     ai_response: aiRawResponse,
                     output_text: cleanMainContent,
                     output_type: detectedType,
@@ -365,7 +364,8 @@ const createAIDraft = async (req, res) => {
                         is_refinement: false,
                         is_variant: false,
                         output_format: output_classification,
-                        audience: extraction.recipient_role
+                        audience: extraction.recipient_role,
+                        signature: userProfile.is_signature_enabled
                     }
                 }])
                 .select()
@@ -389,7 +389,7 @@ const createAIDraft = async (req, res) => {
                 next_step_suggestion: nextAction,
                 quick_actions: dynamicSuggestions,
                 image_input_url: primaryImageUrl,
-                doccuments_url: documentUrl,
+                documents_url: documentUrl,
                 created_at: turnResult.created_at
             }
         });
@@ -440,7 +440,7 @@ const createVariantDraft = async (req, res) => {
 
         const ocrInsights = parentMessage.ocrInsights || "No previous insights.";
         const file = await File.findById(fileId);
-        const userProfile = await UserModel.findById(userId) || { name: "Adjuster", role: "Field Adjuster" };
+        const userProfile = await Profile.findById(userId) || { name: "Adjuster", role: "Field Adjuster" };
 
         const labelMap = {
             "email": "email_insured",
@@ -470,7 +470,7 @@ const createVariantDraft = async (req, res) => {
                 sender_email:  userProfile.email,
                 sender_company: userProfile.signature_details.company || userProfile.company || "AdjusterAssist™"
             },
-            files: parentMessage.image_input_url || parentMessage.doccuments_url,
+            files: parentMessage.image_input_url || parentMessage.documents_url,
             audience: audience,
         });
 
@@ -504,15 +504,16 @@ const createVariantDraft = async (req, res) => {
 
         const updateData = {
             ai_response: cleanMainContent,
-            aiRawResponse: aiRawResponse,
-            content_type: variantLabel.toLowerCase().replace(/\s+/g, '_'),
+            ai_raw_response: aiRawResponse,
+            content_type: detectedType,
             metadata: {
                 ...parentMessage.metadata,
                 is_variant: true,
                 last_modified_at: new Date().toISOString(),
                 refined_from_id: parentMessageId,
                 output_format: detectedType,
-                audience: extraction.recipient_role
+                audience: extraction.recipient_role,
+                signature: userProfile.is_signature_enabled
             },
             next_step_suggestion: nextAction,
             activity_type: 'ai_variant',
@@ -524,7 +525,7 @@ const createVariantDraft = async (req, res) => {
 
 
         // 8. Log the Variant Action
-        await supabase.from('ai_logs').insert([{
+        await supabaseAdmin.from('ai_logs').insert([{
             file_id: parseInt(fileId),
             user_id: userId,
             parent_log_id: parseInt(parentMessageId),
@@ -533,7 +534,7 @@ const createVariantDraft = async (req, res) => {
             ai_response: aiRawResponse,
             output_text: cleanMainContent,
             output_type: detectedType,
-            ocrInsights: null,
+            ocr_insights: null,
             execution_time_ms: Date.now() - startTime,
             metadata: {
                 model: "gpt-4o",
@@ -626,7 +627,7 @@ const refineAIDraft = async (req, res) => {
         // 7. Save
         const refinementUpdate = {
             ai_response: cleanMainContent,
-            aiRawResponse: aiRawResponse,
+            ai_raw_response: aiRawResponse,
             refinement_type: refinementType,
             activity_type: 'ai_refinement',
             next_step_suggestion: nextAction || "Request supporting documentation from the contractor and proceed with inspection to verify the source, scope, and extent of damages",
@@ -646,7 +647,7 @@ const refineAIDraft = async (req, res) => {
         ContextService.ingestMessage(fileId, turnResult.id, aiRawResponse);
 
         // 8. Log
-        await supabase.from('ai_logs').insert([{
+        await supabaseAdmin.from('ai_logs').insert([{
             file_id: parseInt(fileId),
             user_id: userId,
             parent_log_id: parseInt(parentMessageId),

@@ -1,12 +1,9 @@
-const bcrypt = require("bcryptjs");
-const { generateToken } = require("../utils/jwt");
-const User = require("../models/user"); 
+const {supabase} = require("../config/supabase");
 const Subscription = require("../models/subscription.model");
-const { sendResetEmail, sendSignupEmail, sendLoginEmail } = require("../services/email.service");
-const { generateOTP } = require("../utils/otp");
+const { sendLoginEmail } = require("../services/email.service");
 
 /**
- * Handles User Login
+ * Handles User Login via Supabase Auth
  */
 const login = async (req, res) => {
     try {
@@ -16,19 +13,31 @@ const login = async (req, res) => {
             return res.status(400).json({ success: false, message: "Credentials missing" });
         }
 
-        const user = await User.findByEmail(email);
-        if (!user) {
-            return res.status(404).json({ success: false, message: "Account not found" });
+        // 1. Authenticate with Supabase
+        const { data, error } = await supabase.auth.signInWithPassword({
+            email,
+            password,
+        });
+
+        if (error) {
+            return res.status(401).json({ success: false, message: error.message });
         }
 
-        const isMatch = await bcrypt.compare(password, user.password);
-        if (!isMatch) {
-            return res.status(401).json({ success: false, message: "Invalid credentials" });
+        const user = data.user;
+        const token = data.session.access_token;
+
+        // 2. Verified User Logic: Ensure Subscription exists
+        // Since profile is created only after verification, we check/init sub here
+        let sub = await Subscription.getStats(user.id);
+
+        if (!sub) {
+            // This is likely their first login after verification
+            console.log(`🚀 First login for ${user.email}. Initializing subscription...`);
+            await Subscription.initFreeTier(user.id);
+            sub = await Subscription.getStats(user.id);
         }
 
-        const sub = await Subscription.getStats(user.id);
-        const token = generateToken({ id: user.id, email: user.email });
-
+        // 3. Optional: Send login notification
         sendLoginEmail(user.email).catch(err => console.error("Email Error:", err));
 
         return res.status(200).json({
@@ -36,14 +45,13 @@ const login = async (req, res) => {
             token,
             user: {
                 id: user.id,
-                name: user.name,
                 email: user.email,
-                role: user.role,
+                name: user.user_metadata?.full_name || "",
                 subscription: {
-                    plan: sub.plan_type,
-                    used: sub.current_usage,
-                    limit: sub.usage_limit,
-                    remaining: sub.usage_limit - sub.current_usage
+                    plan: sub?.plan_type || "free",
+                    used: sub?.current_usage || 0,
+                    limit: sub?.usage_limit || 0,
+                    remaining: (sub?.usage_limit || 0) - (sub?.current_usage || 0)
                 }
             }
         });
@@ -54,7 +62,7 @@ const login = async (req, res) => {
 };
 
 /**
- * Handles User Registration
+ * Handles User Registration via Supabase Auth
  */
 const signup = async (req, res) => {
     try {
@@ -64,38 +72,26 @@ const signup = async (req, res) => {
             return res.status(400).json({ success: false, message: "All fields are required" });
         }
 
-        const existingUser = await User.findByEmail(email);
-        if (existingUser) {
-            return res.status(409).json({ success: false, message: "Email already registered" });
-        }
-
-        const hashedPassword = await bcrypt.hash(password, 12);
-        
-        const newUser = await User.create({ 
-            name, 
-            email, 
-            password: hashedPassword, 
-            role: role.toLowerCase() 
+        // 1. Sign up in Supabase Auth
+        const { data, error } = await supabase.auth.signUp({
+            email,
+            password,
+            options: {
+                data: { full_name: name, role: role }
+            }
         });
 
-        await Subscription.initFreeTier(newUser.id);
-        const sub = await Subscription.getStats(newUser.id);
-
-        const token = generateToken({ id: newUser.id, email: newUser.email });
-
-        sendSignupEmail(newUser.email, newUser.name).catch(console.error);
-
+        if (error) {
+            console.error("Signup Error:", error);
+            return res.status(400).json({ success: false, message: error.message });
+        }
         return res.status(201).json({
             success: true,
-            token,
+            message: "Account created. Please check your email to verify your account.",
+            // session might be null if email confirmation is required
             user: {
-                id: newUser.id,
-                name: newUser.name,
-                role: newUser.role,
-                subscription: {
-                    plan: sub.plan_type,
-                    limit: sub.usage_limit
-                }
+                id: data.user.id,
+                email: data.user.email
             }
         });
     } catch (error) {
@@ -105,138 +101,45 @@ const signup = async (req, res) => {
 };
 
 /**
- * Initiates Password Reset (Sends OTP)
- */
-/**
- * Initiates Password Reset (Sends OTP)
+ * Initiates Password Reset
  */
 const forgotPassword = async (req, res) => {
     const { email } = req.body;
-    
     try {
-        if (!email) {
-            return res.status(400).json({ success: false, message: "Email is required" });
-        }
-
-        const user = await User.findByEmail(email);
-        
-        // Security Tip: Even if user isn't found, some prefer returning 200 
-        // to prevent "Email Enumeration" attacks. But for internal tools, 404 is fine.
-        if (!user) {
-            return res.status(404).json({ success: false, message: "User not found" });
-        }
-
-        // 1. Generate 6-digit OTP
-        const otp = generateOTP();
-        
-        // 2. Set 10-minute expiry (UTC ISO String)
-        const expires = new Date(Date.now() + 10 * 60 * 1000).toISOString(); 
-
-        // 3. Update Database FIRST
-        await User.updateResetToken(user.id, otp, expires);
-
-        // 4. Send Email
-        try {
-            await sendResetEmail(user.email, otp); 
-        } catch (emailError) {
-            console.error("Mail Delivery Failed:", emailError);
-            
-            // OPTIONAL: Rollback the token in DB if email fails so user can retry immediately
-            await User.updateResetToken(user.id, null, null);
-            
-            return res.status(503).json({ 
-                success: false, 
-                message: "Email service temporarily unavailable. Please try again later." 
-            });
-        }
-
-        // 5. Success Response
-        return res.status(200).json({ 
-            success: true, 
-            message: "A 6-digit reset code has been sent to your email" 
+        const { error } = await supabase.auth.resetPasswordForEmail(email, {
+            redirectTo: 'https://your-app-url.com/reset-password', // Update this to your frontend URL
         });
 
+        if (error) return res.status(400).json({ success: false, message: error.message });
+
+        return res.status(200).json({
+            success: true,
+            message: "Password reset instructions sent to your email."
+        });
     } catch (error) {
-        // Detailed logging for your Render logs
-        console.error("Forgot PW Logic Failure:", {
-            error: error.message,
-            email,
-            timestamp: new Date().toISOString()
-        });
-        
-        return res.status(500).json({ 
-            success: false, 
-            message: "An internal error occurred. Please contact support." 
-        });
+        return res.status(500).json({ success: false, message: "Server error" });
     }
 };
 
 /**
- * Verifies if the OTP is valid (Check before showing 'New Password' screen)
+ * Handles Password Update
  */
-const verifyOTP = async (req, res) => {
-    const { email, otp } = req.body;
-    try {
-        const user = await User.findByEmail(email);
-        if (!user) return res.status(404).json({ success: false, message: "User not found" });
-
-        // DEBUG LOGS - Check your terminal!
-        console.log("Input OTP:", otp, typeof otp);
-        console.log("DB OTP:", user.reset_token, typeof user.reset_token);
-        console.log("DB Expiry:", user.reset_token_expires);
-        console.log("Now:", new Date().toISOString());
-
-        const isOtpValid = String(user.reset_token).trim() === String(otp).trim();
-        const isNotExpired = new Date(user.reset_token_expires) > new Date();
-
-        if (!isOtpValid) {
-            return res.status(400).json({ success: false, message: "Invalid OTP" });
-        }
-
-        if (!isNotExpired) {
-            return res.status(400).json({ success: false, message: "OTP has expired" });
-        }
-
-        return res.status(200).json({ success: true, message: "OTP Verified" });
-    } catch (error) {
-        console.error("Verification Error:", error);
-        return res.status(500).json({ success: false, message: "Verification failed" });
-    }
-};
-/**
- * Resets Password using OTP + Email
- */
-
 const resetPassword = async (req, res) => {
-    const { email, otp, newPassword } = req.body;
-
+    const { newPassword } = req.body;
     try {
-        // 1. Fetch user AND the specific OTP data
-        const user = await User.findByEmail(email);
+        const { error } = await supabase.auth.updateUser({ password: newPassword });
 
-        // 2. Strict validation: Must match Email, OTP, and not be expired
-        const isOtpValid = String(user.reset_token) === String(otp);
-        const isNotExpired = new Date(user.reset_token_expires) > new Date();
+        if (error) return res.status(400).json({ success: false, message: error.message });
 
-        if (!user || !isOtpValid || !isNotExpired) {
-            return res.status(403).json({ 
-                success: false, 
-                message: "Security violation: Invalid or expired reset session." 
-            });
-        }
-
-        // 3. Hash and Update
-        const hashedPassword = await bcrypt.hash(newPassword, 12);
-        
-        // 4. CRITICAL: Clear the OTP fields so they can't be used AGAIN
-        await User.updatePassword(user.id, hashedPassword);
-
-        return res.status(200).json({ success: true, message: "Password updated." });
+        return res.status(200).json({ success: true, message: "Password updated successfully." });
     } catch (error) {
         return res.status(500).json({ success: false, message: "Server error." });
     }
 };
 
-const logout = (req, res) => res.status(200).json({ success: true });
+const logout = async (req, res) => {
+    await supabase.auth.signOut();
+    return res.status(200).json({ success: true });
+};
 
-module.exports = { login, signup, forgotPassword, verifyOTP, resetPassword, logout };
+module.exports = { login, signup, forgotPassword, resetPassword, logout };

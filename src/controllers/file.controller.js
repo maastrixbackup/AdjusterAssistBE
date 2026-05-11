@@ -1,5 +1,4 @@
 const File = require("../models/workspace.model");
-
 /**
  * Creates a new Workspace (File) - All fields are now mandatory
  */
@@ -15,13 +14,12 @@ const createFile = async (req, res) => {
             policy_form,
             jurisdiction,
             line_of_business,
-            claim_stage 
+            claim_stage
         } = req.body;
 
-        const userId = req.user.id; // Populated by authMiddleware
+        const userId = req.user.id; // UUID string from authMiddleware
 
-        // 1. Strict Validation: Ensure the Adjuster has filled out the entire form
-        // This prevents the PayloadBuilder from having 'null' values later
+        // 1. Strict Validation
         if (!claim_number || !client_name || !address || !loss_type || !jurisdiction) {
             return res.status(400).json({
                 success: false,
@@ -31,7 +29,7 @@ const createFile = async (req, res) => {
 
         // 2. Pass the full object to the Model
         const newFile = await File.create({
-            user_id: userId,
+            user_id: userId, // Passed as UUID string
             claim_number,
             policy_form,
             client_name,
@@ -50,9 +48,8 @@ const createFile = async (req, res) => {
             file: newFile
         });
     } catch (error) {
-        // Handle the 'Unique Constraint' error for claim_number gracefully
-        if (error.message.includes("unique constraint")) {
-            console.log("A workspace with this claim number already exists.")
+        // Handle Unique Constraint for claim_number
+        if (error.message.includes("unique constraint") || error.code === '23505') {
             return res.status(400).json({
                 success: false,
                 message: "A workspace with this claim number already exists."
@@ -88,10 +85,14 @@ const getMyFiles = async (req, res) => {
     }
 };
 
+/**
+ * Get a single workspace by ID
+ */
 const getFileById = async (req, res) => {
     try {
         const { fileId } = req.params;
-        const userId = parseInt(req.user.id);
+        const userId = req.user.id; // UUID string
+
         const file = await File.findById(fileId);
 
         if (!file) {
@@ -100,12 +101,15 @@ const getFileById = async (req, res) => {
                 message: "Workspace not found"
             });
         }
-        if (parseInt(file.user_id) !== userId) {
+
+        // Security Check: Compare UUID strings directly
+        if (file.user_id !== userId) {
             return res.status(403).json({
                 success: false,
                 message: "Unauthorized to access this workspace"
             });
         }
+
         res.status(200).json({
             success: true,
             file
@@ -125,7 +129,7 @@ const getFileById = async (req, res) => {
 const updateFile = async (req, res) => {
     try {
         const { fileId } = req.params;
-        const userId = parseInt(req.user.id); // Ensure integer comparison
+        const userId = req.user.id;
 
         const existingFile = await File.findById(fileId);
 
@@ -136,8 +140,8 @@ const updateFile = async (req, res) => {
             });
         }
 
-        // Security Check: Compare as Integers
-        if (parseInt(existingFile.user_id) !== userId) {
+        // Security Check: Direct UUID string comparison
+        if (existingFile.user_id !== userId) {
             return res.status(403).json({
                 success: false,
                 message: "Unauthorized to update this workspace"
@@ -161,12 +165,12 @@ const updateFile = async (req, res) => {
 };
 
 /**
- * Deletes a workspace and its associated data
+ * Deletes a workspace
  */
 const deleteFile = async (req, res) => {
     try {
         const { fileId } = req.params;
-        const userId = parseInt(req.user.id);
+        const userId = req.user.id;
 
         const file = await File.findById(fileId);
 
@@ -174,7 +178,7 @@ const deleteFile = async (req, res) => {
             return res.status(404).json({ success: false, message: "Workspace not found" });
         }
 
-        if (parseInt(file.user_id) !== userId) {
+        if (file.user_id !== userId) {
             return res.status(403).json({ success: false, message: "Unauthorized to delete this workspace" });
         }
 
