@@ -17,7 +17,7 @@ const createFile = async (req, res) => {
             claim_stage
         } = req.body;
 
-        const userId = req.user.id; // UUID string from authMiddleware
+        const userId = req.user.id;
 
         // 1. Strict Validation
         if (!claim_number || !client_name || !address || !loss_type || !jurisdiction) {
@@ -28,7 +28,7 @@ const createFile = async (req, res) => {
         }
 
         // 2. Pass the full object to the Model
-        const newFile = await File.create({
+        const newFile = await File.create(req.supabase, {
             user_id: userId, // Passed as UUID string
             claim_number,
             policy_form,
@@ -69,7 +69,7 @@ const createFile = async (req, res) => {
  */
 const getMyFiles = async (req, res) => {
     try {
-        const files = await File.findByUserId(req.user.id);
+        const files = await File.findByUserId(req.supabase, req.user.id);
 
         res.status(200).json({
             success: true,
@@ -91,9 +91,9 @@ const getMyFiles = async (req, res) => {
 const getFileById = async (req, res) => {
     try {
         const { fileId } = req.params;
-        const userId = req.user.id; // UUID string
+        const userId = req.user.id;
 
-        const file = await File.findById(fileId);
+        const file = await File.findById(req.supabase, fileId);
 
         if (!file) {
             return res.status(404).json({
@@ -131,7 +131,7 @@ const updateFile = async (req, res) => {
         const { fileId } = req.params;
         const userId = req.user.id;
 
-        const existingFile = await File.findById(fileId);
+        const existingFile = await File.findById(req.supabase, fileId);
 
         if (!existingFile) {
             return res.status(404).json({
@@ -148,7 +148,7 @@ const updateFile = async (req, res) => {
             });
         }
 
-        const updatedFile = await File.update(fileId, req.body);
+        const updatedFile = await File.update(req.supabase, fileId, req.body);
 
         res.status(200).json({
             success: true,
@@ -172,25 +172,36 @@ const deleteFile = async (req, res) => {
         const { fileId } = req.params;
         const userId = req.user.id;
 
-        const file = await File.findById(fileId);
+        const file = await File.findById(req.supabase, fileId);
 
         if (!file) {
-            return res.status(404).json({ success: false, message: "Workspace not found" });
+            return res.status(404).json({
+                success: false,
+                message: "Workspace not found"
+            });
         }
 
         if (file.user_id !== userId) {
-            return res.status(403).json({ success: false, message: "Unauthorized to delete this workspace" });
+            return res.status(403).json({
+                success: false,
+                message: "Unauthorized to delete this workspace"
+            });
         }
 
-        await File.delete(fileId);
+        await File.delete(req.supabase, fileId);
 
         res.status(200).json({
             success: true,
             message: "Workspace deleted successfully"
         });
+
     } catch (error) {
         console.error("Delete File Controller Error:", error.message);
-        res.status(500).json({ success: false, message: "Error deleting workspace" });
+
+        res.status(500).json({
+            success: false,
+            message: "Error deleting workspace"
+        });
     }
 };
 

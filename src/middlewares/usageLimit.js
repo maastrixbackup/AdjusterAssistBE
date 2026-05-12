@@ -3,9 +3,6 @@ const Subscription = require("../models/subscription.model");
 const checkUsageLimit = async (req, res, next) => {
   try {
     const userId = req.user.id; 
-    
-    // 1. Fetch stats and trigger the Monthly Reset check
-    // This ensures if their month just ended, they get fresh credits NOW.
     await Subscription.checkAndResetMonthlyUsage(userId);
     let sub = await Subscription.getStats(userId);
 

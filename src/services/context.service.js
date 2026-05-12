@@ -1,5 +1,5 @@
 const OpenAI = require('openai');
-const {supabaseAdmin} = require('../config/supabase.js');
+const { supabaseAdmin } = require('../config/supabase.js');
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -276,29 +276,39 @@ INSTRUCTION: Use the SOURCE_TEXT_TO_CONVERT as the primary material for the requ
     /**
      * 🔹 INGESTION (UNCHANGED, JUST SAFER)
      */
-    ingestMessage: async (fileId, messageId, text) => {
+    ingestMessage: async ({ workspace, messageId, text }) => {
         try {
-            if (!text || text.length < 5) return;
+            if (!workspace?.id) {
+                throw new Error("Workspace context missing");
+            }
 
+            if (!text || text.trim().length < 5) {
+                return;
+            } 
+            const cleanedText = trimForEmbedding(text);
             const response = await openai.embeddings.create({
                 model: "text-embedding-3-small",
-                input: trimForEmbedding(text),
+                input: cleanedText,
             });
 
             const [{ embedding }] = response.data;
 
-            const { error } = await supabaseAdmin.from('claim_embeddings').insert({
-                claim_id: fileId,
-                message_id: messageId,
-                content: text,
-                embedding: embedding
-            });
+            const { error } = await supabaseAdmin
+                .from("claim_embeddings")
+                .insert({
+                    claim_id: workspace.id,
+                    user_id: workspace.user_id, // IMPORTANT
+                    message_id: messageId,
+                    content: cleanedText,
+                    embedding
+                });
 
             if (error) throw error;
 
-            console.log(`✅ Ingested message ${messageId}`);
+            console.log(`✅ Embedded message ${messageId}`);
+
         } catch (error) {
-            console.error("Vector Ingestion Error:", error);
+            console.error("Vector Ingestion Error:", error.message);
         }
     }
 };

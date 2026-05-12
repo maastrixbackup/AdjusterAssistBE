@@ -1,12 +1,8 @@
 const { supabaseAdmin } = require('../config/supabase');
 
 const Message = {
-    /**
-     * 1. Create a new interaction (Message)
-     * messageData should include: workspace_id, user_id (UUID), user_input, ai_response, etc.
-     */
-    create: async (messageData) => {
-        const { data, error } = await supabaseAdmin
+    create: async (supabase, messageData) => {
+        const { data, error } = await supabase
             .from('claim_messages')
             .insert([messageData])
             .select()
@@ -18,12 +14,9 @@ const Message = {
         }
         return data;
     },
-
-    /**
-     * 2. Find a single message by its serial ID
-     */
-    findById: async (id) => {
-        const { data, error } = await supabaseAdmin
+    
+    findById: async (supabase, id) => {
+        const { data, error } = await supabase
             .from('claim_messages')
             .select('*')
             .eq('id', id)
@@ -36,11 +29,9 @@ const Message = {
         return data;
     },
 
-    /**
-     * 3. Fetch the conversation history for a specific workspace (Claim)
-     */
-    findByWorkspaceId: async (workspaceId) => {
-        const { data, error } = await supabaseAdmin
+    
+    findByWorkspaceId: async (supabase, workspaceId) => {
+        const { data, error } = await supabase
             .from('claim_messages')
             .select('*')
             .eq('workspace_id', workspaceId)
@@ -53,11 +44,9 @@ const Message = {
         return data;
     },
 
-    /**
-     * 4. Update message (e.g., mark response_used = true or update refinement)
-     */
-    updateById: async (id, updateData) => {
-        const { data, error } = await supabaseAdmin
+  
+    updateById: async (supabase, id, updateData) => {
+        const { data, error } = await supabase
             .from('claim_messages')
             .update({
                 ...updateData,
@@ -74,11 +63,9 @@ const Message = {
         return data;
     },
 
-    /**
-     * 5. Delete message (Careful: CASCADE is active in DB for versions/parents)
-     */
-    deleteById: async (id) => {
-        const { error } = await supabaseAdmin
+
+    deleteById: async (supabase, id) => {
+        const { error } = await supabase
             .from('claim_messages')
             .delete()
             .eq('id', id);
@@ -90,14 +77,12 @@ const Message = {
         return true;
     },
 
-    /**
-     * 6. Find all messages for an adjuster (UUID based)
-     */
-    findAllByUser: async (userId) => {
-        const { data, error } = await supabaseAdmin
+
+    findAllByUser: async (supabase, userId) => {
+        const { data, error } = await supabase
             .from('claim_messages')
             .select('*')
-            .eq('user_id', userId) // userId is a UUID string
+            .eq('user_id', userId)
             .order('created_at', { ascending: false });
 
         if (error) {

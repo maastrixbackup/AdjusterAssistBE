@@ -1,4 +1,4 @@
-const {supabaseAdmin} = require('../config/supabase'); 
+const { supabaseAdmin } = require('../config/supabase');
 const { sendPushNotificationToUser, sendPushNotificationToMultipleUsers } = require('../services/pushNotification.service');
 
 exports.saveToken = async (req, res) => {
@@ -9,10 +9,14 @@ exports.saveToken = async (req, res) => {
     if (!userId || !pushToken) {
       return res.status(400).json({ error: "UserId and Token are required" });
     }
+    await supabaseAdmin
+      .from('profiles')
+      .update({ expo_push_token: null })
+      .eq('expo_push_token', pushToken)
+      .neq('id', userId); 
 
-    // Update the 'users' table column 'expo_push_token'
     const { data, error } = await supabaseAdmin
-      .from('users')
+      .from('profiles')
       .update({ expo_push_token: pushToken })
       .eq('id', userId);
 
@@ -20,11 +24,11 @@ exports.saveToken = async (req, res) => {
 
     return res.status(200).json({ 
       success: true, 
-      message: "Push token saved to AdjusterAssist database" 
+      message: "Push token saved" 
     });
   } catch (error) {
     console.error("Backend Error:", error.message);
-    res.status(500).json({ error: "Internal Server Error" });
+    res.status(500).json({ error: error.message });
   }
 };
 
@@ -34,7 +38,7 @@ exports.sendTestNotification = async (req, res) => {
 
     // 1. Get user with token from Supabase
     const { data, error } = await supabaseAdmin
-      .from('users')
+      .from('profiles')
       .select('expo_push_token')
       .eq('id', userId)
       .single();
@@ -81,7 +85,7 @@ exports.sendBroadcastNotification = async (req, res) => {
 
     // 1. Get ALL users who have a push token
     const { data: users, error } = await supabaseAdmin
-      .from('users')
+      .from('profiles')
       .select('expo_push_token')
       .not('expo_push_token', 'is', null);
 

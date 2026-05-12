@@ -1,96 +1,53 @@
-const { supabaseAdmin } = require('../config/supabase');
+const { createUserClient, supabaseAdmin } = require('../config/supabase');
 
 const File = {
-    /**
-     * 1. Create a new File (Mandatory Fields)
-     * Note: user_id is now a UUID string, not an integer.
-     */
-    create: async (fileData) => {
-        const { 
-            user_id, 
-            claim_number, 
-            client_name, 
-            policy_form,
-            date_of_loss, 
-            reported_date, 
-            loss_type, 
-            address,
-            jurisdiction, 
-            line_of_business, 
-            claim_stage 
-        } = fileData;
-
-        // Validation Check
-        if (!user_id || !claim_number || !client_name) {
-            throw new Error("Missing required fields: user_id, claim_number, or client_name");
-        }
-
-        const { data, error } = await supabaseAdmin
+    create: async (supabase, fileData) => {
+        const { data, error } = await supabase
             .from('files')
-            .insert([
-                {
-                    user_id: user_id, // Removed parseInt() - must be UUID string
-                    claim_number,
-                    client_name,
-                    policy_form: policy_form || '',
-                    date_of_loss: date_of_loss || new Date().toISOString().split('T')[0],
-                    reported_date: reported_date || new Date().toISOString().split('T')[0],
-                    loss_type: loss_type || 'water',
-                    address: address || '',
-                    jurisdiction: jurisdiction || 'CT',
-                    line_of_business: line_of_business || 'homeowners',
-                    claim_stage: claim_stage || 'mitigation_review',
-                    status: 'active'
-                }
-            ])
-            .select();
+            .insert([fileData])
+            .select()
+            .single();
 
-        if (error) {
-            console.error("Supabase Insert Error:", error.message);
-            throw error;
-        }
-        return data[0];
+        if (error) throw error;
+
+        return data;
     },
 
-    /**
-     * 2. Get all files for a specific adjuster
-     */
-    findByUserId: async (userId) => {
-        const { data, error } = await supabaseAdmin
+    findByUserId: async (supabase, userId) => {
+        const { data, error } = await supabase
             .from('files')
             .select('*')
-            .eq('user_id', userId) // userId is a UUID string
+            .eq('user_id', userId)
             .order('created_at', { ascending: false });
 
         if (error) {
             console.error("Error fetching files by user:", error.message);
             throw error;
         }
+
         return data;
     },
 
     /**
      * 3. Get a single file by ID (Internal ID is serial/integer)
      */
-    findById: async (fileId) => {
-        const { data, error } = await supabaseAdmin
+    findById: async (supabase, fileId) => {
+        const { data, error } = await supabase
             .from('files')
             .select('*')
             .eq('id', fileId)
             .single();
 
         if (error && error.code !== 'PGRST116') {
-            console.error("Error fetching file by ID:", error.message);
             throw error;
         }
+
         return data;
     },
 
-    /**
-     * 4. Update file metadata
-     */
-    update: async (fileId, updateData) => {
-        const { data, error } = await supabaseAdmin
+
+    update: async (supabase, fileId, updateData) => {
+        const { data, error } = await supabase
             .from('files')
             .update({
                 ...updateData,
@@ -110,8 +67,8 @@ const File = {
     /**
      * 5. Delete a file
      */
-    delete: async (fileId) => {
-        const { data, error } = await supabaseAdmin
+    delete: async (supabase, fileId) => {
+        const { data, error } = await supabase
             .from('files')
             .delete()
             .eq('id', fileId)
@@ -127,8 +84,8 @@ const File = {
     /**
      * 6. Get the most recent file for the workspace
      */
-    findMostRecent: async (userId) => {
-        const { data, error } = await supabaseAdmin
+    findMostRecent: async (supabase, userId) => {
+        const { data, error } = await supabase
             .from('files')
             .select('*')
             .eq('user_id', userId)
