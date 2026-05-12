@@ -559,8 +559,8 @@ const createVariantDraft = async (req, res) => {
                 ai_response: cleanMainContent,
                 output_format: detectedType,
                 next_step_suggestion: nextAction,
-                created_at: turnResult.created_at,
-                updated_at: updateData.updated_at
+                created_at: new Date().toISOString(),
+                updated_at: updateData.updated_at || new Date().toISOString()
             }
         });
 
