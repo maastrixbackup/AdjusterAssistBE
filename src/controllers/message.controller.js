@@ -3,7 +3,7 @@ const Message = require("../models/message.model");
 const File = require("../models/workspace.model");
 const aiService = require("../services/ai.service");
 const PayloadBuilder = require("../utils/payloadBuilder");
-const {supabaseAdmin} = require("../config/supabase");
+const { supabaseAdmin } = require("../config/supabase");
 const Profile = require("../models/profile.js");
 const { getMandatoryNextStep } = require("../utils/workflowMatrix");
 const { storeBase64Image } = require("../services/profileStorageService.js");
@@ -44,7 +44,7 @@ const testCreateMessage = async (req, res) => {
         const actions = ["Edit Email", "Send Now", "Create File Note"];
 
         // 2. Save the entire interaction as ONE single row
-        const turnResult = await Message.create({
+        const turnResult = await Message.create(req.supabase, {
             workspace_id,
             user_id: userId,
             user_input: user_input,
@@ -87,7 +87,7 @@ const getFileDrafts = async (req, res) => {
             return res.status(400).json({ success: false, message: "File ID is required" });
         }
 
-        const drafts = await Message.findByWorkspaceId(fileId);
+        const drafts = await Message.findByWorkspaceId(req.supabase, fileId);
 
         res.status(200).json({
             success: true,
@@ -106,7 +106,7 @@ const getFileDrafts = async (req, res) => {
 const AllDrafts = async (req, res) => {
     try {
         const userId = req.user.id;
-        const drafts = await Message.findAllByUser(userId);
+        const drafts = await Message.findAllByUser(req.supabase, userId);
         res.status(200).json({
             success: true,
             count: drafts.length,
@@ -126,7 +126,7 @@ const getRecentDrafts = async (req, res) => {
         const userId = req.user.id;
         const limit = parseInt(req.query.limit) || 2;
 
-        const recentDrafts = await Message.findRecent(userId, limit);
+        const recentDrafts = await Message.findRecent(req.supabase, userId, limit);
 
         res.status(200).json({
             success: true,
@@ -145,7 +145,7 @@ const deleteDraft = async (req, res) => {
         const { draftId } = req.params;
         const userId = req.user.id;
 
-        const draft = await Message.findById(draftId);
+        const draft = await Message.findById(req.supabase, draftId);
         if (!draft) {
             return res.status(404).json({ success: false, message: "Message not found" });
         }
@@ -155,7 +155,7 @@ const deleteDraft = async (req, res) => {
             return res.status(403).json({ success: false, message: "Unauthorized deletion" });
         }
 
-        await Message.deleteById(draftId);
+        await Message.deleteById(req.supabase, draftId);
         res.status(200).json({ success: true, message: "Message deleted successfully" });
     } catch (error) {
         console.error("Delete Message Error:", error.message);
@@ -171,7 +171,7 @@ const updateDraft = async (req, res) => {
 
         const updateData = req.body;
 
-        const existingMessage = await Message.findById(draftId);
+        const existingMessage = await Message.findById(req.supabase, draftId);
 
         if (!existingMessage) {
             return res.status(404).json({
@@ -188,7 +188,7 @@ const updateDraft = async (req, res) => {
         }
 
 
-        const updatedTurn = await Message.updateById(draftId, updateData);
+        const updatedTurn = await Message.updateById(req.supabase, draftId, updateData);
 
         return res.status(200).json({
             success: true,
@@ -214,7 +214,21 @@ const createAIDraft = async (req, res) => {
         const { userInput, fileId } = req.body;
 
         if (!userInput?.trim()) return res.status(400).json({ message: "Input text is required" });
-        if (!fileId) return res.status(400).json({ message: "Workspace context missing" });
+        const file = await File.findById(req.supabase, fileId);
+
+        if (!file) {
+            return res.status(404).json({
+                success: false,
+                message: "Workspace not found"
+            });
+        }
+
+        if (file.user_id !== userId) {
+            return res.status(403).json({
+                success: false,
+                message: "Unauthorized access to workspace"
+            });
+        }
 
         // 1. Storage - Upload attachments to Supabase
         let attachmentUrls = [];
@@ -253,10 +267,7 @@ const createAIDraft = async (req, res) => {
         console.log(!!conversationHistory || "No relevant embeddings found for this input.");
         console.log("---------------------------------");
 
-        const file = await File.findById(fileId);
-        if (!file) return res.status(404).json({ message: "Workspace not found" });
-
-        const userProfile = await Profile.findById(userId);
+        const userProfile = await Profile.findById(req.supabase, userId);
 
 
         // 4. Classification & AI Generation
@@ -283,7 +294,7 @@ const createAIDraft = async (req, res) => {
             userInfo: {
                 sender_name: userProfile.signature_details.name || userProfile.name,
                 sender_designation: userProfile.signature_details.designation || userProfile.role,
-                sender_email:  userProfile.email,
+                sender_email: userProfile.email,
                 sender_company: userProfile.signature_details.company || userProfile.company || "AdjusterAssist™"
             }
         });
@@ -307,7 +318,7 @@ const createAIDraft = async (req, res) => {
         // 6. Database Operations - Save Main Message Turn
         let turnResult;
         try {
-            turnResult = await Message.create({
+            turnResult = await Message.create(req.supabase, {
                 workspace_id: fileId,
                 user_id: userId,
                 parent_id: null, // Always a parent message
@@ -426,7 +437,7 @@ const createVariantDraft = async (req, res) => {
         }
 
         // 2. Fetch Parent Context (Inherit OCR and previous data)
-        const parentMessage = await Message.findById(parentMessageId);
+        const parentMessage = await Message.findById(req.supabase, parentMessageId);
         if (!parentMessage) {
             return res.status(404).json({ message: "Parent message not found" });
         }
@@ -467,7 +478,7 @@ const createVariantDraft = async (req, res) => {
             userInfo: {
                 sender_name: userProfile.signature_details.name || userProfile.name,
                 sender_designation: userProfile.signature_details.designation || userProfile.role,
-                sender_email:  userProfile.email,
+                sender_email: userProfile.email,
                 sender_company: userProfile.signature_details.company || userProfile.company || "AdjusterAssist™"
             },
             files: parentMessage.image_input_url || parentMessage.documents_url,
@@ -507,6 +518,7 @@ const createVariantDraft = async (req, res) => {
             ai_raw_response: aiRawResponse,
             content_type: detectedType,
             variant_label: variantLabel,
+            version_index: parentMessage.version_index + 1,
             metadata: {
                 ...parentMessage.metadata,
                 is_variant: true,
@@ -521,7 +533,7 @@ const createVariantDraft = async (req, res) => {
             updated_at: new Date().toISOString()
         };
         await updateWorkspaceActivity(fileId);
-        const turnResult = await Message.updateById(parentMessageId, updateData);
+        const turnResult = await Message.updateById(req.supabase, parentMessageId, updateData);
         await ContextService.ingestMessage(fileId, turnResult.id, aiRawResponse);
 
 
@@ -592,7 +604,7 @@ const refineAIDraft = async (req, res) => {
         }
 
         // 2. Fetch Parent Context
-        const parentMessage = await Message.findById(parentMessageId);
+        const parentMessage = await Message.findById(req.supabase, parentMessageId);
         if (!parentMessage) {
             return res.status(404).json({ message: "Original message not found." });
         }
@@ -630,6 +642,7 @@ const refineAIDraft = async (req, res) => {
             ai_raw_response: aiRawResponse,
             refinement_type: refinementType,
             activity_type: 'ai_refinement',
+            version_index: parentMessage.version_index + 1,
             next_step_suggestion: nextAction || "Request supporting documentation from the contractor and proceed with inspection to verify the source, scope, and extent of damages",
             metadata: {
                 ...parentMessage.metadata,
@@ -640,10 +653,10 @@ const refineAIDraft = async (req, res) => {
             },
             updated_at: new Date().toISOString()
         };
-        
+
         await updateWorkspaceActivity(fileId);
 
-        const turnResult = await Message.updateById(parentMessageId, refinementUpdate);
+        const turnResult = await Message.updateById(req.supabase, parentMessageId, refinementUpdate);
         ContextService.ingestMessage(fileId, turnResult.id, aiRawResponse);
 
         // 8. Log
