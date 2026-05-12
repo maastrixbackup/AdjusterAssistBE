@@ -506,6 +506,7 @@ const createVariantDraft = async (req, res) => {
             ai_response: cleanMainContent,
             ai_raw_response: aiRawResponse,
             content_type: detectedType,
+            variant_label: variantLabel,
             metadata: {
                 ...parentMessage.metadata,
                 is_variant: true,
@@ -613,7 +614,7 @@ const refineAIDraft = async (req, res) => {
 
         const aiRawResponse = await aiService.refineAIDraft({
             refinementType,
-            originalResponse: parentMessage.aiRawResponse,
+            originalResponse: parentMessage.ai_raw_response,
             audienceType: extraction.recipient_role || "internal"
         });
 
