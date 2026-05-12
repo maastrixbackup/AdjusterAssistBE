@@ -9,8 +9,12 @@ exports.saveToken = async (req, res) => {
     if (!userId || !pushToken) {
       return res.status(400).json({ error: "UserId and Token are required" });
     }
+    await supabaseAdmin
+      .from('profiles')
+      .update({ expo_push_token: null })
+      .eq('expo_push_token', pushToken);
 
-    // Update the 'users' table column 'expo_push_token'
+    // 2. Now update the current user with the token
     const { data, error } = await supabaseAdmin
       .from('profiles')
       .update({ expo_push_token: pushToken })
@@ -20,11 +24,11 @@ exports.saveToken = async (req, res) => {
 
     return res.status(200).json({ 
       success: true, 
-      message: "Push token saved to AdjusterAssist database" 
+      message: "Push token saved successfully" 
     });
   } catch (error) {
     console.error("Backend Error:", error.message);
-    res.status(500).json({ error: "Internal Server Error" });
+    res.status(500).json({ error: error.message || "Internal Server Error" });
   }
 };
 
