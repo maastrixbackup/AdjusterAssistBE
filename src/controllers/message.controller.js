@@ -609,7 +609,6 @@ const refineAIDraft = async (req, res) => {
 
         console.log("[AUDIENCE]: ", extraction.recipient_role);
 
-        // 🔥 ✅ ONLY CHANGE: USE REFINEMENT SERVICE
         console.log(`[REFINE]: Applying '${refinementType}' logic to Message ${parentMessageId}`);
 
         const aiRawResponse = await aiService.refineAIDraft({

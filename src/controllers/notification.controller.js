@@ -12,7 +12,7 @@ exports.saveToken = async (req, res) => {
 
     // Update the 'users' table column 'expo_push_token'
     const { data, error } = await supabaseAdmin
-      .from('users')
+      .from('profiles')
       .update({ expo_push_token: pushToken })
       .eq('id', userId);
 
@@ -34,7 +34,7 @@ exports.sendTestNotification = async (req, res) => {
 
     // 1. Get user with token from Supabase
     const { data, error } = await supabaseAdmin
-      .from('users')
+      .from('profiles')
       .select('expo_push_token')
       .eq('id', userId)
       .single();
@@ -81,7 +81,7 @@ exports.sendBroadcastNotification = async (req, res) => {
 
     // 1. Get ALL users who have a push token
     const { data: users, error } = await supabaseAdmin
-      .from('users')
+      .from('profiles')
       .select('expo_push_token')
       .not('expo_push_token', 'is', null);
 
