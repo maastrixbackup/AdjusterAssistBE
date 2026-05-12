@@ -20,11 +20,29 @@ const supabaseAdmin = createClient(supabaseUrl, SUPABASE_SERVICE_KEy, {
     }
 });
 
+function createUserClient(jwt) {
+    return createClient(
+        supabaseUrl,
+        SUPABASE_ANON_KEY,
+        {
+            global: {
+                headers: {
+                    Authorization: `Bearer ${jwt}`,
+                },
+            },
+            auth: {
+                autoRefreshToken: false,
+                persistSession: false,
+            },
+        }
+    );
+}
+
 // Test Connection with the new 'profiles' table
 (async () => {
     try {
         // We now check 'profiles' instead of 'users'
-        const { data, error } = await supabase.from('profiles').select('id').limit(1);
+        const { data, error } = await supabaseAdmin.from('profiles').select('id').limit(1);
         
         if (error) {
             console.error("[❌ DB] Supabase Connection Error:", error.message);
@@ -36,4 +54,4 @@ const supabaseAdmin = createClient(supabaseUrl, SUPABASE_SERVICE_KEy, {
     }
 })();
 
-module.exports = { supabase, supabaseAdmin };
+module.exports = { supabaseAdmin, supabase, createUserClient };

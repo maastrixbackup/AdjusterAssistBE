@@ -1,4 +1,4 @@
-const {supabase} = require("../config/supabase");
+const { supabaseAdmin, supabase } = require("../config/supabase");
 const Subscription = require("../models/subscription.model");
 const { sendLoginEmail } = require("../services/email.service");
 
@@ -66,37 +66,53 @@ const login = async (req, res) => {
  */
 const signup = async (req, res) => {
     try {
-        const { name, email, password, role } = req.body;
+        const { name, email, password, role, acceptedPolicy } = req.body;
 
-        if (!name || !email || !password || !role) {
-            return res.status(400).json({ success: false, message: "All fields are required" });
+        if (!name || !email || !password || !role || !acceptedPolicy) {
+            return res.status(400).json({
+                success: false,
+                message: "All fields are required",
+            });
         }
 
-        // 1. Sign up in Supabase Auth
+        // Create auth user
         const { data, error } = await supabase.auth.signUp({
             email,
             password,
             options: {
-                data: { full_name: name, role: role }
-            }
+                data: {
+                    full_name: name,
+                    role: role,
+                    accepted_policies: acceptedPolicy,
+                },
+            },
         });
 
         if (error) {
             console.error("Signup Error:", error);
-            return res.status(400).json({ success: false, message: error.message });
+
+            return res.status(400).json({
+                success: false,
+                message: error.message,
+            });
         }
+
         return res.status(201).json({
             success: true,
-            message: "Account created. Please check your email to verify your account.",
-            // session might be null if email confirmation is required
+            message:
+                "Account created. Please check your email to verify your account.",
             user: {
                 id: data.user.id,
-                email: data.user.email
-            }
+                email: data.user.email,
+            },
         });
     } catch (error) {
         console.error("Signup Failure:", error);
-        return res.status(500).json({ success: false, message: "Failed to create account" });
+
+        return res.status(500).json({
+            success: false,
+            message: "Failed to create account",
+        });
     }
 };
 
@@ -107,7 +123,7 @@ const forgotPassword = async (req, res) => {
     const { email } = req.body;
     try {
         const { error } = await supabase.auth.resetPasswordForEmail(email, {
-            redirectTo: 'https://your-app-url.com/reset-password', // Update this to your frontend URL
+            redirectTo: "adjusterassist://reset-password",
         });
 
         if (error) return res.status(400).json({ success: false, message: error.message });
