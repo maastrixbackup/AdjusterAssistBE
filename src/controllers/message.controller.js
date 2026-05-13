@@ -233,9 +233,13 @@ const createAIDraft = async (req, res) => {
         // 1. Storage - Upload attachments to Supabase
         let attachmentUrls = [];
         try {
-            attachmentUrls = await supabaseStorage.uploadAttachments(files);
+            attachmentUrls = await supabaseStorage.uploadAttachments(
+                files,
+                userId,
+                fileId
+            );
         } catch (storageErr) {
-            console.error("Non-critical Storage Error:", storageErr.message);
+            console.error("🟥[STORAGE] Non-critical Storage Error:", storageErr.message);
         }
 
         // 2. OCR Service - Extract data from new files
@@ -243,21 +247,20 @@ const createAIDraft = async (req, res) => {
         if (files.length > 0) {
             try {
                 console.log(`[OCR Service] Extracting insights from ${files.length} files...`);
-                console.log("[OCR]", ocrInsights)
                 ocrInsights = await OCRService.extractInsights(files);
+                console.log("[OCR]", ocrInsights)
             } catch (ocrErr) {
-                console.error("OCR extraction failed:", ocrErr.message);
+                console.error("🟥[OCR] OCR extraction failed:", ocrErr.message);
                 ocrInsights = "Technical error: Could not extract document insights.";
             }
         }
 
-        // Extract specific URLs for DB indexing
-        const primaryImageUrl = attachmentUrls.find(url =>
-            url.toLowerCase().match(/\.(jpeg|jpg|png|gif|webp)$/)
+        const imageAttachment = attachmentUrls.find(
+            file => file.metadata.mime_type.startsWith("image/")
         ) || null;
 
-        const documentUrl = attachmentUrls.find(url =>
-            url.toLowerCase().match(/\.(pdf|docx|doc|txt|rtf|csv|xlsx|xls)$/)
+        const documentAttachment = attachmentUrls.find(
+            file => !file.metadata.mime_type.startsWith("image/")
         ) || null;
 
         // 3. Context & Metadata Gathering
@@ -324,8 +327,10 @@ const createAIDraft = async (req, res) => {
                 parent_id: null, // Always a parent message
                 variant_label: "Original",
                 user_input: userInput,
-                image_input_url: primaryImageUrl,
-                documents_url: documentUrl,
+                image_storage_path: imageAttachment?.storagePath || null,
+                image_metadata: imageAttachment?.metadata || {},
+                document_storage_path: documentAttachment?.storagePath || null,
+                document_metadata: documentAttachment?.metadata || {},
                 ai_response: cleanMainContent,
                 ai_raw_response: aiRawResponse,
                 ocr_insights: ocrInsights,
@@ -359,9 +364,9 @@ const createAIDraft = async (req, res) => {
                     user_id: userId,
                     parent_log_id: null,
                     input_text: userInput,
-                    input_type: primaryImageUrl ? 'attachment+text' : 'text',
-                    input_image: primaryImageUrl,
-                    documents_url: documentUrl,
+                    input_type: imageAttachment || documentAttachment ? 'attachment+text' : 'text',
+                    input_image: imageAttachment?.storagePath || null,
+                    documents_url: documentAttachment?.storagePath || null,
                     ocr_insights: ocrInsights,
                     ai_response: aiRawResponse,
                     output_text: cleanMainContent,
@@ -399,8 +404,21 @@ const createAIDraft = async (req, res) => {
                 output_format: detectedType,
                 next_step_suggestion: nextAction,
                 quick_actions: dynamicSuggestions,
-                image_input_url: primaryImageUrl,
-                documents_url: documentUrl,
+                attachments: {
+                    image: imageAttachment
+                        ? {
+                            available: true,
+                            fileName: imageAttachment.metadata.original_name
+                        }
+                        : null,
+
+                    document: documentAttachment
+                        ? {
+                            available: true,
+                            fileName: documentAttachment.metadata.original_name
+                        }
+                        : null
+                },
                 created_at: turnResult.created_at
             }
         });
@@ -481,7 +499,7 @@ const createVariantDraft = async (req, res) => {
                 sender_email: userProfile.email,
                 sender_company: userProfile.signature_details.company || userProfile.company || "AdjusterAssist™"
             },
-            files: parentMessage.image_input_url || parentMessage.documents_url,
+            files: parentMessage.image_storage_path || parentMessage.document_storage_path,
             audience: audience,
         });
 
@@ -699,6 +717,77 @@ const refineAIDraft = async (req, res) => {
 };
 
 
+const getAttachmentPreview = async (req, res) => {
+    try {
+        const { messageId, type } = req.params;
+        const userId = req.user.id;
+
+        // 1. Fetch message
+        const message = await Message.findById(
+            req.supabase,
+            messageId
+        );
+
+        if (!message) {
+            return res.status(404).json({
+                success: false,
+                message: "Message not found"
+            });
+        }
+
+        // 2. Ownership validation
+        if (message.user_id !== userId) {
+            return res.status(403).json({
+                success: false,
+                message: "Unauthorized"
+            });
+        }
+
+        // 3. Resolve path internally
+        let storagePath = null;
+
+        if (type === "image") {
+            storagePath = message.image_storage_path;
+        }
+
+        if (type === "document") {
+            storagePath = message.document_storage_path;
+        }
+
+        if (!storagePath) {
+            return res.status(404).json({
+                success: false,
+                message: "Attachment not found"
+            });
+        }
+
+        // 4. Generate temporary signed URL
+        const { data, error } =
+            await supabaseAdmin.storage
+                .from("claims-attachments")
+                .createSignedUrl(
+                    storagePath,
+                    60 * 2 // 5 minutes
+                );
+
+        if (error) throw error;
+
+        // 5. Return temporary URL
+        return res.status(200).json({
+            success: true,
+            signedUrl: data.signedUrl
+        });
+
+    } catch (error) {
+        console.error(error);
+
+        return res.status(500).json({
+            success: false,
+            message: "Preview generation failed"
+        });
+    }
+};
+
 module.exports = {
     testCreateMessage,
     getFileDrafts,
@@ -709,5 +798,6 @@ module.exports = {
     updateDraft,
 
     createVariantDraft,
-    refineAIDraft
+    refineAIDraft,
+    getAttachmentPreview
 };
