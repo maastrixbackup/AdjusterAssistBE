@@ -546,7 +546,7 @@ const createVariantDraft = async (req, res) => {
 
 
         const ocrInsights = parentMessage.ocrInsights || "No previous insights.";
-        const file = await File.findById(fileId);
+        const file = await File.findById(req.supabase, fileId);
         const userProfile = await Profile.findById(userId) || { name: "Adjuster", role: "Field Adjuster" };
 
         const labelMap = {
@@ -707,7 +707,7 @@ const refineAIDraft = async (req, res) => {
 
         const detectedType = parentMessage.content_type;
 
-        const file = await File.findById(fileId);
+        const file = await File.findById(req.supabase, fileId);
         if (!file) return res.status(404).json({ message: "Workspace not found." });
 
 
