@@ -845,7 +845,7 @@ const getAttachmentPreview = async (req, res) => {
                 .from("claims-attachments")
                 .createSignedUrl(
                     storagePath,
-                    60 * 2 // 5 minutes
+                    60 * 5 // 2 minutes
                 );
 
         if (error) throw error;
