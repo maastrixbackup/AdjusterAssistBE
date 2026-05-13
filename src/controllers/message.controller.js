@@ -82,21 +82,99 @@ const testCreateMessage = async (req, res) => {
 const getFileDrafts = async (req, res) => {
     try {
         const { fileId } = req.params;
+        const userId = req.user.id;
 
         if (!fileId) {
-            return res.status(400).json({ success: false, message: "File ID is required" });
+            return res.status(400).json({
+                success: false,
+                message: "File ID is required"
+            });
         }
 
+        // 1. Validate workspace ownership
+        const workspace = await File.findById(req.supabase, fileId);
+
+        if (!workspace) {
+            return res.status(404).json({
+                success: false,
+                message: "Workspace not found"
+            });
+        }
+
+        if (workspace.user_id !== userId) {
+            return res.status(403).json({
+                success: false,
+                message: "Unauthorized access"
+            });
+        }
+
+        // 2. Fetch drafts
         const drafts = await Message.findByWorkspaceId(req.supabase, fileId);
+
+        const formattedDrafts = drafts.map((draft) => {
+
+            const imageAttachment = draft.image_storage_path
+                ? {
+                    available: true,
+                    type: "image",
+                    fileName: draft.image_metadata?.original_name || "image",
+                    mimeType: draft.image_metadata?.mime_type || null,
+                    size: draft.image_metadata?.size || null
+                }
+                : null;
+
+            const documentAttachment = draft.document_storage_path
+                ? {
+                    available: true,
+                    type: "document",
+                    fileName: draft.document_metadata?.original_name || "document",
+                    mimeType: draft.document_metadata?.mime_type || null,
+                    size: draft.document_metadata?.size || null
+                }
+                : null;
+
+            return {
+                id: draft.id,
+                workspace_id: draft.workspace_id,
+                content_type: draft.content_type,
+                claim_state: draft.claim_state,
+                activity_type: draft.activity_type,
+
+                user_input: draft.user_input,
+                ai_response: draft.ai_response,
+
+                next_step_suggestion: draft.next_step_suggestion,
+                quick_actions: draft.quick_actions,
+
+                response_used: draft.response_used,
+                parent_id: draft.parent_id,
+                version_index: draft.version_index,
+                variant_label: draft.variant_label,
+                refinement_type: draft.refinement_type,
+
+                attachments: {
+                    image: imageAttachment,
+                    document: documentAttachment
+                },
+
+                created_at: draft.created_at,
+                updated_at: draft.updated_at
+            };
+        });
 
         res.status(200).json({
             success: true,
-            count: drafts.length,
-            drafts: drafts
+            count: formattedDrafts.length,
+            drafts: formattedDrafts
         });
+
     } catch (error) {
         console.error("Get File Drafts Error:", error.message);
-        res.status(500).json({ success: false, message: "Error fetching drafts for this workspace" });
+
+        return res.status(500).json({
+            success: false,
+            message: "Error fetching drafts for this workspace"
+        });
     }
 };
 
