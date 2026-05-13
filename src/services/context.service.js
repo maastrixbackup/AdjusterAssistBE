@@ -268,7 +268,7 @@ INSTRUCTION: Use the SOURCE_TEXT_TO_CONVERT as the primary material for the requ
                 : "";
 
         } catch (error) {
-            console.error("RAG Retrieval Error:", error);
+            console.error("🟥[RAG] Retrieval Error:", error);
             return "";
         }
     },
@@ -276,41 +276,29 @@ INSTRUCTION: Use the SOURCE_TEXT_TO_CONVERT as the primary material for the requ
     /**
      * 🔹 INGESTION (UNCHANGED, JUST SAFER)
      */
-    ingestMessage: async ({ workspace, messageId, text }) => {
+    ingestMessage: async (fileId, messageId, text) => {
         try {
-            if (!workspace?.id) {
-                throw new Error("Workspace context missing");
-            }
-
-            if (!text || text.trim().length < 5) {
-                return;
-            } 
-            const cleanedText = trimForEmbedding(text);
+            if (!text || text.length < 5) return;
             const response = await openai.embeddings.create({
                 model: "text-embedding-3-small",
-                input: cleanedText,
+                input: trimForEmbedding(text),
             });
-
             const [{ embedding }] = response.data;
-
             const { error } = await supabaseAdmin
                 .from("claim_embeddings")
                 .insert({
-                    claim_id: workspace.id,
-                    user_id: workspace.user_id, // IMPORTANT
+                    claim_id: fileId,
                     message_id: messageId,
-                    content: cleanedText,
-                    embedding
+                    content: text,
+                    embedding: embedding,
                 });
-
             if (error) throw error;
-
-            console.log(`✅ Embedded message ${messageId}`);
-
+            console.log(`✅[RAG] Ingested message ${messageId}`);
         } catch (error) {
-            console.error("Vector Ingestion Error:", error.message);
+            console.error("🟥[RAG] Vector Ingestion Error:", error);
         }
-    }
+    },
+
 };
 
 module.exports = ContextService;
