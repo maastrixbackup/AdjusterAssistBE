@@ -547,7 +547,7 @@ const createVariantDraft = async (req, res) => {
 
         const ocrInsights = parentMessage.ocrInsights || "No previous insights.";
         const file = await File.findById(req.supabase, fileId);
-        const userProfile = await Profile.findById(userId) || { name: "Adjuster", role: "Field Adjuster" };
+        const userProfile = await Profile.findById(req.supabase, userId) || { name: "Adjuster", role: "Field Adjuster" };
 
         const labelMap = {
             "email": "email_insured",
