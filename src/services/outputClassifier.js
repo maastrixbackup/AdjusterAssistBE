@@ -546,8 +546,6 @@ export const resolveEmailType = ({
   userInput = "",
   originalResponse = ""
 }) => {
-  console.log("[Email Type Resolver] Running with userInput:", userInput);
-  console.log("[Email Type Resolver] Running with Original Response:", originalResponse);
 
   const text = `
     ${userInput}
