@@ -9,7 +9,7 @@ const { getMandatoryNextStep } = require("../utils/workflowMatrix");
 const { storeBase64Image } = require("../services/profileStorageService.js");
 const { supabaseStorage } = require("../services/supabaseStorage");
 const OCRService = require("../services/ocrService")
-const { default: classifierService } = require("../services/outputClassifier.js");
+const { default: classifierService, resolveEmailType } = require("../services/outputClassifier.js");
 const fs = require('fs');
 const path = require('path');
 const { extractAiComponents } = require("../utils/aiExtractor");
@@ -549,17 +549,24 @@ const createVariantDraft = async (req, res) => {
         const file = await File.findById(req.supabase, fileId);
         const userProfile = await Profile.findById(req.supabase, userId) || { name: "Adjuster", role: "Field Adjuster" };
 
-        const labelMap = {
-            "email": "email_insured",
-            "file note": "file_note",
-            "attorney response": "attorney_response",
-            "xa note": "xactanalysis_response"
-        };
+        const normalizedLabel = variantLabel.toLowerCase();
+
+        if (normalizedLabel === "email") {
+            detectedType = resolveEmailType({
+                userInput: userInput,
+                originalResponse: parentMessage?.ai_raw_response || ""
+            }).type;
+        } else {
+            const labelMap = {
+                "file note": "file_note",
+                "attorney response": "attorney_response",
+                "xa note": "xactanalysis_response"
+            };
+
+            detectedType = labelMap[normalizedLabel] || "file_note";
+        }
 
         // Convert to lowercase once and look it up
-        const normalizedLabel = variantLabel.toLowerCase();
-        const detectedType = labelMap[normalizedLabel] || "file_note";
-
         console.log(`[VARIANT]: Transforming content to format: ${detectedType}`);
 
         const extraction = await extractUnifiedContext(userInput, ocrInsights);
