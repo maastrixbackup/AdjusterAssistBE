@@ -276,7 +276,7 @@ class ClassifierService {
       /\bwhat should i\b/.test(text) ||
       /\bhow should i\b/.test(text) ||
       /\bwhat is the next step\b/.test(text) ||
-      (text.includes("?") && (text.includes("should") || text.includes("is this") ||text.includes("guidance") || text.includes("proceed")))
+      (text.includes("?") && (text.includes("should") || text.includes("is this") || text.includes("guidance") || text.includes("proceed")))
     ) {
       return { type: 'claim_guidance', confidence: 0.95, source: 'deterministic' };
     }
@@ -299,11 +299,10 @@ class ClassifierService {
 
     // If AI already gave strong non-file_note → trust it
     if (aiResult.type !== 'file_note' && aiResult.confidence >= 0.75) {
-      console.log("[TYPE]: ",aiResult.type)
+      console.log("[TYPE]: ", aiResult.type)
       return aiResult;
     }
 
-    // CRITICAL FIX: Never allow obvious drafting intent → file_note
     if (
       text.includes("email") ||
       text.includes("reply") ||
@@ -541,3 +540,178 @@ RETURN STRICT JSON ONLY:
 }
 
 export default new ClassifierService();
+
+
+export const resolveEmailType = ({
+  userInput = "",
+  originalResponse = ""
+}) => {
+
+  const text = `
+    ${userInput}
+    ${originalResponse}
+  `.toLowerCase();
+  // ─────────────────────────────────────────────
+  // Core Intent Flags
+  // ─────────────────────────────────────────────
+
+  const hasEmailIntent =
+    text.includes("email") ||
+    text.includes("reply") ||
+    text.includes("respond") ||
+    text.includes("draft") ||
+    text.includes("send") ||
+    text.includes("write") ||
+    text.includes("forward") ||
+    text.includes("message");
+
+  const isContractor =
+    text.includes("contractor") ||
+    text.includes("mitigation") ||
+    text.includes("roofer") ||
+    text.includes("vendor") ||
+    text.includes("plumber") ||
+    text.includes("restoration company") ||
+    text.includes("restoration vendor") ||
+    text.includes("water mitigation") ||
+    text.includes("dry out company") ||
+    text.includes("reconstruction company") ||
+    text.includes("repair company");
+
+  const isInsured =
+    text.includes("insured") ||
+    text.includes("policyholder") ||
+    text.includes("customer") ||
+    text.includes("homeowner") ||
+    text.includes("tenant") ||
+    text.includes("claimant");
+
+  // ─────────────────────────────────────────────
+  // 1. HARD CONTRACTOR EMAIL TRIGGERS
+  // ─────────────────────────────────────────────
+
+  if (
+    text.includes("to contractor") ||
+    text.includes("for contractor") ||
+    text.includes("email contractor") ||
+    text.includes("contractor email") ||
+    text.includes("send to contractor") ||
+    text.includes("reply contractor") ||
+    text.includes("respond contractor") ||
+
+    /email\s+(to\s+)?(the\s+)?contractor/.test(text) ||
+    /reply\s+to\s+(the\s+)?contractor/.test(text) ||
+    /respond\s+to\s+(the\s+)?contractor/.test(text) ||
+    /draft\s+(an?\s+)?email\s+(to\s+)?(the\s+)?contractor/.test(text) ||
+    /create\s+(an?\s+)?email\s+(to\s+)?(the\s+)?contractor/.test(text) ||
+    /send\s+(an?\s+)?email\s+(to\s+)?(the\s+)?contractor/.test(text) ||
+
+    /email\s+(to\s+)?(the\s+)?vendor/.test(text) ||
+    /reply\s+to\s+(the\s+)?vendor/.test(text) ||
+    /respond\s+to\s+(the\s+)?vendor/.test(text) ||
+
+    /email\s+(to\s+)?(the\s+)?roofer/.test(text) ||
+    /reply\s+to\s+(the\s+)?roofer/.test(text) ||
+
+    /email\s+(to\s+)?(the\s+)?mitigation/.test(text) ||
+    /reply\s+to\s+(the\s+)?mitigation/.test(text) ||
+
+    (isContractor && hasEmailIntent)
+  ) {
+    return {
+      type: "email_contractor",
+      confidence: 0.97,
+      source: "deterministic"
+    };
+  }
+
+  // ─────────────────────────────────────────────
+  // 2. CONTRACTOR SCORE ENGINE
+  // ─────────────────────────────────────────────
+
+  if (isContractor) {
+
+    let score = 0;
+
+    if (
+      text.includes("estimate") ||
+      text.includes("invoice") ||
+      text.includes("scope") ||
+      text.includes("bid") ||
+      text.includes("supplement") ||
+      text.includes("photos") ||
+      text.includes("repair") ||
+      text.includes("mitigation") ||
+      text.includes("water extraction") ||
+      text.includes("dry out") ||
+      text.includes("rebuild")
+    ) score++;
+
+    if (
+      text.includes("respond") ||
+      text.includes("response") ||
+      text.includes("reply") ||
+      text.includes("email") ||
+      text.includes("draft") ||
+      text.includes("create") ||
+      text.includes("send") ||
+      text.includes("forward")
+    ) score++;
+
+    if (
+      text.includes("submitted") ||
+      text.includes("requested") ||
+      text.includes("provided") ||
+      text.includes("sent") ||
+      text.includes("pending") ||
+      text.includes("review") ||
+      text.includes("approval")
+    ) score++;
+
+    if (score >= 2) {
+      return {
+        type: "email_contractor",
+        confidence: 0.92,
+        source: "score_engine"
+      };
+    }
+  }
+
+  // ─────────────────────────────────────────────
+  // 3. INSURED EMAIL
+  // ─────────────────────────────────────────────
+
+  if (
+    /email\s+(to\s+)?(the\s+)?insured/.test(text) ||
+    /reply\s+to\s+(the\s+)?insured/.test(text) ||
+    /respond\s+to\s+(the\s+)?insured/.test(text) ||
+    /email\s+(to\s+)?(the\s+)?policyholder/.test(text) ||
+    /reply\s+to\s+(the\s+)?policyholder/.test(text) ||
+    /email\s+(to\s+)?(the\s+)?homeowner/.test(text) ||
+    (isInsured && hasEmailIntent)
+  ) {
+    return {
+      type: "email_insured",
+      confidence: 0.94,
+      source: "deterministic"
+    };
+  }
+
+  // ─────────────────────────────────────────────
+  // 4. SAFE FALLBACK
+  // ─────────────────────────────────────────────
+
+  if (isContractor) {
+    return {
+      type: "email_contractor",
+      confidence: 0.75,
+      source: "fallback_contractor_bias"
+    };
+  }
+
+  return {
+    type: "email_insured",
+    confidence: 0.60,
+    source: "fallback"
+  };
+};
