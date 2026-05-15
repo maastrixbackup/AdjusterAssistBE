@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const { getMySubscription, upgradeSubscription } = require("../controllers/subsription.controller");
+const { getMySubscription, upgradeSubscription, createSubscriptionOrder, verifySubscriptionPayment } = require("../controllers/subsription.controller");
 const authMiddleware = require("../middlewares/auth.middleware");
 
 router.get("/", async(req, res)=>{
@@ -9,5 +9,17 @@ router.get("/", async(req, res)=>{
 
 router.get("/my-plan", authMiddleware, getMySubscription);
 router.post("/upgrade", authMiddleware, upgradeSubscription);
+
+router.post(
+  "/create-order",
+  authMiddleware,
+  createSubscriptionOrder
+);
+
+router.post(
+  "/verify-payment",
+  authMiddleware,
+  verifySubscriptionPayment
+);
 
 module.exports = router;
