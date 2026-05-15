@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Razorpay Test</title>
+</head>
+
+<body>
+
+<button id="pay-btn">
+  Pay ₹999
+</button>
+
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+
+<script>
+
+document.getElementById("pay-btn").onclick = async () => {
+
+  const token = "Bearer eyJhbGciOiJFUzI1NiIsImtpZCI6ImZlOTY5ZDYzLTdkMmYtNDQ1OS05ZDYzLTBiNTMxYTA0NTRkMiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL3V4dnJlYWRlcnZic3pheXdwcnFmLnN1cGFiYXNlLmNvL2F1dGgvdjEiLCJzdWIiOiJiYmZmMzI5Ny1kOGQ5LTRlMDUtYjlhNC0xZmIwN2MzYTY5ZDgiLCJhdWQiOiJhdXRoZW50aWNhdGVkIiwiZXhwIjoxNzc5NDU0Nzk4LCJpYXQiOjE3Nzg4NDk5OTgsImVtYWlsIjoidGVzdDFAZ21haWwuY29tIiwicGhvbmUiOiIiLCJhcHBfbWV0YWRhdGEiOnsicHJvdmlkZXIiOiJlbWFpbCIsInByb3ZpZGVycyI6WyJlbWFpbCJdfSwidXNlcl9tZXRhZGF0YSI6eyJlbWFpbCI6InRlc3QxQGdtYWlsLmNvbSIsImVtYWlsX3ZlcmlmaWVkIjp0cnVlLCJmdWxsX25hbWUiOiJUZXN0MSIsInBob25lX3ZlcmlmaWVkIjpmYWxzZSwicm9sZSI6InBhIiwic3ViIjoiYmJmZjMyOTctZDhkOS00ZTA1LWI5YTQtMWZiMDdjM2E2OWQ4In0sInJvbGUiOiJhdXRoZW50aWNhdGVkIiwiYWFsIjoiYWFsMSIsImFtciI6W3sibWV0aG9kIjoicGFzc3dvcmQiLCJ0aW1lc3RhbXAiOjE3Nzg4NDk5OTh9XSwic2Vzc2lvbl9pZCI6ImNjY2Q3OTcwLTYzOWItNDhkMi1hZDIzLTUyN2FiMzQ3MjEwMSIsImlzX2Fub255bW91cyI6ZmFsc2V9.kaEiYfNvcj2HOtKYFy3kC0764MJjLaDdC_IAu7_zvO5O2Zg-q7Aht_ab-OCL13khHgKOuV2Ure014z5ltpffYQ";
+
+  // CREATE ORDER
+  const orderResponse = await fetch(
+    "http://localhost:4000/api/v1/subscriptions/create-order",
+    {
+      method: "POST",
+
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": token
+      },
+
+      body: JSON.stringify({
+        planType: "pro"
+      })
+    }
+  );
+
+  const data = await orderResponse.json();
+
+  console.log("ORDER:", data);
+
+  const options = {
+
+    key: data.key,
+
+    amount: data.order.amount,
+
+    currency: data.order.currency,
+
+    order_id: data.order.id,
+
+    name: "AdjusterAssist",
+
+    description: "Subscription Payment",
+
+    handler: async function (response) {
+
+      console.log(
+        "PAYMENT SUCCESS:",
+        response
+      );
+
+      // VERIFY PAYMENT
+      const verifyResponse = await fetch(
+        "http://localhost:4000/api/v1/subscriptions/verify-payment",
+        {
+          method: "POST",
+
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": token
+          },
+
+          body: JSON.stringify({
+            ...response,
+            planType: "pro"
+          })
+        }
+      );
+
+      const verifyData =
+        await verifyResponse.json();
+
+      console.log(
+        "VERIFY RESPONSE:",
+        verifyData
+      );
+    }
+  };
+
+  const rzp =
+    new Razorpay(options);
+
+  rzp.open();
+};
+
+</script>
+
+</body>
+</html>
