@@ -91,7 +91,7 @@ const buildFallbackNextStep =
 
     return (
       fallbacks[audienceType] ||
-      "Continue review of available claim documentation and determine whether additional information is required."
+      "Request supporting documentation from the contractor and proceed with inspection to verify the source, scope, and extent of damages."
     );
   };
 

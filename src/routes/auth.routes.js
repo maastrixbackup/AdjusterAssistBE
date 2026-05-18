@@ -13,7 +13,7 @@ const { login, signup, forgotPassword, resetPassword, verifyOTP } = require("../
 const authMiddleware = require("../middlewares/auth.middleware");
 
 router.post("/signup", signup);
-router.post("/login", login);
+router.post("/login", resetLimiter, login);
 router.post("/forgot-password", resetLimiter, forgotPassword);
 router.post("/reset-password", resetPassword);
 

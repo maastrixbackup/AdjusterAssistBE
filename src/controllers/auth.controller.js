@@ -24,7 +24,18 @@ const login = async (req, res) => {
         }
 
         const user = data.user;
-        const token = data.session.access_token;
+        if (!user.email_confirmed_at) {
+
+            await supabase.auth.signOut();
+
+            return res.status(403).json({
+                success: false,
+                message:
+                    "Please verify your email before logging in.",
+            });
+        }
+        const token =
+            data.session?.access_token;
 
         // 2. Verified User Logic: Ensure Subscription exists
         // Since profile is created only after verification, we check/init sub here
@@ -51,7 +62,12 @@ const login = async (req, res) => {
                     plan: sub?.plan_type || "free",
                     used: sub?.current_usage || 0,
                     limit: sub?.usage_limit || 0,
-                    remaining: (sub?.usage_limit || 0) - (sub?.current_usage || 0)
+                    remaining: Math.max(
+                        0,
+                        (sub?.usage_limit || 0)
+                        -
+                        (sub?.current_usage || 0)
+                    )
                 }
             }
         });
@@ -76,17 +92,25 @@ const signup = async (req, res) => {
         }
 
         // Create auth user
-        const { data, error } = await supabase.auth.signUp({
-            email,
-            password,
-            options: {
-                data: {
-                    full_name: name,
-                    role: role,
-                    accepted_policies: acceptedPolicy,
+        const { data, error } =
+            await supabase.auth.signUp({
+
+                email,
+                password,
+
+                options: {
+
+                    emailRedirectTo:
+                        "adjusterassist://auth/callback",
+
+                    data: {
+                        full_name: name,
+                        role,
+                        accepted_policies:
+                            acceptedPolicy,
+                    },
                 },
-            },
-        });
+            });
 
         if (error) {
             console.error("Signup Error:", error);
