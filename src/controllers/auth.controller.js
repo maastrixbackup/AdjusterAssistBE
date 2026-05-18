@@ -20,6 +20,13 @@ const login = async (req, res) => {
         });
 
         if (error) {
+            if (error.message === "Email not confirmed") {
+                return res.status(403).json({
+                    success: false,
+                    code: "EMAIL_NOT_VERIFIED",
+                    message: "Please verify your email before logging in.",
+                });
+            }
             return res.status(401).json({ success: false, message: error.message });
         }
 
@@ -31,14 +38,11 @@ const login = async (req, res) => {
             return res.status(403).json({
                 success: false,
                 code: "EMAIL_NOT_VERIFIED",
-                message:"Please verify your email before logging in.",
+                message: "Please verify your email before logging in.",
             });
         }
         const token =
             data.session?.access_token;
-
-        // 2. Verified User Logic: Ensure Subscription exists
-        // Since profile is created only after verification, we check/init sub here
         let sub = await Subscription.getStats(user.id);
 
         if (!sub) {
@@ -79,35 +83,35 @@ const login = async (req, res) => {
 
 
 const resendVerification = async (req, res) => {
-  try {
+    try {
 
-    const { email } = req.body;
+        const { email } = req.body;
 
-    const { error } =
-      await supabase.auth.resend({
-        type: "signup",
-        email,
-      });
+        const { error } =
+            await supabase.auth.resend({
+                type: "signup",
+                email,
+            });
 
-    if (error) {
-      return res.status(400).json({
-        success: false,
-        message: error.message,
-      });
+        if (error) {
+            return res.status(400).json({
+                success: false,
+                message: error.message,
+            });
+        }
+
+        return res.status(200).json({
+            success: true,
+            message: "Verification email resent.",
+        });
+
+    } catch (error) {
+
+        return res.status(500).json({
+            success: false,
+            message: "Internal Server error",
+        });
     }
-
-    return res.status(200).json({
-      success: true,
-      message: "Verification email resent.",
-    });
-
-  } catch (error) {
-
-    return res.status(500).json({
-      success: false,
-      message: "Internal Server error",
-    });
-  }
 };
 
 /**
