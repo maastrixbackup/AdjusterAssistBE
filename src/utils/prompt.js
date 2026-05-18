@@ -1117,3 +1117,94 @@ REFINEMENT GOAL: DOI-COMPLIANT / CLAIM-SAFE
 The response must be safe for regulatory review.
 `
 };
+
+
+export const buildNextStepInstructions = (
+  audience
+) => {
+
+  const rules = {
+
+    attorney: `
+- The next step MUST explicitly reference counsel, attorney, legal representative, or legal documentation.
+- The wording should align with litigation review, legal evaluation, settlement review, or requested legal support documentation.
+- Do NOT reference contractor estimates, mitigation records, or repair documentation unless the attorney specifically submitted or requested them.
+- The next step must remain legal-review-oriented and documentation-driven.
+`,
+
+    public_adjuster: `
+- The next step MUST explicitly reference the public adjuster, supplement submission, estimate review, or requested supporting documentation from the public adjuster.
+- Focus on scope clarification, estimate reconciliation, line-item review, or supplemental documentation.
+- Do NOT reference contractor responsibilities unless the contractor is directly identified as the submitting party.
+- The wording should remain professional, firm, and claim-review-oriented.
+`,
+
+    contractor: `
+- The next step MUST explicitly reference the contractor, mitigation vendor, repair estimate, repair scope, pricing documentation, dry logs, moisture documentation, invoices, or related contractor-submitted materials.
+- The wording should focus on documentation review, scope clarification, estimate evaluation, or repair-related support.
+- Do NOT reference attorneys or public adjusters unless explicitly identified in the claim context.
+`,
+
+    insured: `
+- The next step MUST reference the insured, policyholder, or customer appropriately.
+- Keep the wording customer-facing, professional, and easy to understand.
+- Focus on claim progression, requested information, claim review status, or pending documentation.
+- Avoid contractor-oriented or litigation-oriented wording unless clearly relevant.
+`,
+
+ internal_file: `
+- Use ONLY neutral internal claim handling language.
+- The next step MUST remain party-neutral unless a specific external party is explicitly identified in the prompt.
+- NEVER assume contractor involvement based solely on words such as:
+  "estimate"
+  "documentation"
+  "scope"
+  "damages"
+  "repair"
+  or
+  "supplement".
+
+- If a contractor is NOT explicitly identified, the next step MUST NOT reference:
+  contractor
+  mitigation vendor
+  repair vendor
+  dry logs
+  invoices
+  repair scope
+  mitigation documentation
+  or contractor estimates.
+
+- Use neutral terminology such as:
+  "submitting party"
+  "appropriate party"
+  "available supporting documentation"
+  or
+  "pending review materials".
+
+- The next step should focus on claim review progression, documentation evaluation, clarification requests, or pending review items without assigning responsibility to a specific party unless clearly identified.
+`,
+  };
+
+return rules[audience] || `
+- Use STRICT neutral claim-handling language.
+- NEVER assume contractor involvement unless the contractor is explicitly identified in the prompt.
+- Words such as:
+  "estimate"
+  "scope"
+  "repair"
+  "damages"
+  "supplement"
+  or
+  "documentation"
+  do NOT automatically indicate a contractor.
+
+- If the responsible party is unclear, use ONLY:
+  "submitting party"
+  "appropriate party"
+  "available supporting documentation"
+  or
+  "pending review materials".
+
+- The next step MUST remain party-neutral when the submitting party is unknown.
+`;
+};
