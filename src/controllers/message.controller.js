@@ -630,7 +630,13 @@ const createVariantDraft = async (req, res) => {
             dynamicSuggestions,
             cleanMainContent
         } = parseAIResponse(aiRawResponse);
-
+        const nextAction2 =
+            await generateValidatedNextStep({
+                audienceType: extraction.recipient_role,
+                userInput,
+                payload: fullPayload,
+                draftContent: cleanMainContent,
+            });
         const updateData = {
             ai_response: cleanMainContent,
             ai_raw_response: aiRawResponse,
@@ -646,7 +652,7 @@ const createVariantDraft = async (req, res) => {
                 audience: extraction.recipient_role,
                 signature: userProfile.is_signature_enabled
             },
-            next_step_suggestion: nextAction,
+            next_step_suggestion: nextAction2,
             activity_type: 'ai_variant',
             updated_at: new Date().toISOString()
         };
@@ -689,7 +695,7 @@ const createVariantDraft = async (req, res) => {
                 variant_label: variantLabel,
                 ai_response: cleanMainContent,
                 output_format: detectedType,
-                next_step_suggestion: nextAction,
+                next_step_suggestion: nextAction2,
                 created_at: new Date().toISOString(),
                 updated_at: updateData.updated_at || new Date().toISOString()
             }
