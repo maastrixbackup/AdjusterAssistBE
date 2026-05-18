@@ -30,8 +30,8 @@ const login = async (req, res) => {
 
             return res.status(403).json({
                 success: false,
-                message:
-                    "Please verify your email before logging in.",
+                code: "EMAIL_NOT_VERIFIED",
+                message:"Please verify your email before logging in.",
             });
         }
         const token =
@@ -75,6 +75,39 @@ const login = async (req, res) => {
         console.error("Login Failure:", error);
         return res.status(500).json({ success: false, message: "Internal server error" });
     }
+};
+
+
+const resendVerification = async (req, res) => {
+  try {
+
+    const { email } = req.body;
+
+    const { error } =
+      await supabase.auth.resend({
+        type: "signup",
+        email,
+      });
+
+    if (error) {
+      return res.status(400).json({
+        success: false,
+        message: error.message,
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Verification email resent.",
+    });
+
+  } catch (error) {
+
+    return res.status(500).json({
+      success: false,
+      message: "Internal Server error",
+    });
+  }
 };
 
 /**
@@ -182,4 +215,4 @@ const logout = async (req, res) => {
     return res.status(200).json({ success: true });
 };
 
-module.exports = { login, signup, forgotPassword, resetPassword, logout };
+module.exports = { login, signup, forgotPassword, resetPassword, logout, resendVerification };
