@@ -133,7 +133,7 @@ const getDetailedUsageHistory = async (req, res) => {
       meta: {
         runInPeriod: runInPeriod,
         remaining: creditsRemaining,
-        nextRenewal: subData.next_renewal_date,
+        nextRenewal: subData.expires_at,
         planStatus: subData.status
       },
       transactions: streamData.map(item => ({
