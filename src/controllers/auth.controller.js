@@ -13,36 +13,58 @@ const login = async (req, res) => {
             return res.status(400).json({ success: false, message: "Credentials missing" });
         }
 
-        // 1. Authenticate with Supabase
+        const normalizedEmail = email.trim().toLowerCase();
+        const { data: { users }, error: adminError } = await supabase.auth.admin.listUsers();
+        
+        if (!adminError && users) {
+            const existingUser = users.find(u => u.email === normalizedEmail);
+            
+            if (existingUser && !existingUser.email_confirmed_at) {
+                return res.status(403).json({
+                    success: false,
+                    code: "EMAIL_NOT_VERIFIED",
+                    message: "Please verify your email before logging in.",
+                });
+            }
+        }
+
+        // 3. Authenticate with Supabase using credentials
         const { data, error } = await supabase.auth.signInWithPassword({
-            email,
+            email: normalizedEmail,
             password,
         });
 
         if (error) {
-            return res.status(401).json({ success: false, message: error.message });
+            // Safe fallback if Supabase returns unconfirmed string explicitly
+            if (error.message === "Email not confirmed") {
+                return res.status(403).json({
+                    success: false,
+                    code: "EMAIL_NOT_VERIFIED",
+                    message: "Please verify your email before logging in.",
+                });
+            }
+            // Standard wrong password / email response
+            return res.status(401).json({ success: false, message: "Invalid login credentials" });
         }
 
         const user = data.user;
-        const token = data.session.access_token;
 
-        // 2. Verified User Logic: Ensure Subscription exists
-        // Since profile is created only after verification, we check/init sub here
+        // 4. Subscription & Profile Initialization
         let sub = await Subscription.getStats(user.id);
 
         if (!sub) {
-            // This is likely their first login after verification
             console.log(`🚀 First login for ${user.email}. Initializing subscription...`);
             await Subscription.initFreeTier(user.id);
             sub = await Subscription.getStats(user.id);
         }
 
-        // 3. Optional: Send login notification
-        sendLoginEmail(user.email).catch(err => console.error("Email Error:", err));
+        // 5. Async background notification email (Don't await to block response)
+        sendLoginEmail(user.email).catch(err => console.error("Email Notification Error:", err));
 
+        // 6. Return verified payload response
         return res.status(200).json({
             success: true,
-            token,
+            token: data.session?.access_token,
             user: {
                 id: user.id,
                 email: user.email,
@@ -51,13 +73,47 @@ const login = async (req, res) => {
                     plan: sub?.plan_type || "free",
                     used: sub?.current_usage || 0,
                     limit: sub?.usage_limit || 0,
-                    remaining: (sub?.usage_limit || 0) - (sub?.current_usage || 0)
+                    remaining: Math.max(0, (sub?.usage_limit || 0) - (sub?.current_usage || 0))
                 }
             }
         });
+
     } catch (error) {
         console.error("Login Failure:", error);
         return res.status(500).json({ success: false, message: "Internal server error" });
+    }
+};
+
+
+const resendVerification = async (req, res) => {
+    try {
+
+        const { email } = req.body;
+
+        const { error } =
+            await supabase.auth.resend({
+                type: "signup",
+                email,
+            });
+
+        if (error) {
+            return res.status(400).json({
+                success: false,
+                message: error.message,
+            });
+        }
+
+        return res.status(200).json({
+            success: true,
+            message: "Verification email resent.",
+        });
+
+    } catch (error) {
+
+        return res.status(500).json({
+            success: false,
+            message: "Internal Server error",
+        });
     }
 };
 
@@ -76,17 +132,25 @@ const signup = async (req, res) => {
         }
 
         // Create auth user
-        const { data, error } = await supabase.auth.signUp({
-            email,
-            password,
-            options: {
-                data: {
-                    full_name: name,
-                    role: role,
-                    accepted_policies: acceptedPolicy,
+        const { data, error } =
+            await supabase.auth.signUp({
+
+                email,
+                password,
+
+                options: {
+
+                    emailRedirectTo:
+                        "adjusterassist://auth/callback",
+
+                    data: {
+                        full_name: name,
+                        role,
+                        accepted_policies:
+                            acceptedPolicy,
+                    },
                 },
-            },
-        });
+            });
 
         if (error) {
             console.error("Signup Error:", error);
@@ -158,4 +222,4 @@ const logout = async (req, res) => {
     return res.status(200).json({ success: true });
 };
 
-module.exports = { login, signup, forgotPassword, resetPassword, logout };
+module.exports = { login, signup, forgotPassword, resetPassword, logout, resendVerification };

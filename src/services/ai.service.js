@@ -1,5 +1,5 @@
 import OpenAI from "openai";
-import { adjusterPrompt, guidancePrompt, getAudienceInstruction, getFormatInstruction, getMarkdownInstruction, refinementMap, BASE_REFINEMENT_RULES } from "../utils/prompt.js";
+import { adjusterPrompt, guidancePrompt, getAudienceInstruction, getFormatInstruction, getMarkdownInstruction, refinementMap, BASE_REFINEMENT_RULES, buildNextStepInstructions } from "../utils/prompt.js";
 import { getAppliedGuardrails } from "../utils/guardrails.js";
 import fs from 'fs';
 import { getSignaturePrompt } from "../utils/signature.js";
@@ -46,7 +46,6 @@ export const generateAIDraft = async (type, userInput, payload, conversationHist
         ### CONTEXTUAL SCOPE
         Target Audience: ${audienceType}
         Audience Specific Instructions: ${audienceInstruction}
-
         ### FORMATTING RULES (CRITICAL)
         ${markdownInstruction}
         ${signaturePrompt}
@@ -211,3 +210,85 @@ ${originalResponse}
     }
 };
 
+export const generateNextStep = async ({
+  audienceType,
+  userInput,
+  payload,
+  draftContent,
+  retryMode = false,
+}) => {
+
+  const nextStepInstruction =
+    buildNextStepInstructions(
+      audienceType
+    );
+
+  const retryWarning = retryMode
+    ? `
+IMPORTANT RETRY CORRECTION:
+- The previous response violated audience rules.
+- You MUST strictly follow the detected audience.
+- Do NOT reference unrelated parties.
+- Do NOT hallucinate contractor involvement.
+`
+    : "";
+
+  const completion =
+    await openai.chat.completions.create({
+
+      model: "gpt-4o",
+
+      temperature: 0.2,
+
+      messages: [
+        {
+          role: "system",
+
+          content: `
+
+You are generating ONLY a claim next-step suggestion.
+
+Detected Audience:
+${audienceType}
+
+STRICT RULES:
+${nextStepInstruction}
+
+${retryWarning}
+
+CRITICAL:
+- Return ONLY one concise next step.
+- Maximum 2 sentences.
+- Do NOT generate greetings.
+- Do NOT generate summaries.
+- Do NOT explain reasoning.
+- Do NOT generate bullet points.
+- Do NOT reference unrelated external parties.
+- If audience is unknown/internal_file, remain fully neutral.
+- Never assume contractor involvement unless explicitly identified.
+
+          `,
+        },
+
+        {
+          role: "user",
+
+          content: `
+User Input:
+${userInput}
+
+Generated Draft:
+${draftContent}
+
+Structured Payload:
+${JSON.stringify(payload, null, 2)}
+          `,
+        },
+      ],
+    });
+
+  return completion
+    .choices[0]
+    .message.content
+    ?.trim();
+};

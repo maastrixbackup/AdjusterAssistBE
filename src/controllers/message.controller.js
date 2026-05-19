@@ -18,6 +18,7 @@ const { extractClaimContext, extractUnifiedContext } = require("../utils/context
 const ContextService = require("../services/context.service.js");
 const { parseAIResponse } = require("../utils/responseParser");
 const { refinementMap, BASE_REFINEMENT_RULES } = require("../utils/prompt.js");
+const { generateValidatedNextStep } = require("../services/nextstep.service.js");
 
 // Example usage in your controller
 const uploadDir = path.join(__dirname, '../uploads');
@@ -390,12 +391,26 @@ const createAIDraft = async (req, res) => {
         );
 
 
+
         const {
             nextAction,
             dynamicSuggestions,
             cleanMainContent
         } = parseAIResponse(aiRawResponse);
 
+        const nextAction2 =
+            await generateValidatedNextStep({
+
+                audienceType:
+                    extraction.recipient_role,
+
+                userInput,
+
+                payload: fullPayload,
+
+                draftContent:
+                    cleanMainContent,
+            });
         // 6. Database Operations - Save Main Message Turn
         let turnResult;
         try {
@@ -414,7 +429,7 @@ const createAIDraft = async (req, res) => {
                 ocr_insights: ocrInsights,
                 content_type: detectedType,
                 claim_state: file.claim_stage || 'review pending',
-                next_step_suggestion: nextAction,
+                next_step_suggestion: nextAction2,
                 quick_actions: dynamicSuggestions,
                 activity_type: 'ai_generation',
                 metadata: {
@@ -449,7 +464,7 @@ const createAIDraft = async (req, res) => {
                     ai_response: aiRawResponse,
                     output_text: cleanMainContent,
                     output_type: detectedType,
-                    suggested_next_step: nextAction,
+                    suggested_next_step: nextAction2,
                     execution_time_ms: Date.now() - startTime,
                     payload: fullPayload,
                     metadata: {
@@ -480,7 +495,7 @@ const createAIDraft = async (req, res) => {
                 user_input: userInput,
                 ai_response: cleanMainContent,
                 output_format: detectedType,
-                next_step_suggestion: nextAction,
+                next_step_suggestion: nextAction2,
                 quick_actions: dynamicSuggestions,
                 attachments: {
                     image: imageAttachment
@@ -615,7 +630,13 @@ const createVariantDraft = async (req, res) => {
             dynamicSuggestions,
             cleanMainContent
         } = parseAIResponse(aiRawResponse);
-
+        const nextAction2 =
+            await generateValidatedNextStep({
+                audienceType: extraction.recipient_role,
+                userInput,
+                payload: fullPayload,
+                draftContent: cleanMainContent,
+            });
         const updateData = {
             ai_response: cleanMainContent,
             ai_raw_response: aiRawResponse,
@@ -631,7 +652,7 @@ const createVariantDraft = async (req, res) => {
                 audience: extraction.recipient_role,
                 signature: userProfile.is_signature_enabled
             },
-            next_step_suggestion: nextAction,
+            next_step_suggestion: nextAction2,
             activity_type: 'ai_variant',
             updated_at: new Date().toISOString()
         };
@@ -674,7 +695,7 @@ const createVariantDraft = async (req, res) => {
                 variant_label: variantLabel,
                 ai_response: cleanMainContent,
                 output_format: detectedType,
-                next_step_suggestion: nextAction,
+                next_step_suggestion: nextAction2,
                 created_at: new Date().toISOString(),
                 updated_at: updateData.updated_at || new Date().toISOString()
             }
