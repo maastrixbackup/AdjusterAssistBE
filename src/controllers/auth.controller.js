@@ -15,10 +15,10 @@ const login = async (req, res) => {
 
         const normalizedEmail = email.trim().toLowerCase();
         const { data: { users }, error: adminError } = await supabase.auth.admin.listUsers();
-        
+
         if (!adminError && users) {
             const existingUser = users.find(u => u.email === normalizedEmail);
-            
+
             if (existingUser && !existingUser.email_confirmed_at) {
                 return res.status(403).json({
                     success: false,
@@ -123,26 +123,20 @@ const resendVerification = async (req, res) => {
 const signup = async (req, res) => {
     try {
         const { name, email, password, role, acceptedPolicy } = req.body;
-
         if (!name || !email || !password || !role || !acceptedPolicy) {
             return res.status(400).json({
                 success: false,
                 message: "All fields are required",
             });
         }
-
         // Create auth user
         const { data, error } =
             await supabase.auth.signUp({
-
                 email,
                 password,
-
                 options: {
-
                     emailRedirectTo:
                         "adjusterassist://auth/callback",
-
                     data: {
                         full_name: name,
                         role,
@@ -185,34 +179,72 @@ const signup = async (req, res) => {
  */
 const forgotPassword = async (req, res) => {
     const { email } = req.body;
+    if (!email) {
+        return res.status(400).json({ success: false, message: "Email is required." });
+    }
     try {
-        const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        const { error } = await supabaseAdmin.auth.resetPasswordForEmail(email.trim(), {
             redirectTo: "adjusterassist://reset-password",
         });
-
-        if (error) return res.status(400).json({ success: false, message: error.message });
-
+        if (error) {
+            return res.status(400).json({ success: false, message: error.message });
+        }
         return res.status(200).json({
             success: true,
             message: "Password reset instructions sent to your email."
         });
     } catch (error) {
-        return res.status(500).json({ success: false, message: "Server error" });
+        console.error("Forgot Password Error:", error);
+        return res.status(500).json({ success: false, message: "Server error." });
     }
 };
 
 /**
- * Handles Password Update
+ * Handles Password Update by verifying the incoming deep link access token
  */
 const resetPassword = async (req, res) => {
     const { newPassword } = req.body;
+
+    const authHeader = req.headers.authorization;
+    const token = authHeader && authHeader.split(' ')[1];
+
+    if (!newPassword || newPassword.length < 8) {
+        return res.status(400).json({
+            success: false,
+            message: "Password must be at least 8 characters long."
+        });
+    }
+    if (!token) {
+        return res.status(401).json({
+            success: false,
+            message: "Authorization token missing. Access denied."
+        });
+    }
     try {
-        const { error } = await supabase.auth.updateUser({ password: newPassword });
+        const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
 
-        if (error) return res.status(400).json({ success: false, message: error.message });
+        if (authError || !user) {
+            return res.status(401).json({
+                success: false,
+                message: "Reset link has expired or is invalid."
+            });
+        }
 
-        return res.status(200).json({ success: true, message: "Password updated successfully." });
+        // 2. Use the Admin API to update the password for this specific user ID
+        const { error: updateError } = await supabaseAdmin.auth.updateUserById(user.id, {
+            password: newPassword
+        });
+
+        if (updateError) {
+            return res.status(400).json({ success: false, message: updateError.message });
+        }
+
+        return res.status(200).json({
+            success: true,
+            message: "Password updated successfully. Please log in."
+        });
     } catch (error) {
+        console.error("Reset Password Error:", error);
         return res.status(500).json({ success: false, message: "Server error." });
     }
 };

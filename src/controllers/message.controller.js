@@ -288,27 +288,22 @@ const createAIDraft = async (req, res) => {
     const startTime = Date.now();
     const userId = req.user.id;
     const files = req.files || [];
-
     try {
         const { userInput, fileId } = req.body;
-
         if (!userInput?.trim()) return res.status(400).json({ message: "Input text is required" });
         const file = await File.findById(req.supabase, fileId);
-
         if (!file) {
             return res.status(404).json({
                 success: false,
                 message: "Workspace not found"
             });
         }
-
         if (file.user_id !== userId) {
             return res.status(403).json({
                 success: false,
                 message: "Unauthorized access to workspace"
             });
         }
-
         // 1. Storage - Upload attachments to Supabase
         let attachmentUrls = [];
         try {
@@ -320,7 +315,6 @@ const createAIDraft = async (req, res) => {
         } catch (storageErr) {
             console.error("🟥[STORAGE] Non-critical Storage Error:", storageErr.message);
         }
-
         // 2. OCR Service - Extract data from new files
         let ocrInsights = "";
         if (files.length > 0) {
@@ -333,38 +327,28 @@ const createAIDraft = async (req, res) => {
                 ocrInsights = "Technical error: Could not extract document insights.";
             }
         }
-
         const imageAttachment = attachmentUrls.find(
             file => file.metadata.mime_type.startsWith("image/")
         ) || null;
-
         const documentAttachment = attachmentUrls.find(
             file => !file.metadata.mime_type.startsWith("image/")
         ) || null;
-
         // 3. Context & Metadata Gathering
         let conversationHistory;
         conversationHistory = await ContextService.getRelevantContext(fileId, userInput);
         console.log("--- RAG CONTEXT BEING APPLIED ---");
         console.log(!!conversationHistory || "No relevant embeddings found for this input.");
         console.log("---------------------------------");
-
         const userProfile = await Profile.findById(req.supabase, userId);
-
-
         // 4. Classification & AI Generation
         // const audienceType = classifyAudience(userInput);
-
         const output_classification = await classifierService
             .classify(userInput)
             .catch(() => ({ type: 'file_note', confidence: 0.4, source: 'fallback' }));
-
         const detectedType = output_classification.type;
         console.log("[SERVICE]: Output Format Classification", output_classification);
-
         const extraction = await extractUnifiedContext(userInput, ocrInsights);
         console.log("[AUDIENCE]: ", extraction.recipient_role)
-
         /// PAYLOAD BUILDER
         const fullPayload = PayloadBuilder.build(file, {
             output_type: detectedType,
@@ -390,8 +374,6 @@ const createAIDraft = async (req, res) => {
             userProfile
         );
 
-
-
         const {
             nextAction,
             dynamicSuggestions,
@@ -400,16 +382,10 @@ const createAIDraft = async (req, res) => {
 
         const nextAction2 =
             await generateValidatedNextStep({
-
-                audienceType:
-                    extraction.recipient_role,
-
+                audienceType: extraction.recipient_role,
                 userInput,
-
                 payload: fullPayload,
-
-                draftContent:
-                    cleanMainContent,
+                draftContent: cleanMainContent,
             });
         // 6. Database Operations - Save Main Message Turn
         let turnResult;
@@ -436,7 +412,8 @@ const createAIDraft = async (req, res) => {
                     model: "gpt-4o",
                     output_format: output_classification,
                     audience: extraction.recipient_role,
-                    signature: userProfile.is_signature_enabled
+                    signature: userProfile.is_signature_enabled,
+                    payload: fullPayload
                 }
             });
             await updateWorkspaceActivity(fileId);
@@ -659,7 +636,6 @@ const createVariantDraft = async (req, res) => {
         await updateWorkspaceActivity(fileId);
         const turnResult = await Message.updateById(req.supabase, parentMessageId, updateData);
         await ContextService.ingestMessage(fileId, turnResult.id, aiRawResponse);
-
 
         // 8. Log the Variant Action
         await supabaseAdmin.from('ai_logs').insert([{
