@@ -1,5 +1,5 @@
 const razorpay = require("../config/razorpay");
-const { supabaseAdmin } = require("../config/supabase");
+const { supabaseAdmin, createUserClient } = require("../config/supabase");
 const Subscription = require("../models/subscription.model");
 const { sendSubscriptionUpgradeEmail } = require("../services/email.service");
 const crypto = require("crypto");
@@ -88,6 +88,65 @@ const upgradeSubscription = async (req, res) => {
   } catch (error) {
     console.error("Upgrade Process Error:", error.message);
     res.status(500).json({ success: false, message: "Could not complete the upgrade" });
+  }
+};
+
+const getDetailedUsageHistory = async (req, res) => {
+  try {
+    const { range } = req.query;
+    let startDate = new Date();
+    let applyFilter = true;
+
+    switch (range) {
+      case "24h": startDate.setHours(startDate.getHours() - 24); break;
+      case "week": startDate.setDate(startDate.getDate() - 7); break;
+      case "month": startDate.setMonth(startDate.getMonth() - 1); break;
+      case "year": startDate.setFullYear(startDate.getFullYear() - 1); break;
+      case "all": default: applyFilter = false; break;
+    }
+
+    const { data: subData, error: subError } = await req.supabase
+      .from("subscriptions")
+      .select("*")
+      .single();
+
+    if (subError) throw subError;
+
+    // 🌟 USE REQ.SUPABASE TO SECURELY FETCH HISTORICAL LEDGER ENTRIES
+    let historyQuery = req.supabase
+      .from("credit_logs")
+      .select("id, action_type, workspace_name, credits_deducted, created_at")
+      .order("created_at", { ascending: false });
+
+    if (applyFilter) {
+      historyQuery = historyQuery.gte("created_at", startDate.toISOString());
+    }
+
+    const { data: streamData, error: streamError } = await historyQuery;
+    if (streamError) throw streamError;
+
+    const runInPeriod = streamData.reduce((sum, log) => sum + log.credits_deducted, 0);
+    const creditsRemaining = subData.usage_limit - subData.current_usage;
+
+    return res.status(200).json({
+      success: true,
+      meta: {
+        runInPeriod: runInPeriod,
+        remaining: creditsRemaining,
+        nextRenewal: subData.next_renewal_date,
+        planStatus: subData.status
+      },
+      transactions: streamData.map(item => ({
+        id: item.id,
+        title: item.action_type,
+        workspace: item.workspace_name,
+        cost: `-${item.credits_deducted} cr`,
+        timestamp: item.created_at
+      }))
+    });
+  } catch (error) {
+    console.error("History engine failure:", error);
+    return res.status(500).json({ error: "Could not fetch usage stream data metrics." });
   }
 };
 
@@ -372,4 +431,4 @@ const verifySubscriptionPayment = async (req, res) => {
   }
 };
 
-module.exports = { getMySubscription, upgradeSubscription, createSubscriptionOrder, verifySubscriptionPayment };
+module.exports = { getMySubscription, upgradeSubscription, createSubscriptionOrder, verifySubscriptionPayment, getDetailedUsageHistory };

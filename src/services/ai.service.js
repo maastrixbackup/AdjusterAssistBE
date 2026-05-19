@@ -16,7 +16,7 @@ export const generateAIDraft = async (type, userInput, payload, conversationHist
         const guardrailInjection = getAppliedGuardrails(userInput);
         const audienceInstruction = getAudienceInstruction(audienceType);
         const signaturePrompt = getSignaturePrompt(type, userProfile);
-        console.log("[AI] Signature Prompt: ", signaturePrompt);
+        // console.log("[AI] Signature Prompt: ", signaturePrompt);
         const markdownInstruction =
             type === "claim_guidance"
                 ? "Use clean paragraphs. Avoid heavy markdown, bullets and bold only if necessary."

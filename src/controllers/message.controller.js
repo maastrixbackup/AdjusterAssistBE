@@ -19,6 +19,7 @@ const ContextService = require("../services/context.service.js");
 const { parseAIResponse } = require("../utils/responseParser");
 const { refinementMap, BASE_REFINEMENT_RULES } = require("../utils/prompt.js");
 const { generateValidatedNextStep } = require("../services/nextstep.service.js");
+const { deductCredits } = require("../utils/creditHelper.js");
 
 // Example usage in your controller
 const uploadDir = path.join(__dirname, '../uploads');
@@ -459,7 +460,7 @@ const createAIDraft = async (req, res) => {
             console.log("Log Id:", logEntry.id)
 
             if (logError) throw logError;
-            await Subscription.incrementUsage(userId);
+            await deductCredits(userId, 'AI Draft Created', file.claim_number);
         } catch (logErr) {
             console.error("Logging failed:", logErr.message);
         }
@@ -659,7 +660,7 @@ const createVariantDraft = async (req, res) => {
             payload: fullPayload
         }]);
 
-        await Subscription.incrementUsage(userId);
+        await deductCredits(userId, `AI Variant Created to ${variantLabel}`, file.claim_number);
 
         // 9. Response
         res.status(200).json({
@@ -774,7 +775,8 @@ const refineAIDraft = async (req, res) => {
             // payload: fullPayload
         }]);
 
-        await Subscription.incrementUsage(userId);
+        await deductCredits(userId, `AI draft refined to ${refinementType}`, file.claim_number);
+
 
         // 9. Response
         res.status(200).json({
