@@ -136,7 +136,7 @@ const signup = async (req, res) => {
                 password,
                 options: {
                     emailRedirectTo:
-                        "adjusterassist://auth/callback",
+                        "adjusterassist://callback",
                     data: {
                         full_name: name,
                         role,
