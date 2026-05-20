@@ -87,29 +87,23 @@ const login = async (req, res) => {
 
 const resendVerification = async (req, res) => {
     try {
-
         const { email } = req.body;
-
         const { error } =
             await supabase.auth.resend({
                 type: "signup",
                 email,
             });
-
         if (error) {
             return res.status(400).json({
                 success: false,
                 message: error.message,
             });
         }
-
         return res.status(200).json({
             success: true,
             message: "Verification email resent.",
         });
-
     } catch (error) {
-
         return res.status(500).json({
             success: false,
             message: "Internal Server error",
@@ -122,14 +116,28 @@ const resendVerification = async (req, res) => {
  */
 const signup = async (req, res) => {
     try {
-        const { name, email, password, role, acceptedPolicy } = req.body;
-        if (!name || !email || !password || !role || !acceptedPolicy) {
+
+        const {
+            name,
+            email,
+            password,
+            role,
+            acceptedPolicy,
+        } = req.body;
+
+        if (
+            !name ||
+            !email ||
+            !password ||
+            !role ||
+            !acceptedPolicy
+        ) {
             return res.status(400).json({
                 success: false,
                 message: "All fields are required",
             });
         }
-        // Create auth user
+
         const { data, error } =
             await supabase.auth.signUp({
                 email,
@@ -146,15 +154,26 @@ const signup = async (req, res) => {
                 },
             });
 
+        // REAL ERROR
         if (error) {
             console.error("Signup Error:", error);
-
             return res.status(400).json({
                 success: false,
                 message: error.message,
             });
         }
-
+        if (
+            data?.user &&
+            (!data.user.identities ||
+                data.user.identities.length === 0)
+        ) {
+            return res.status(409).json({
+                success: false,
+                code: "EMAIL_ALREADY_EXISTS",
+                message:
+                    "An account with this email already exists.",
+            });
+        }
         return res.status(201).json({
             success: true,
             message:
@@ -165,11 +184,15 @@ const signup = async (req, res) => {
             },
         });
     } catch (error) {
-        console.error("Signup Failure:", error);
+        console.error(
+            "Signup Failure:",
+            error
+        );
 
         return res.status(500).json({
             success: false,
-            message: "Failed to create account",
+            message:
+                "Failed to create account",
         });
     }
 };
@@ -178,24 +201,67 @@ const signup = async (req, res) => {
  * Initiates Password Reset
  */
 const forgotPassword = async (req, res) => {
-    const { email } = req.body;
-    if (!email) {
-        return res.status(400).json({ success: false, message: "Email is required." });
-    }
     try {
-        const { error } = await supabaseAdmin.auth.resetPasswordForEmail(email.trim(), {
-            redirectTo: "adjusterassist://reset-password",
-        });
-        if (error) {
-            return res.status(400).json({ success: false, message: error.message });
+        const { email } = req.body;
+
+        if (!email) {
+            return res.status(400).json({
+                success: false,
+                message: "Email is required",
+            });
         }
+
+        // CHECK USER EXISTS FIRST
+        const { data: users, error: userError } =
+            await supabaseAdmin.auth.admin.listUsers();
+
+        if (userError) {
+            return res.status(500).json({
+                success: false,
+                message: "Unable to verify user",
+            });
+        }
+
+        const existingUser = users.users.find(
+            (u) => u.email?.toLowerCase() === email.toLowerCase()
+        );
+
+        if (!existingUser) {
+            return res.status(404).json({
+                success: false,
+                message: "No account found with this email.",
+            });
+        }
+
+        // SEND RESET EMAIL
+        const { error } =
+            await supabase.auth.resetPasswordForEmail(
+                email,
+                {
+                    redirectTo:
+                        "adjusterassist://reset-password",
+                }
+            );
+
+        if (error) {
+            return res.status(400).json({
+                success: false,
+                message: error.message,
+            });
+        }
+
         return res.status(200).json({
             success: true,
-            message: "Password reset instructions sent to your email."
+            message: "Password reset email sent.",
         });
+
     } catch (error) {
         console.error("Forgot Password Error:", error);
-        return res.status(500).json({ success: false, message: "Server error." });
+
+        return res.status(500).json({
+            success: false,
+            message: "Failed to send reset email",
+        });
     }
 };
 
@@ -203,52 +269,64 @@ const forgotPassword = async (req, res) => {
  * Handles Password Update by verifying the incoming deep link access token
  */
 const resetPassword = async (req, res) => {
-    const { newPassword } = req.body;
-
-    const authHeader = req.headers.authorization;
-    const token = authHeader && authHeader.split(' ')[1];
-
-    if (!newPassword || newPassword.length < 8) {
-        return res.status(400).json({
-            success: false,
-            message: "Password must be at least 8 characters long."
-        });
-    }
-    if (!token) {
-        return res.status(401).json({
-            success: false,
-            message: "Authorization token missing. Access denied."
-        });
-    }
     try {
-        const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
+        const { newPassword, accessToken } = req.body;
 
-        if (authError || !user) {
-            return res.status(401).json({
+        if (!newPassword || newPassword.length < 8) {
+            return res.status(400).json({
                 success: false,
-                message: "Reset link has expired or is invalid."
+                message:
+                    "Password must be at least 8 characters long.",
             });
         }
 
-        // 2. Use the Admin API to update the password for this specific user ID
-        const { error: updateError } = await supabaseAdmin.auth.updateUserById(user.id, {
-            password: newPassword
-        });
+        if (!accessToken) {
+            return res.status(401).json({
+                success: false,
+                message: "Invalid reset session.",
+            });
+        }
 
-        if (updateError) {
-            return res.status(400).json({ success: false, message: updateError.message });
+        // CREATE TEMP CLIENT SESSION
+        const tempClient = createClient(
+            process.env.SUPABASE_URL,
+            process.env.SUPABASE_ANON_KEY,
+            {
+                global: {
+                    headers: {
+                        Authorization: `Bearer ${accessToken}`,
+                    },
+                },
+            }
+        );
+
+        // UPDATE PASSWORD
+        const { error } =
+            await tempClient.auth.updateUser({
+                password: newPassword,
+            });
+
+        if (error) {
+            return res.status(400).json({
+                success: false,
+                message: error.message,
+            });
         }
 
         return res.status(200).json({
             success: true,
-            message: "Password updated successfully. Please log in."
+            message: "Password updated successfully.",
         });
+
     } catch (error) {
         console.error("Reset Password Error:", error);
-        return res.status(500).json({ success: false, message: "Server error." });
+
+        return res.status(500).json({
+            success: false,
+            message: "Server error.",
+        });
     }
 };
-
 const logout = async (req, res) => {
     await supabase.auth.signOut();
     return res.status(200).json({ success: true });

@@ -8,16 +8,12 @@ const resetLimiter = rateLimit({
     message: "Too many reset attempts, please try again after 15 minutes"
 });
 
-// Import your auh controller
 const { login, signup, forgotPassword, resetPassword, resendVerification } = require("../controllers/auth.controller");
 const authMiddleware = require("../middlewares/auth.middleware");
 
 router.post("/signup", signup);
 router.post("/login", resetLimiter, login);
-router.post(
-    "/resend-verification",
-    resendVerification
-);
+router.post("/resend-verification", resendVerification);
 router.post("/forgot-password", resetLimiter, forgotPassword);
 router.post("/reset-password", resetPassword);
 
