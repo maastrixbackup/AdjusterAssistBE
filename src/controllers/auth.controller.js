@@ -148,7 +148,15 @@ const signup = async (req, res) => {
 
         if (error) {
             console.error("Signup Error:", error);
-
+            if (
+                error.message?.includes("already registered")
+            ) {
+                return res.status(409).json({
+                    success: false,
+                    code: "EMAIL_ALREADY_EXISTS",
+                    message:"An account with this email already exists.",
+                });
+            }
             return res.status(400).json({
                 success: false,
                 message: error.message,
@@ -166,7 +174,6 @@ const signup = async (req, res) => {
         });
     } catch (error) {
         console.error("Signup Failure:", error);
-
         return res.status(500).json({
             success: false,
             message: "Failed to create account",
