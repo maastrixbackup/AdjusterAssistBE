@@ -157,7 +157,6 @@ const signup = async (req, res) => {
         // REAL ERROR
         if (error) {
             console.error("Signup Error:", error);
-
             return res.status(400).json({
                 success: false,
                 message: error.message,
@@ -175,7 +174,6 @@ const signup = async (req, res) => {
                     "An account with this email already exists.",
             });
         }
-
         return res.status(201).json({
             success: true,
             message:
@@ -185,9 +183,7 @@ const signup = async (req, res) => {
                 email: data.user.email,
             },
         });
-
     } catch (error) {
-
         console.error(
             "Signup Failure:",
             error
