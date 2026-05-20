@@ -156,15 +156,12 @@ Required content:
 - Include adjuster control, claim direction, or handling guidance.
 - Include pending verification where facts remain incomplete.
 - If emergency services, mitigation, or repairs are discussed, include conditional handling language where appropriate.
-- End with a clear final line beginning exactly with:
-  Next step:
 
 Preferred sequence:
 1. Reported issue and affected area (Observe)
 2. Documented status and limitations (Status)
 3. Adjuster guidance or claim control (Direction)
 4. Pending verification or conditional services
-5. Final Next step line
 
 The output must read like a real claim file entry that can be pasted directly into the claim system.
 `,
@@ -392,7 +389,6 @@ Must include when supported by the provided facts:
 - The current issue, dispute, concern, or key file development
 - The present claim status or handling posture
 - Any pending item, outstanding support, or unresolved issue
-- The next handling step
 
 Writing requirements:
 - Keep the response short, internal, and operational
@@ -601,8 +597,7 @@ Behavior notes:
     4. Mitigation Status (any emergency services, vendor involvement)
     5. Actions Taken (inspection scheduled, mitigation assigned, etc.)
     6. Items Requested (photos, documents, estimates)
-    7. Next Steps (inspection, review process, pending actions)
-    8. Claim Status (coverage pending review)
+    7. Claim Status (coverage pending review)
 
     BEHAVIOR NOTES:
     - Maintain internal documentation style (not an email)
@@ -1013,11 +1008,6 @@ Return ONLY the formatted guidance.
 `;
 
 
-/**
- * 🔥 REFINEMENT PROMPTS (TRANSFORMATION MODE)
- * These prompts DO NOT allow regeneration.
- * They ONLY refine existing content.
- */
 
 export const BASE_REFINEMENT_RULES = `
 You are refining an existing insurance claim response.
@@ -1188,6 +1178,7 @@ export const buildNextStepInstructions = (
 return rules[audience] || `
 - Use STRICT neutral claim-handling language.
 - NEVER assume contractor involvement unless the contractor is explicitly identified in the prompt.
+- Do not imply coverage, payment, approval, or denial.
 - Words such as:
   "estimate"
   "scope"
@@ -1204,6 +1195,8 @@ return rules[audience] || `
   "available supporting documentation"
   or
   "pending review materials".
+
+- Keep the next step short, practical, and action-based.
 
 - The next step MUST remain party-neutral when the submitting party is unknown.
 `;
