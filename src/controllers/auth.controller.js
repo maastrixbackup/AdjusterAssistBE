@@ -122,14 +122,28 @@ const resendVerification = async (req, res) => {
  */
 const signup = async (req, res) => {
     try {
-        const { name, email, password, role, acceptedPolicy } = req.body;
-        if (!name || !email || !password || !role || !acceptedPolicy) {
+
+        const {
+            name,
+            email,
+            password,
+            role,
+            acceptedPolicy,
+        } = req.body;
+
+        if (
+            !name ||
+            !email ||
+            !password ||
+            !role ||
+            !acceptedPolicy
+        ) {
             return res.status(400).json({
                 success: false,
                 message: "All fields are required",
             });
         }
-        // Create auth user
+
         const { data, error } =
             await supabase.auth.signUp({
                 email,
@@ -146,20 +160,25 @@ const signup = async (req, res) => {
                 },
             });
 
+        // REAL ERROR
         if (error) {
             console.error("Signup Error:", error);
-            if (
-                error.message?.includes("already registered")
-            ) {
-                return res.status(409).json({
-                    success: false,
-                    code: "EMAIL_ALREADY_EXISTS",
-                    message:"An account with this email already exists.",
-                });
-            }
+
             return res.status(400).json({
                 success: false,
                 message: error.message,
+            });
+        }
+        if (
+            data?.user &&
+            (!data.user.identities ||
+                data.user.identities.length === 0)
+        ) {
+            return res.status(409).json({
+                success: false,
+                code: "EMAIL_ALREADY_EXISTS",
+                message:
+                    "An account with this email already exists.",
             });
         }
 
@@ -172,11 +191,18 @@ const signup = async (req, res) => {
                 email: data.user.email,
             },
         });
+
     } catch (error) {
-        console.error("Signup Failure:", error);
+
+        console.error(
+            "Signup Failure:",
+            error
+        );
+
         return res.status(500).json({
             success: false,
-            message: "Failed to create account",
+            message:
+                "Failed to create account",
         });
     }
 };
