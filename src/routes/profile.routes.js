@@ -3,11 +3,12 @@ const router = express.Router();
 const { getProfile, getAllProfiles, updateProfile } = require("../controllers/user.controller");
 const multer = require ('multer');
 const authMiddleware = require("../middlewares/auth.middleware");
+const requireAAL2 = require("../middlewares/requireAAL2");
 
 const upload = multer({ storage: multer.memoryStorage() });
 
 // authMiddleware FIRST, then getProfile
-router.get("/profile",authMiddleware, getProfile);
+router.get("/profile",authMiddleware, requireAAL2 ,getProfile);
 router.patch("/update", authMiddleware,upload.single('avatar') , updateProfile); 
 router.get("/test/:id", authMiddleware, async (req, res) => {
   try {
