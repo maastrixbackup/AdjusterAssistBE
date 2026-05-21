@@ -350,58 +350,55 @@ const forgotPassword = async (req, res) => {
  * Handles Password Update by verifying the incoming deep link access token
  */
 const resetPassword = async (req, res) => {
-    try {
-        const { newPassword, accessToken } = req.body;
-
-        if (!newPassword || newPassword.length < 8) {
-            return res.status(400).json({
-                success: false,
-                message:
-                    "Password must be at least 8 characters long.",
-            });
-        }
-        if (!accessToken) {
-            return res.status(401).json({
-                success: false,
-                message: "Invalid reset session.",
-            });
-        }
-        // CREATE TEMP CLIENT SESSION
-        const tempClient = createClient(
-            process.env.SUPABASE_URL,
-            process.env.SUPABASE_ANON_KEY,
-            {
-                global: {
-                    headers: {
-                        Authorization: `Bearer ${accessToken}`,
-                    },
-                },
-            }
-        );
-        // UPDATE PASSWORD
-        const { error } =
-            await tempClient.auth.updateUser({
-                password: newPassword,
-            });
-
-        if (error) {
-            return res.status(400).json({
-                success: false,
-                message: error.message,
-            });
-        }
-        return res.status(200).json({
-            success: true,
-            message: "Password updated successfully.",
-        });
-    } catch (error) {
-        console.error("Reset Password Error:", error);
-        return res.status(500).json({
-            success: false,
-            message: "Server error.",
-        });
+  try {
+    const { newPassword, accessToken } = req.body;
+    if (!newPassword || newPassword.length < 8) {
+      return res.status(400).json({
+        success: false,
+        message: "Password must be at least 8 characters long.",
+      });
     }
+    if (!accessToken) {
+      return res.status(401).json({
+        success: false,
+        message: "Invalid or expired reset session parameters.",
+      });
+    }
+    const { data: { user }, error: jwtError } = await supabaseAdmin.auth.getUser(accessToken);
+
+    if (jwtError || !user) {
+      return res.status(401).json({
+        success: false,
+        message: "Reset link has expired or session is invalid.",
+      });
+    }
+
+    const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(
+      user.id,
+      { password: newPassword }
+    );
+
+    if (updateError) {
+      return res.status(400).json({
+        success: false,
+        message: updateError.message,
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Password updated successfully.",
+    });
+
+  } catch (error) {
+    console.error("Reset Password Error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Server error encountered while updating credentials.",
+    });
+  }
 };
+
 const logout = async (req, res) => {
     await supabase.auth.signOut();
     return res.status(200).json({ success: true });
