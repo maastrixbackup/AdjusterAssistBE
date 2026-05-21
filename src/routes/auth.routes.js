@@ -8,10 +8,11 @@ const resetLimiter = rateLimit({
     message: "Too many reset attempts, please try again after 15 minutes"
 });
 
-const { login, signup, forgotPassword, resetPassword, resendVerification } = require("../controllers/auth.controller");
+const { login, signup, forgotPassword, resetPassword, resendVerification, verifyCallback } = require("../controllers/auth.controller");
 const authMiddleware = require("../middlewares/auth.middleware");
 
 router.post("/signup", signup);
+router.post("/verify-callback", verifyCallback);
 router.post("/login", resetLimiter, login);
 router.post("/resend-verification", resendVerification);
 router.post("/forgot-password", resetLimiter, forgotPassword);

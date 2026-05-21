@@ -7,80 +7,128 @@ const { sendLoginEmail } = require("../services/email.service");
  */
 const login = async (req, res) => {
     try {
+
         const { email, password } = req.body;
 
         if (!email || !password) {
-            return res.status(400).json({ success: false, message: "Credentials missing" });
+            return res.status(400).json({
+                success: false,
+                message: "Credentials missing"
+            });
         }
 
-        const normalizedEmail = email.trim().toLowerCase();
-        const { data: { users }, error: adminError } = await supabase.auth.admin.listUsers();
+        const normalizedEmail =
+            email.trim().toLowerCase();
 
-        if (!adminError && users) {
-            const existingUser = users.find(u => u.email === normalizedEmail);
+        // Authenticate user
+        const { data, error } =
+            await supabase.auth.signInWithPassword({
+                email: normalizedEmail,
+                password,
+            });
 
-            if (existingUser && !existingUser.email_confirmed_at) {
-                return res.status(403).json({
-                    success: false,
-                    code: "EMAIL_NOT_VERIFIED",
-                    message: "Please verify your email before logging in.",
-                });
-            }
-        }
-
-        // 3. Authenticate with Supabase using credentials
-        const { data, error } = await supabase.auth.signInWithPassword({
-            email: normalizedEmail,
-            password,
-        });
-
+        // Auth failed
         if (error) {
-            // Safe fallback if Supabase returns unconfirmed string explicitly
-            if (error.message === "Email not confirmed") {
+
+            if (
+                error.message
+                    ?.toLowerCase()
+                    .includes("email not confirmed")
+            ) {
                 return res.status(403).json({
                     success: false,
                     code: "EMAIL_NOT_VERIFIED",
-                    message: "Please verify your email before logging in.",
+                    message:
+                        "Please verify your email before logging in.",
                 });
             }
-            // Standard wrong password / email response
-            return res.status(401).json({ success: false, message: "Invalid login credentials" });
+
+            return res.status(401).json({
+                success: false,
+                message: "Invalid login credentials",
+            });
         }
 
         const user = data.user;
+        const session = data.session;
 
-        // 4. Subscription & Profile Initialization
-        let sub = await Subscription.getStats(user.id);
-
-        if (!sub) {
-            console.log(`🚀 First login for ${user.email}. Initializing subscription...`);
-            await Subscription.initFreeTier(user.id);
-            sub = await Subscription.getStats(user.id);
+        if (!session) {
+            return res.status(401).json({
+                success: false,
+                message: "Failed to create session.",
+            });
         }
 
-        // 5. Async background notification email (Don't await to block response)
-        sendLoginEmail(user.email).catch(err => console.error("Email Notification Error:", err));
+        // Subscription init
+        let sub =
+            await Subscription.getStats(user.id);
 
-        // 6. Return verified payload response
+        if (!sub) {
+
+            console.log(
+                `🚀 First login for ${user.email}. Initializing subscription...`
+            );
+
+            await Subscription.initFreeTier(user.id);
+
+            sub =
+                await Subscription.getStats(user.id);
+        }
+
+        // Background email
+        sendLoginEmail(user.email)
+            .catch(err =>
+                console.error(
+                    "Email Notification Error:",
+                    err
+                )
+            );
+
+        // SUCCESS RESPONSE
         return res.status(200).json({
+
             success: true,
-            token: data.session?.access_token,
+
+            access_token:
+                session.access_token,
+
+            refresh_token:
+                session.refresh_token,
+
+            expires_at:
+                session.expires_at,
+            token: session.access_token,
+
             user: {
                 id: user.id,
                 email: user.email,
-                name: user.user_metadata?.full_name || "",
+                name:
+                    user.user_metadata?.full_name || "",
                 subscription: {
                     plan: sub?.plan_type || "free",
-                    used: sub?.current_usage || 0,
-                    limit: sub?.usage_limit || 0,
-                    remaining: Math.max(0, (sub?.usage_limit || 0) - (sub?.current_usage || 0))
+                    used:
+                        sub?.current_usage || 0,
+                    limit:
+                        sub?.usage_limit || 0,
+
+                    remaining: Math.max(
+                        0,
+                        (sub?.usage_limit || 0)
+                        -
+                        (sub?.current_usage || 0)
+                    )
                 }
             }
         });
-
     } catch (error) {
-        console.error("Login Failure:", error);
-        return res.status(500).json({ success: false, message: "Internal server error" });
+        console.error(
+            "Login Failure:",
+            error
+        );
+        return res.status(500).json({
+            success: false,
+            message: "Internal server error"
+        });
     }
 };
 
@@ -144,7 +192,7 @@ const signup = async (req, res) => {
                 password,
                 options: {
                     emailRedirectTo:
-                        "adjusterassist://auth/callback",
+                        "adjusterassist://callback",
                     data: {
                         full_name: name,
                         role,
@@ -195,6 +243,46 @@ const signup = async (req, res) => {
                 "Failed to create account",
         });
     }
+};
+
+const verifyCallback = async (req, res) => {
+  try {
+    const { access_token, refresh_token } = req.body;
+
+    // 1. Validate payload requirements
+    if (!access_token) {
+      return res.status(400).json({
+        success: false,
+        message: "Security verification parameters missing.",
+      });
+    }
+
+    const { data: { user }, error } = await supabaseAdmin.auth.getUser(access_token);
+
+    if (error || !user) {
+      console.error("Supabase verification failed:", error?.message);
+      return res.status(401).json({
+        success: false,
+        message: "The link is invalid, expired, or has already been used.",
+      });
+    }
+    return res.status(200).json({
+      success: true,
+      message: "Security tunnel established and email verified successfully.",
+      session: {
+        token: access_token,          
+        email: user.email,            
+        userId: user.id            
+      },
+    });
+
+  } catch (error) {
+    console.error("Critical Failure in verifyCallback controller:", error);
+    return res.status(500).json({
+      success: false,
+      message: "An unexpected error occurred during backend verification.",
+    });
+  }
 };
 
 /**
@@ -332,4 +420,4 @@ const logout = async (req, res) => {
     return res.status(200).json({ success: true });
 };
 
-module.exports = { login, signup, forgotPassword, resetPassword, logout, resendVerification };
+module.exports = { login, signup, forgotPassword, resetPassword, logout, resendVerification, verifyCallback };
