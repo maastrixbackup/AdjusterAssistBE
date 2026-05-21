@@ -321,7 +321,7 @@ const forgotPassword = async (req, res) => {
             await supabase.auth.resetPasswordForEmail(
                 email,
                 {
-                    redirectTo: "adjusterassist://reset-password/",
+                    redirectTo: "adjusterassist://reset-password",
                 }
             );
 
