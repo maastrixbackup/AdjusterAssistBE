@@ -298,36 +298,30 @@ const forgotPassword = async (req, res) => {
                 message: "Email is required",
             });
         }
-
         // CHECK USER EXISTS FIRST
         const { data: users, error: userError } =
             await supabaseAdmin.auth.admin.listUsers();
-
         if (userError) {
             return res.status(500).json({
                 success: false,
                 message: "Unable to verify user",
             });
         }
-
         const existingUser = users.users.find(
             (u) => u.email?.toLowerCase() === email.toLowerCase()
         );
-
         if (!existingUser) {
             return res.status(404).json({
                 success: false,
                 message: "No account found with this email.",
             });
         }
-
         // SEND RESET EMAIL
         const { error } =
             await supabase.auth.resetPasswordForEmail(
                 email,
                 {
-                    redirectTo:
-                        "adjusterassist://reset-password",
+                    redirectTo: "adjusterassist://reset-password/",
                 }
             );
 
@@ -367,14 +361,12 @@ const resetPassword = async (req, res) => {
                     "Password must be at least 8 characters long.",
             });
         }
-
         if (!accessToken) {
             return res.status(401).json({
                 success: false,
                 message: "Invalid reset session.",
             });
         }
-
         // CREATE TEMP CLIENT SESSION
         const tempClient = createClient(
             process.env.SUPABASE_URL,
@@ -387,7 +379,6 @@ const resetPassword = async (req, res) => {
                 },
             }
         );
-
         // UPDATE PASSWORD
         const { error } =
             await tempClient.auth.updateUser({
@@ -400,15 +391,12 @@ const resetPassword = async (req, res) => {
                 message: error.message,
             });
         }
-
         return res.status(200).json({
             success: true,
             message: "Password updated successfully.",
         });
-
     } catch (error) {
         console.error("Reset Password Error:", error);
-
         return res.status(500).json({
             success: false,
             message: "Server error.",
