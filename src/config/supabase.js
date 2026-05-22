@@ -20,23 +20,27 @@ const supabaseAdmin = createClient(supabaseUrl, SUPABASE_SERVICE_KEy, {
     }
 });
 
-function createUserClient(jwt) {
-    return createClient(
+async function createUserClient(access_token, refresh_token = null) {
+
+    const client = createClient(
         supabaseUrl,
         SUPABASE_ANON_KEY,
         {
-            global: {
-                headers: {
-                    Authorization: `Bearer ${jwt}`,
-                },
-            },
             auth: {
                 autoRefreshToken: false,
                 persistSession: false,
             },
         }
     );
+    // IMPORTANT
+    await client.auth.setSession({
+        access_token,
+        refresh_token: refresh_token || "dummy-refresh-token",
+    });
+
+    return client;
 }
+
 
 // Test Connection with the new 'profiles' table
 (async () => {

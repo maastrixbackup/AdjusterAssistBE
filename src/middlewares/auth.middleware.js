@@ -17,6 +17,7 @@ const authMiddleware = async (req, res, next) => {
 
         // Verify JWT
         const decoded = await verifyToken(token);
+        console.log("DECODED USER =>", decoded);
 
         if (!decoded || !decoded.id) {
             return res.status(401).json({
@@ -29,7 +30,7 @@ const authMiddleware = async (req, res, next) => {
         req.user = decoded;
 
         // Attach USER-SCOPED Supabase client
-        req.supabase = createUserClient(token);
+        req.supabase = await createUserClient(token);
 
         // Background subscription sync
         try {

@@ -1,21 +1,29 @@
 const {supabase} = require("../config/supabase");
+const { jwtVerify, createRemoteJWKSet } = require("jose");
+
+const SUPABASE_URL = process.env.SUPABASE_URL;
+
+const JWKS = createRemoteJWKSet(
+    new URL(`${SUPABASE_URL}/auth/v1/.well-known/jwks.json`)
+);
 const verifyToken = async (token) => {
     try {
-        // We call getUser(token) which verifies the JWT with Supabase Auth servers
-        const { data: { user }, error } = await supabase.auth.getUser(token);
-
-        if (error || !user) {
-            throw new Error(error?.message || "Invalid session");
-        }
-
-        // Return a payload compatible with your existing code
+        const { payload } = await jwtVerify(
+            token,
+            JWKS,
+            {
+                issuer: `${SUPABASE_URL}/auth/v1`,
+            }
+        );
         return {
-            id: user.id,
-            email: user.email,
+            ...payload,
+            id: payload.sub,
         };
     } catch (error) {
-        throw new Error(error.message);
+        throw new Error("Invalid or expired token");
     }
 };
 
-module.exports = { verifyToken };
+module.exports = {
+    verifyToken,
+};
