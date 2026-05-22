@@ -6,19 +6,20 @@ const {
 const Subscription = require("../models/subscription.model");
 const { sendLoginEmail } = require("../services/email.service");
 
+function decodeJwtPayload(token) {
+    const payload = token.split(".")[1];
+    return JSON.parse(Buffer.from(payload, "base64url").toString("utf8"));
+}
+
 const refreshSession = async (req, res) => {
     try {
         const { refresh_token } = req.body;
-
         if (!refresh_token) {
             return res.status(400).json({
                 success: false,
                 message: "Refresh token required",
             });
         }
-
-        // IMPORTANT
-        // Use NON-admin Supabase client
         const { data, error } = await supabase.auth.refreshSession({
             refresh_token,
         });
@@ -33,26 +34,21 @@ const refreshSession = async (req, res) => {
 
         const session = data.session;
         const user = data.user;
+        const payload = decodeJwtPayload(session.access_token);
 
         return res.status(200).json({
             success: true,
-
             access_token: session.access_token,
             refresh_token: session.refresh_token,
-
             expires_at: session.expires_at,
-
-            aal: session.user?.aal || "aal1",
-
+            aal: payload.aal || "aal1",
             user: {
                 id: user.id,
                 email: user.email,
                 name: user.user_metadata?.full_name || "",
             },
         });
-
     } catch (error) {
-
         console.error("Refresh Session Error:", error);
 
         return res.status(500).json({
