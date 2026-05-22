@@ -57,11 +57,49 @@ async function getPrimaryFactor(accessToken) {
 
 const enrollMFA = async (req, res) => {
   try {
+    // 1. Check existing factors
+    const { data: factorData, error: listError } =
+      await req.supabase.auth.mfa.listFactors();
+
+    if (listError) {
+      return res.status(400).json({
+        success: false,
+        message: listError.message,
+      });
+    }
+
+    const allTotpFactors = factorData?.totp || [];
+
+    const verifiedFactor = allTotpFactors.find(
+      (factor) => factor.status === "verified"
+    );
+
+    if (verifiedFactor) {
+      return res.status(409).json({
+        success: false,
+        code: "MFA_ALREADY_ENABLED",
+        message: "MFA is already enabled for this account.",
+      });
+    }
+
+    const unverifiedFactors = allTotpFactors.filter(
+      (factor) => factor.status !== "verified"
+    );
+
+    // 2. Clean old pending/unverified factors
+    for (const factor of unverifiedFactors) {
+      await req.supabase.auth.mfa.unenroll({
+        factorId: factor.id,
+      });
+    }
+
+    // 3. Create new TOTP factor
     const { data, error } = await req.supabase.auth.mfa.enroll({
       factorType: "totp",
+      friendlyName: "AdjusterAssist",
     });
+
     if (error) {
-      console.log(error)
       return res.status(400).json({
         success: false,
         message: error.message,
@@ -77,6 +115,7 @@ const enrollMFA = async (req, res) => {
     });
   } catch (error) {
     console.error("Enroll MFA Error:", error);
+
     return res.status(500).json({
       success: false,
       message: "Failed to enroll MFA",
