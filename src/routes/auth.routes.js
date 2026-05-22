@@ -33,6 +33,9 @@ router.post("/refresh", refreshSession);
 router.get("/mfa/status", authMiddleware, getMFAStatus);
 
 // setup after signup
+router.get("/mfa/test", async (req, res)=>{
+   res.send("MFA API running");
+})
 router.get("/mfa/enroll", authMiddleware, enrollMFA);
 router.post("/mfa/verify", authMiddleware, verifyMFAEnrollment);
 

@@ -54,12 +54,14 @@ async function getPrimaryFactor(accessToken) {
   return factor || null;
 }
 
+
 const enrollMFA = async (req, res) => {
   try {
     const { data, error } = await req.supabase.auth.mfa.enroll({
       factorType: "totp",
     });
     if (error) {
+      console.log(error)
       return res.status(400).json({
         success: false,
         message: error.message,
@@ -85,7 +87,6 @@ const enrollMFA = async (req, res) => {
 const verifyMFAEnrollment = async (req, res) => {
   try {
     const { factor_id, code } = req.body;
-
     if (!factor_id || !code) {
       return res.status(400).json({
         success: false,
@@ -165,9 +166,7 @@ const challengeMFA = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-
       challenge_id: data.id,
-
       message: "MFA challenge created successfully.",
     });
   } catch (error) {
@@ -233,7 +232,6 @@ const verifyMFALogin = async (req, res) => {
       access_token,
       refresh_token,
       expires_at,
-      token: access_token,
       aal: "aal2",
       user: {
         id: user.id,
