@@ -1,4 +1,4 @@
-const { createUserClient, supabaseAdmin } = require("../../config/supabase");
+const { createUserClient, supabaseAdmin, supabase } = require("../../config/supabase");
 
 async function hasVerifiedMFA(accessToken) {
   const client = createUserClient(accessToken);
@@ -381,27 +381,17 @@ const resetMFA = async (req, res) => {
 // During login
 const resetMFALogin = async (req, res) => {
   try {
-    const {
-      email,
-      password,
-      temp_access_token,
-    } = req.body;
-
+    const { email, password, temp_access_token } = req.body;
     if (!email || !password || !temp_access_token) {
       return res.status(400).json({
         success: false,
         message: "Missing credentials",
       });
     }
-
-    /*
-    STEP 1
-    Verify password
-    */
-
+    const normalizedEmail = email.trim().toLowerCase();
     const { data, error } =
-      await supabaseAdmin.auth.signInWithPassword({
-        email,
+      await supabase.auth.signInWithPassword({
+        email: normalizedEmail,
         password,
       });
 
@@ -412,19 +402,26 @@ const resetMFALogin = async (req, res) => {
       });
     }
 
-    /*
-    STEP 2
-    Create temp user client
-    */
+    const userClient = await createUserClient(temp_access_token);
+    const { data: tempUserData, error: tempUserError } =
+      await userClient.auth.getUser();
 
-    const userClient = await createUserClient(
-      temp_access_token
-    );
+    if (tempUserError || !tempUserData?.user) {
+      return res.status(401).json({
+        success: false,
+        message: "Invalid reset session",
+      });
+    }
 
-    /*
-    STEP 3
-    List factors
-    */
+    if (
+      tempUserData.user.email?.toLowerCase() !== normalizedEmail ||
+      tempUserData.user.id !== data.user.id
+    ) {
+      return res.status(403).json({
+        success: false,
+        message: "Session does not match this account",
+      });
+    }
 
     const { data: factorData, error: factorError } =
       await userClient.auth.mfa.listFactors();
@@ -436,26 +433,43 @@ const resetMFALogin = async (req, res) => {
       });
     }
 
-    /*
-    STEP 4
-    Delete all MFA factors
-    */
-
-    const factors = factorData.totp || [];
+    const factors = factorData?.totp || [];
 
     for (const factor of factors) {
-      await userClient.auth.mfa.unenroll({
-        factorId: factor.id,
+      const { error: unenrollError } =
+        await userClient.auth.mfa.unenroll({
+          factorId: factor.id,
+        });
+
+      if (unenrollError) {
+        console.error(
+          "Failed to unenroll MFA factor:",
+          unenrollError.message
+        );
+      }
+    }
+
+    const { data: newSessionData, error: newSessionError } =
+      await supabase.auth.signInWithPassword({
+        email: normalizedEmail,
+        password,
+      });
+
+    if (newSessionError || !newSessionData?.session) {
+      return res.status(200).json({
+        success: true,
+        message: "MFA reset completed. Please login again.",
+        requires_relogin: true,
       });
     }
 
     return res.status(200).json({
       success: true,
       message: "MFA reset successful",
+      temp_access_token: newSessionData.session.access_token,
+      temp_refresh_token: newSessionData.session.refresh_token,
     });
-
   } catch (error) {
-
     console.error("Reset MFA Login Error:", error);
 
     return res.status(500).json({
