@@ -68,7 +68,6 @@ const refreshSession = async (req, res) => {
 const login = async (req, res) => {
     try {
         const { email, password } = req.body;
-
         if (!email || !password) {
             return res.status(400).json({
                 success: false,
@@ -158,23 +157,15 @@ const login = async (req, res) => {
         return res.status(200).json({
             success: true,
             requires_mfa: false,
-            access_token: session.access_token,
-            refresh_token: session.refresh_token,
-            expires_at: session.expires_at,
-            token: session.access_token,
+            requires_mfa_setup: true,
+            temp_access_token: session.access_token,
+            temp_refresh_token: session.refresh_token,
+            message: "MFA setup required before accessing the app.",
+
             user: {
                 id: user.id,
                 email: user.email,
                 name: user.user_metadata?.full_name || "",
-                subscription: {
-                    plan: sub?.plan_type || "free",
-                    used: sub?.current_usage || 0,
-                    limit: sub?.usage_limit || 0,
-                    remaining: Math.max(
-                        0,
-                        (sub?.usage_limit || 0) - (sub?.current_usage || 0),
-                    ),
-                },
             },
         });
     } catch (error) {
@@ -217,7 +208,6 @@ const resendVerification = async (req, res) => {
 const signup = async (req, res) => {
     try {
         const { name, email, password, role, acceptedPolicy } = req.body;
-
         if (!name || !email || !password || !role || !acceptedPolicy) {
             return res.status(400).json({
                 success: false,
@@ -236,9 +226,7 @@ const signup = async (req, res) => {
 
         const { data, error } = await supabase.auth.signUp({
             email: normalizedEmail,
-
             password,
-
             options: {
                 emailRedirectTo: "adjusterassist://callback",
 
@@ -249,16 +237,13 @@ const signup = async (req, res) => {
                 },
             },
         });
-
         if (error) {
             console.error("Signup Error:", error);
-
             return res.status(400).json({
                 success: false,
                 message: error.message,
             });
         }
-
         // Existing user detection
         if (
             data?.user &&
@@ -267,7 +252,6 @@ const signup = async (req, res) => {
             return res.status(409).json({
                 success: false,
                 code: "EMAIL_ALREADY_EXISTS",
-
                 message: "An account with this email already exists.",
             });
         }
@@ -283,7 +267,6 @@ const signup = async (req, res) => {
         });
     } catch (error) {
         console.error("Signup Failure:", error);
-
         return res.status(500).json({
             success: false,
             message: "Failed to create account",

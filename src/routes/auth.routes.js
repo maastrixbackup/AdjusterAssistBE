@@ -43,8 +43,8 @@ router.post("/mfa/verify-login", authMiddleware, verifyMFALogin);
 router.post("/mfa/reset", authMiddleware, requireAAL2, resetMFA);
 
 router.post("/signup", signup);
-router.post("/verify-callback", verifyCallback);
 router.post("/login", resetLimiter, login);
+router.post("/verify-callback", verifyCallback);
 router.post("/resend-verification", resendVerification);
 router.post("/forgot-password", resetLimiter, forgotPassword);
 router.post("/reset-password", resetPassword);
