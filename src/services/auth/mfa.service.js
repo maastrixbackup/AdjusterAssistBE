@@ -286,6 +286,7 @@ const verifyMFALogin = async (req, res) => {
   }
 };
 
+// After loggedin
 const resetMFA = async (req, res) => {
   try {
     const user = req.user;
@@ -377,6 +378,93 @@ const resetMFA = async (req, res) => {
   }
 };
 
+// During login
+const resetMFALogin = async (req, res) => {
+  try {
+    const {
+      email,
+      password,
+      temp_access_token,
+    } = req.body;
+
+    if (!email || !password || !temp_access_token) {
+      return res.status(400).json({
+        success: false,
+        message: "Missing credentials",
+      });
+    }
+
+    /*
+    STEP 1
+    Verify password
+    */
+
+    const { data, error } =
+      await supabaseAdmin.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+    if (error || !data?.user) {
+      return res.status(401).json({
+        success: false,
+        message: "Invalid password",
+      });
+    }
+
+    /*
+    STEP 2
+    Create temp user client
+    */
+
+    const userClient = await createUserClient(
+      temp_access_token
+    );
+
+    /*
+    STEP 3
+    List factors
+    */
+
+    const { data: factorData, error: factorError } =
+      await userClient.auth.mfa.listFactors();
+
+    if (factorError) {
+      return res.status(400).json({
+        success: false,
+        message: factorError.message,
+      });
+    }
+
+    /*
+    STEP 4
+    Delete all MFA factors
+    */
+
+    const factors = factorData.totp || [];
+
+    for (const factor of factors) {
+      await userClient.auth.mfa.unenroll({
+        factorId: factor.id,
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "MFA reset successful",
+    });
+
+  } catch (error) {
+
+    console.error("Reset MFA Login Error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to reset MFA",
+    });
+  }
+};
+
 module.exports = {
   hasVerifiedMFA,
   getPrimaryFactor,
@@ -385,5 +473,6 @@ module.exports = {
   verifyMFAEnrollment,
   challengeMFA,
   verifyMFALogin,
-  resetMFA
+  resetMFA,
+  resetMFALogin
 };
