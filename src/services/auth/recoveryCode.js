@@ -134,7 +134,6 @@ async function deleteAllUserMFAFactors(userId) {
     if (error) {
         throw new Error(error.message);
     }
-
     const factors = data?.factors || [];
 
     for (const factor of factors) {

@@ -1,9 +1,11 @@
-const {supabase} = require("../config/supabase")
+const { supabaseAdmin } = require("../config/supabase");
+
+const BUCKET = "profile_image";
 
 const uploadAvatar = async (fileBuffer, fileName, mimeType) => {
   try {
-    const { data, error } = await supabase.storage
-      .from('profile_image') 
+    const { data, error } = await supabaseAdmin.storage
+      .from(BUCKET)
       .upload(fileName, fileBuffer, {
         contentType: mimeType,
         upsert: true,
@@ -11,12 +13,17 @@ const uploadAvatar = async (fileBuffer, fileName, mimeType) => {
 
     if (error) throw error;
 
-    // Retrieve the public URL
-    const { data: { publicUrl } } = supabase.storage
-      .from('profile_image')
-      .getPublicUrl(data.path);
+    const { data: signedData, error: signedError } =
+      await supabaseAdmin.storage
+        .from(BUCKET)
+        .createSignedUrl(data.path, 60 * 60);
 
-    return publicUrl;
+    if (signedError) throw signedError;
+
+    return {
+      path: data.path,
+      signedUrl: signedData.signedUrl,
+    };
   } catch (error) {
     console.error("Supabase Storage Error:", error.message);
     throw new Error("Failed to upload image to cloud storage");
