@@ -540,43 +540,15 @@ const resetMFALogin = async (req, res) => {
 
 const requestMFARecovery = async (req, res) => {
   try {
-    const { email, password } = req.body;
-
-    if (!email || !password) {
-      return res.status(400).json({
+    const user = req.user;
+    if (!user?.id || !user?.email) {
+      return res.status(401).json({
         success: false,
-        message: "Email and password are required",
+        message: "Invalid recovery session",
       });
     }
 
-    const normalizedEmail = email.trim().toLowerCase();
-
-    /*
-    STEP 1
-    Verify credentials
-    */
-
-    const { data: authData, error: authError } =
-      await supabase.auth.signInWithPassword({
-        email: normalizedEmail,
-        password,
-      });
-
-    // Generic response for security
-    if (authError || !authData?.user) {
-      return res.status(200).json({
-        success: true,
-        message:
-          "If the account is valid, MFA recovery instructions will be processed.",
-      });
-    }
-
-    const user = authData.user;
-
-    /*
-    STEP 2
-    Check pending recovery request
-    */
+    const normalizedEmail = user.email.trim().toLowerCase();
 
     const { data: existingRequest } = await supabaseAdmin
       .from("mfa_recovery_requests")
@@ -589,18 +561,12 @@ const requestMFARecovery = async (req, res) => {
     if (existingRequest) {
       return res.status(200).json({
         success: true,
-        message:
-          "A recovery request is already pending review.",
+        message: "A recovery request is already pending review.",
       });
     }
 
-    /*
-    STEP 3
-    Create recovery request
-    */
-
     const expiresAt = new Date(
-      Date.now() + 24 * 60 * 60 * 1000
+      Date.now() + 24 * 60 * 60 * 1000,
     ).toISOString();
 
     const { error: insertError } = await supabaseAdmin
@@ -613,10 +579,7 @@ const requestMFARecovery = async (req, res) => {
       });
 
     if (insertError) {
-      console.error(
-        "MFA recovery insert error:",
-        insertError
-      );
+      console.error("MFA recovery insert error:", insertError);
 
       return res.status(500).json({
         success: false,
@@ -624,31 +587,13 @@ const requestMFARecovery = async (req, res) => {
       });
     }
 
-    /*
-    STEP 4
-    Optional email/admin notification
-    */
-
-    // sendRecoveryEmail(...)
-    // notifyAdmin(...)
-
-    /*
-    STEP 5
-    Success
-    */
-
     return res.status(200).json({
       success: true,
       message:
         "Your MFA recovery request has been submitted for review.",
     });
-
   } catch (error) {
-
-    console.error(
-      "requestMFARecovery error:",
-      error
-    );
+    console.error("requestMFARecovery error:", error);
 
     return res.status(500).json({
       success: false,

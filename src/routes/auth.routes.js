@@ -48,7 +48,7 @@ router.post("/mfa/verify-login", authMiddleware, verifyMFALogin);
 
 //Recovery 
 router.post("/mfa/recovery-login", authMiddleware, recoveryCodeLogin);
-router.post("/mfa/recovery-request", requestMFARecovery);
+router.post("/mfa/recovery-request", authMiddleware, requestMFARecovery);
 
 
 // Reset
