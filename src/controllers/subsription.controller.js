@@ -91,64 +91,6 @@ const upgradeSubscription = async (req, res) => {
   }
 };
 
-const getDetailedUsageHistory = async (req, res) => {
-  try {
-    const { range } = req.query;
-    let startDate = new Date();
-    let applyFilter = true;
-
-    switch (range) {
-      case "24h": startDate.setHours(startDate.getHours() - 24); break;
-      case "week": startDate.setDate(startDate.getDate() - 7); break;
-      case "month": startDate.setMonth(startDate.getMonth() - 1); break;
-      case "year": startDate.setFullYear(startDate.getFullYear() - 1); break;
-      case "all": default: applyFilter = false; break;
-    }
-
-    const { data: subData, error: subError } = await req.supabase
-      .from("subscriptions")
-      .select("*")
-      .single();
-
-    if (subError) throw subError;
-
-    // 🌟 USE REQ.SUPABASE TO SECURELY FETCH HISTORICAL LEDGER ENTRIES
-    let historyQuery = req.supabase
-      .from("credit_logs")
-      .select("id, action_type, workspace_name, credits_deducted, created_at")
-      .order("created_at", { ascending: false });
-
-    if (applyFilter) {
-      historyQuery = historyQuery.gte("created_at", startDate.toISOString());
-    }
-
-    const { data: streamData, error: streamError } = await historyQuery;
-    if (streamError) throw streamError;
-
-    const runInPeriod = streamData.reduce((sum, log) => sum + log.credits_deducted, 0);
-    const creditsRemaining = subData.usage_limit - subData.current_usage;
-
-    return res.status(200).json({
-      success: true,
-      meta: {
-        runInPeriod: runInPeriod,
-        remaining: creditsRemaining,
-        nextRenewal: subData.expires_at,
-        planStatus: subData.status
-      },
-      transactions: streamData.map(item => ({
-        id: item.id,
-        title: item.action_type,
-        workspace: item.workspace_name,
-        cost: `-${item.credits_deducted} cr`,
-        timestamp: item.created_at
-      }))
-    });
-  } catch (error) {
-    console.error("History engine failure:", error);
-    return res.status(500).json({ error: "Could not fetch usage stream data metrics." });
-  }
-};
 
 const createSubscriptionOrder = async (req, res) => {
   try {
@@ -427,6 +369,221 @@ const verifySubscriptionPayment = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: "Verification failed",
+    });
+  }
+};
+
+
+const ALLOWED_RANGES = new Set(["24h", "week", "month", "year", "all"]);
+
+const RANGE_CONFIG = {
+  "24h": { amount: 24, unit: "hours" },
+  week: { amount: 7, unit: "days" },
+  month: { amount: 1, unit: "months" },
+  year: { amount: 1, unit: "years" },
+};
+
+function getStartDate(range) {
+  if (range === "all") return null;
+
+  const date = new Date();
+  const config = RANGE_CONFIG[range];
+
+  if (!config) return null;
+
+  switch (config.unit) {
+    case "hours":
+      date.setHours(date.getHours() - config.amount);
+      break;
+    case "days":
+      date.setDate(date.getDate() - config.amount);
+      break;
+    case "months":
+      date.setMonth(date.getMonth() - config.amount);
+      break;
+    case "years":
+      date.setFullYear(date.getFullYear() - config.amount);
+      break;
+  }
+
+  return date;
+}
+
+// Usage History
+
+function toPositiveNumber(value, fallback = 0) {
+  const number = Number(value);
+  return Number.isFinite(number) ? Math.max(number, 0) : fallback;
+}
+
+function formatTransactionTitle(actionType) {
+  if (!actionType) return "Usage Activity";
+
+  return String(actionType)
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+const getDetailedUsageHistory = async (req, res) => {
+  try {
+    const range = ALLOWED_RANGES.has(req.query.range)
+      ? req.query.range
+      : "all";
+
+    const page = Math.max(parseInt(req.query.page || "1", 10), 1);
+    const limit = Math.min(
+      Math.max(parseInt(req.query.limit || "50", 10), 1),
+      100,
+    );
+
+    const from = (page - 1) * limit;
+    const to = from + limit - 1;
+
+    const startDate = getStartDate(range);
+
+    /**
+     * If your auth middleware sets req.user:
+     * const userId = req.user?.id;
+     *
+     * If your tables have user_id, prefer explicit filters:
+     * .eq("user_id", userId)
+     *
+     * If req.supabase is user-scoped and RLS is correctly enabled,
+     * RLS will already restrict rows.
+     */
+
+    const subscriptionQuery = req.supabase
+      .from("subscriptions")
+      .select(
+        "id, plan_type, usage_limit, current_usage, status, expires_at, created_at, updated_at",
+      )
+      .maybeSingle();
+
+    const { data: subData, error: subError } = await subscriptionQuery;
+
+    if (subError) {
+      console.error("[UsageHistory] Subscription fetch failed:", subError);
+      return res.status(500).json({
+        success: false,
+        message: "Unable to load subscription information.",
+      });
+    }
+
+    if (!subData) {
+      return res.status(404).json({
+        success: false,
+        message: "No active subscription found for this account.",
+        meta: {
+          range,
+          runInPeriod: 0,
+          remaining: 0,
+          currentUsage: 0,
+          totalQuota: 0,
+          nextRenewal: null,
+          planStatus: "missing",
+          page,
+          limit,
+          hasMore: false,
+          totalRecords: 0,
+        },
+        transactions: [],
+      });
+    }
+
+    let historyBaseQuery = req.supabase
+      .from("credit_logs")
+      .select("id, action_type, workspace_name, credits_deducted, created_at", {
+        count: "exact",
+      })
+      .order("created_at", { ascending: false });
+
+    if (startDate) {
+      historyBaseQuery = historyBaseQuery.gte(
+        "created_at",
+        startDate.toISOString(),
+      );
+    }
+
+    const { data: streamData, error: streamError, count } =
+      await historyBaseQuery.range(from, to);
+
+    if (streamError) {
+      console.error("[UsageHistory] Credit logs fetch failed:", streamError);
+      return res.status(500).json({
+        success: false,
+        message: "Unable to load usage history.",
+      });
+    }
+
+    /**
+     * Important:
+     * This fetches total credits used in the selected range,
+     * not just the current paginated page.
+     */
+    let aggregateQuery = req.supabase
+      .from("credit_logs")
+      .select("credits_deducted");
+
+    if (startDate) {
+      aggregateQuery = aggregateQuery.gte("created_at", startDate.toISOString());
+    }
+
+    const { data: aggregateData, error: aggregateError } = await aggregateQuery;
+
+    if (aggregateError) {
+      console.error("[UsageHistory] Aggregate fetch failed:", aggregateError);
+      return res.status(500).json({
+        success: false,
+        message: "Unable to calculate usage metrics.",
+      });
+    }
+
+    const runInPeriod = (aggregateData || []).reduce((sum, log) => {
+      return sum + toPositiveNumber(log.credits_deducted);
+    }, 0);
+
+    const usageLimit = toPositiveNumber(subData.usage_limit);
+    const currentUsage = toPositiveNumber(subData.current_usage);
+    const creditsRemaining = Math.max(usageLimit - currentUsage, 0);
+
+    const transactions = (streamData || []).map((item) => {
+      const credits = toPositiveNumber(item.credits_deducted);
+
+      return {
+        id: String(item.id),
+        title: formatTransactionTitle(item.action_type),
+        rawActionType: item.action_type || null,
+        workspace: item.workspace_name || "Workspace",
+        cost: `-${credits} cr`,
+        credits,
+        timestamp: item.created_at,
+      };
+    });
+
+    return res.status(200).json({
+      success: true,
+      meta: {
+        range,
+        runInPeriod,
+        remaining: creditsRemaining,
+        currentUsage,
+        totalQuota: usageLimit,
+        nextRenewal: subData.expires_at || null,
+        planStatus: subData.status || "unknown",
+        planType: subData.plan_type || null,
+        page,
+        limit,
+        totalRecords: count || 0,
+        hasMore: from + transactions.length < (count || 0),
+      },
+      transactions,
+    });
+  } catch (error) {
+    console.error("[UsageHistory] Unexpected failure:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Could not fetch usage stream data metrics.",
     });
   }
 };
