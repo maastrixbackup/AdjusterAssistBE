@@ -11,23 +11,25 @@ const uploadAvatar = async (fileBuffer, fileName, mimeType) => {
         upsert: true,
       });
 
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
 
-    const { data: signedData, error: signedError } =
-      await supabaseAdmin.storage
-        .from(BUCKET)
-        .createSignedUrl(data.path, 60 * 60);
-
-    if (signedError) throw signedError;
+    const {
+      data: { publicUrl },
+    } = supabaseAdmin.storage.from(BUCKET).getPublicUrl(data.path);
 
     return {
       path: data.path,
-      signedUrl: signedData.signedUrl,
+      publicUrl,
     };
   } catch (error) {
     console.error("Supabase Storage Error:", error.message);
+
     throw new Error("Failed to upload image to cloud storage");
   }
 };
 
-module.exports = { uploadAvatar };
+module.exports = {
+  uploadAvatar,
+};
