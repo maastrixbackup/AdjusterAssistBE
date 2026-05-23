@@ -184,6 +184,7 @@ const verifyMFAEnrollment = async (req, res) => {
     const accessToken = data.session?.access_token || data.access_token;
     const refreshToken = data.session?.refresh_token || data.refresh_token;
     const expiresAt = data.session?.expires_at || data.expires_at;
+    const user = data.session?.user || data?.user;
 
     if (!accessToken || !refreshToken) {
       return res.status(500).json({
@@ -194,13 +195,14 @@ const verifyMFAEnrollment = async (req, res) => {
     return res.status(200).json({
       success: true,
       message: "MFA verified successfully",
-
-      session: {
-        access_token: accessToken,
-        refresh_token: refreshToken,
-        expires_at: expiresAt,
+      access_token: accessToken,
+      refresh_token: refreshToken,
+      expires_at: expiresAt,
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.user_metadata?.full_name || "",
       },
-
       recovery_codes: recoveryCodes,
     });
 
