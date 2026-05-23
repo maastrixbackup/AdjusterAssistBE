@@ -25,6 +25,8 @@ const {
   challengeMFA,
   verifyMFALogin,
   resetMFA,
+  resetMFALogin,
+  requestMFARecovery
 } = require("../services/auth/mfa.service");
 
 router.post("/refresh", refreshSession);
@@ -33,18 +35,27 @@ router.post("/refresh", refreshSession);
 router.get("/mfa/status", authMiddleware, getMFAStatus);
 
 // setup after signup
+router.get("/mfa/test", async (req, res)=>{
+   res.send("MFA API running");
+})
 router.get("/mfa/enroll", authMiddleware, enrollMFA);
 router.post("/mfa/verify", authMiddleware, verifyMFAEnrollment);
 
 // For login
 router.post("/mfa/challenge", authMiddleware, challengeMFA);
 router.post("/mfa/verify-login", authMiddleware, verifyMFALogin);
+
+//Recovery 
+router.post("/mfa/recovery-request", requestMFARecovery);
+
+
 // Reset
+router.post("/mfa/reset-login", resetMFALogin);
 router.post("/mfa/reset", authMiddleware, requireAAL2, resetMFA);
 
 router.post("/signup", signup);
-router.post("/verify-callback", verifyCallback);
 router.post("/login", resetLimiter, login);
+router.post("/verify-callback", verifyCallback);
 router.post("/resend-verification", resendVerification);
 router.post("/forgot-password", resetLimiter, forgotPassword);
 router.post("/reset-password", resetPassword);

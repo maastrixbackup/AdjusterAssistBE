@@ -1,4 +1,4 @@
-const { createUserClient, supabaseAdmin } = require("../../config/supabase");
+const { createUserClient, supabaseAdmin, supabase } = require("../../config/supabase");
 
 async function hasVerifiedMFA(accessToken) {
   const client = createUserClient(accessToken);
@@ -54,11 +54,49 @@ async function getPrimaryFactor(accessToken) {
   return factor || null;
 }
 
+
 const enrollMFA = async (req, res) => {
   try {
-    const { data, error } = await req.supabase.auth.mfa.enroll({
-      factorType: "totp",
-    });
+    const { data: factorData, error: listError } =
+      await req.supabase.auth.mfa.listFactors();
+
+    if (listError) {
+      return res.status(400).json({
+        success: false,
+        message: listError.message,
+      });
+    }
+
+    const totpFactors = factorData?.totp || [];
+
+    const verifiedFactor = totpFactors.find(
+      (factor) => factor.status === "verified"
+    );
+
+    if (verifiedFactor) {
+      return res.status(409).json({
+        success: false,
+        code: "MFA_ALREADY_ENABLED",
+        message: "MFA is already enabled for this account.",
+      });
+    }
+
+    const unverifiedFactors = totpFactors.filter(
+      (factor) => factor.status !== "verified"
+    );
+
+    for (const factor of unverifiedFactors) {
+      await req.supabase.auth.mfa.unenroll({
+        factorId: factor.id,
+      });
+    }
+
+    const { data, error } =
+      await req.supabase.auth.mfa.enroll({
+        factorType: "totp",
+        friendlyName: `AdjusterAssist-${Date.now()}`,
+      });
+
     if (error) {
       return res.status(400).json({
         success: false,
@@ -75,6 +113,7 @@ const enrollMFA = async (req, res) => {
     });
   } catch (error) {
     console.error("Enroll MFA Error:", error);
+
     return res.status(500).json({
       success: false,
       message: "Failed to enroll MFA",
@@ -85,7 +124,6 @@ const enrollMFA = async (req, res) => {
 const verifyMFAEnrollment = async (req, res) => {
   try {
     const { factor_id, code } = req.body;
-
     if (!factor_id || !code) {
       return res.status(400).json({
         success: false,
@@ -165,9 +203,7 @@ const challengeMFA = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-
       challenge_id: data.id,
-
       message: "MFA challenge created successfully.",
     });
   } catch (error) {
@@ -233,7 +269,6 @@ const verifyMFALogin = async (req, res) => {
       access_token,
       refresh_token,
       expires_at,
-      token: access_token,
       aal: "aal2",
       user: {
         id: user.id,
@@ -251,6 +286,7 @@ const verifyMFALogin = async (req, res) => {
   }
 };
 
+// After loggedin
 const resetMFA = async (req, res) => {
   try {
     const user = req.user;
@@ -342,6 +378,252 @@ const resetMFA = async (req, res) => {
   }
 };
 
+// During login
+const resetMFALogin = async (req, res) => {
+  try {
+    const { email, password, temp_access_token } = req.body;
+
+    if (!email || !password || !temp_access_token) {
+      return res.status(400).json({
+        success: false,
+        message: "Missing credentials",
+      });
+    }
+
+    const normalizedEmail = email.trim().toLowerCase();
+
+    // 1. Verify password using normal Supabase client
+    const { data: passwordData, error: passwordError } =
+      await supabase.auth.signInWithPassword({
+        email: normalizedEmail,
+        password,
+      });
+
+    if (passwordError || !passwordData?.user) {
+      return res.status(401).json({
+        success: false,
+        message: "Invalid password",
+      });
+    }
+
+    // 2. Validate temp token belongs to same user
+    const userClient = await createUserClient(temp_access_token);
+
+    const { data: tempUserData, error: tempUserError } =
+      await userClient.auth.getUser();
+
+    if (tempUserError || !tempUserData?.user) {
+      return res.status(401).json({
+        success: false,
+        message: "Invalid reset session",
+      });
+    }
+
+    if (
+      tempUserData.user.id !== passwordData.user.id ||
+      tempUserData.user.email?.toLowerCase() !== normalizedEmail
+    ) {
+      return res.status(403).json({
+        success: false,
+        message: "Session does not match this account",
+      });
+    }
+
+    // 3. List existing MFA factors
+    const { data: factorData, error: factorError } =
+      await userClient.auth.mfa.listFactors();
+
+    if (factorError) {
+      return res.status(400).json({
+        success: false,
+        message: factorError.message,
+      });
+    }
+
+    const factors = factorData?.totp || [];
+
+    // 4. Remove every TOTP factor
+    const failedFactors = [];
+
+    for (const factor of factors) {
+      const { error: unenrollError } =
+        await userClient.auth.mfa.unenroll({
+          factorId: factor.id,
+        });
+
+      if (unenrollError) {
+        failedFactors.push({
+          factor_id: factor.id,
+          message: unenrollError.message,
+        });
+      }
+    }
+
+    if (failedFactors.length > 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Some MFA factors could not be removed.",
+        failed_factors: failedFactors,
+      });
+    }
+
+    // 5. Verify cleanup
+    const { data: afterResetFactors, error: afterResetError } =
+      await userClient.auth.mfa.listFactors();
+
+    if (afterResetError) {
+      return res.status(400).json({
+        success: false,
+        message: afterResetError.message,
+      });
+    }
+
+    const remainingTotpFactors = afterResetFactors?.totp || [];
+
+    if (remainingTotpFactors.length > 0) {
+      return res.status(409).json({
+        success: false,
+        code: "MFA_RESET_PENDING",
+        message:
+          "MFA reset is still processing. Please try logging in again after a moment.",
+      });
+    }
+
+    // 6. Do not return new tokens. Force clean login.
+    return res.status(200).json({
+      success: true,
+      requires_relogin: true,
+      message: "MFA reset successful. Please login again.",
+    });
+  } catch (error) {
+    console.error("Reset MFA Login Error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to reset MFA",
+    });
+  }
+};
+
+const requestMFARecovery = async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({
+        success: false,
+        message: "Email and password are required",
+      });
+    }
+
+    const normalizedEmail = email.trim().toLowerCase();
+
+    /*
+    STEP 1
+    Verify credentials
+    */
+
+    const { data: authData, error: authError } =
+      await supabase.auth.signInWithPassword({
+        email: normalizedEmail,
+        password,
+      });
+
+    // Generic response for security
+    if (authError || !authData?.user) {
+      return res.status(200).json({
+        success: true,
+        message:
+          "If the account is valid, MFA recovery instructions will be processed.",
+      });
+    }
+
+    const user = authData.user;
+
+    /*
+    STEP 2
+    Check pending recovery request
+    */
+
+    const { data: existingRequest } = await supabaseAdmin
+      .from("mfa_recovery_requests")
+      .select("*")
+      .eq("user_id", user.id)
+      .eq("status", "pending")
+      .gt("expires_at", new Date().toISOString())
+      .maybeSingle();
+
+    if (existingRequest) {
+      return res.status(200).json({
+        success: true,
+        message:
+          "A recovery request is already pending review.",
+      });
+    }
+
+    /*
+    STEP 3
+    Create recovery request
+    */
+
+    const expiresAt = new Date(
+      Date.now() + 24 * 60 * 60 * 1000
+    ).toISOString();
+
+    const { error: insertError } = await supabaseAdmin
+      .from("mfa_recovery_requests")
+      .insert({
+        user_id: user.id,
+        email: normalizedEmail,
+        status: "pending",
+        expires_at: expiresAt,
+      });
+
+    if (insertError) {
+      console.error(
+        "MFA recovery insert error:",
+        insertError
+      );
+
+      return res.status(500).json({
+        success: false,
+        message: "Failed to create recovery request",
+      });
+    }
+
+    /*
+    STEP 4
+    Optional email/admin notification
+    */
+
+    // sendRecoveryEmail(...)
+    // notifyAdmin(...)
+
+    /*
+    STEP 5
+    Success
+    */
+
+    return res.status(200).json({
+      success: true,
+      message:
+        "Your MFA recovery request has been submitted for review.",
+    });
+
+  } catch (error) {
+
+    console.error(
+      "requestMFARecovery error:",
+      error
+    );
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to process recovery request",
+    });
+  }
+};
+
 module.exports = {
   hasVerifiedMFA,
   getPrimaryFactor,
@@ -350,5 +632,7 @@ module.exports = {
   verifyMFAEnrollment,
   challengeMFA,
   verifyMFALogin,
-  resetMFA
+  resetMFA,
+  resetMFALogin,
+  requestMFARecovery
 };
