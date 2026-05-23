@@ -181,15 +181,24 @@ const verifyMFAEnrollment = async (req, res) => {
       STEP 4
       Success response
     */
+    const accessToken = data.session?.access_token || data.access_token;
+    const refreshToken = data.session?.refresh_token || data.refresh_token;
+    const expiresAt = data.session?.expires_at || data.expires_at;
 
+    if (!accessToken || !refreshToken) {
+      return res.status(500).json({
+        success: false,
+        message: "MFA verified but session tokens were not returned",
+      });
+    }
     return res.status(200).json({
       success: true,
       message: "MFA verified successfully",
 
       session: {
-        access_token: data.session.access_token,
-        refresh_token: data.session.refresh_token,
-        expires_at: data.session.expires_at,
+        access_token: accessToken,
+        refresh_token: refreshToken,
+        expires_at: expiresAt,
       },
 
       recovery_codes: recoveryCodes,
