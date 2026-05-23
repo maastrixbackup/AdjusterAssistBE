@@ -1,4 +1,5 @@
 const { createUserClient, supabaseAdmin, supabase } = require("../../config/supabase");
+const { generateMFARecoveryCodes, verifyAndConsumeRecoveryCode, deleteAllUserMFAFactors } = require("./recoveryCode");
 
 async function hasVerifiedMFA(accessToken) {
   const client = createUserClient(accessToken);
@@ -124,6 +125,7 @@ const enrollMFA = async (req, res) => {
 const verifyMFAEnrollment = async (req, res) => {
   try {
     const { factor_id, code } = req.body;
+
     if (!factor_id || !code) {
       return res.status(400).json({
         success: false,
@@ -131,7 +133,11 @@ const verifyMFAEnrollment = async (req, res) => {
       });
     }
 
-    // Create challenge
+    /*
+      STEP 1
+      Create MFA challenge
+    */
+
     const { data: challengeData, error: challengeError } =
       await req.supabase.auth.mfa.challenge({
         factorId: factor_id,
@@ -144,26 +150,53 @@ const verifyMFAEnrollment = async (req, res) => {
       });
     }
 
-    // Verify challenge
-    const { data, error } = await req.supabase.auth.mfa.verify({
-      factorId: factor_id,
-      challengeId: challengeData.id,
-      code,
-    });
+    /*
+      STEP 2
+      Verify MFA code
+    */
 
-    if (error) {
+    const { data, error } =
+      await req.supabase.auth.mfa.verify({
+        factorId: factor_id,
+        challengeId: challengeData.id,
+        code,
+      });
+
+    if (error || !data?.user) {
       return res.status(400).json({
         success: false,
-        message: error.message,
+        message: error?.message || "Failed to verify MFA",
       });
     }
+
+    /*
+      STEP 3
+      Generate recovery codes
+    */
+
+    const recoveryCodes =
+      await generateMFARecoveryCodes(data.user.id);
+
+    /*
+      STEP 4
+      Success response
+    */
 
     return res.status(200).json({
       success: true,
       message: "MFA verified successfully",
-      data,
+
+      session: {
+        access_token: data.session.access_token,
+        refresh_token: data.session.refresh_token,
+        expires_at: data.session.expires_at,
+      },
+
+      recovery_codes: recoveryCodes,
     });
+
   } catch (error) {
+
     console.error("Verify MFA Error:", error);
 
     return res.status(500).json({
@@ -624,6 +657,93 @@ const requestMFARecovery = async (req, res) => {
   }
 };
 
+const recoveryCodeLogin = async (req, res) => {
+  try {
+    const { email, password, recovery_code } = req.body;
+
+    if (!email || !password || !recovery_code) {
+      return res.status(400).json({
+        success: false,
+        message: "email, password and recovery_code are required",
+      });
+    }
+
+    const normalizedEmail = email.trim().toLowerCase();
+
+    // 1. Verify password
+    const { data: authData, error: authError } =
+      await supabase.auth.signInWithPassword({
+        email: normalizedEmail,
+        password,
+      });
+
+    if (authError || !authData?.user) {
+      return res.status(401).json({
+        success: false,
+        message: "Invalid credentials",
+      });
+    }
+
+    const user = authData.user;
+
+    // 2. Verify and consume recovery code
+    const recoveryResult = await verifyAndConsumeRecoveryCode({
+      userId: user.id,
+      recoveryCode: recovery_code,
+      ip: req.ip,
+      userAgent: req.headers["user-agent"],
+    });
+
+    if (!recoveryResult.valid) {
+      return res.status(401).json({
+        success: false,
+        message: "Invalid or already used recovery code",
+      });
+    }
+
+    // 3. Delete old MFA factors using Admin MFA API
+    await deleteAllUserMFAFactors(user.id);
+
+    // 4. Sign in again to create clean AAL1 session
+    const { data: freshLoginData, error: freshLoginError } =
+      await supabase.auth.signInWithPassword({
+        email: normalizedEmail,
+        password,
+      });
+
+    if (freshLoginError || !freshLoginData?.session) {
+      return res.status(200).json({
+        success: true,
+        requires_relogin: true,
+        message:
+          "Recovery code accepted. Please login again to setup MFA.",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      recovery_used: true,
+      requires_mfa_setup: true,
+      temp_access_token: freshLoginData.session.access_token,
+      temp_refresh_token: freshLoginData.session.refresh_token,
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.user_metadata?.full_name || "",
+      },
+      message:
+        "Recovery code accepted. Please setup MFA again.",
+    });
+  } catch (error) {
+    console.error("Recovery Code Login Error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Recovery login failed",
+    });
+  }
+};
+
 module.exports = {
   hasVerifiedMFA,
   getPrimaryFactor,
@@ -634,5 +754,6 @@ module.exports = {
   verifyMFALogin,
   resetMFA,
   resetMFALogin,
-  requestMFARecovery
+  requestMFARecovery,
+  recoveryCodeLogin
 };
