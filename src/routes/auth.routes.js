@@ -26,7 +26,8 @@ const {
   verifyMFALogin,
   resetMFA,
   resetMFALogin,
-  requestMFARecovery
+  requestMFARecovery,
+  recoveryCodeLogin
 } = require("../services/auth/mfa.service");
 
 router.post("/refresh", refreshSession);
@@ -46,7 +47,8 @@ router.post("/mfa/challenge", authMiddleware, challengeMFA);
 router.post("/mfa/verify-login", authMiddleware, verifyMFALogin);
 
 //Recovery 
-router.post("/mfa/recovery-request", requestMFARecovery);
+router.post("/mfa/recovery-login", authMiddleware, recoveryCodeLogin);
+router.post("/mfa/recovery-request", authMiddleware, requestMFARecovery);
 
 
 // Reset

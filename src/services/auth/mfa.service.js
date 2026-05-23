@@ -1,4 +1,5 @@
 const { createUserClient, supabaseAdmin, supabase } = require("../../config/supabase");
+const { generateMFARecoveryCodes, verifyAndConsumeRecoveryCode, deleteAllUserMFAFactors } = require("./recoveryCode");
 
 async function hasVerifiedMFA(accessToken) {
   const client = createUserClient(accessToken);
@@ -124,6 +125,7 @@ const enrollMFA = async (req, res) => {
 const verifyMFAEnrollment = async (req, res) => {
   try {
     const { factor_id, code } = req.body;
+
     if (!factor_id || !code) {
       return res.status(400).json({
         success: false,
@@ -131,7 +133,11 @@ const verifyMFAEnrollment = async (req, res) => {
       });
     }
 
-    // Create challenge
+    /*
+      STEP 1
+      Create MFA challenge
+    */
+
     const { data: challengeData, error: challengeError } =
       await req.supabase.auth.mfa.challenge({
         factorId: factor_id,
@@ -144,26 +150,64 @@ const verifyMFAEnrollment = async (req, res) => {
       });
     }
 
-    // Verify challenge
-    const { data, error } = await req.supabase.auth.mfa.verify({
-      factorId: factor_id,
-      challengeId: challengeData.id,
-      code,
-    });
+    /*
+      STEP 2
+      Verify MFA code
+    */
 
-    if (error) {
+    const { data, error } =
+      await req.supabase.auth.mfa.verify({
+        factorId: factor_id,
+        challengeId: challengeData.id,
+        code,
+      });
+
+    if (error || !data?.user) {
       return res.status(400).json({
         success: false,
-        message: error.message,
+        message: error?.message || "Failed to verify MFA",
       });
     }
 
+    /*
+      STEP 3
+      Generate recovery codes
+    */
+
+    const recoveryCodes =
+      await generateMFARecoveryCodes(data.user.id);
+
+    /*
+      STEP 4
+      Success response
+    */
+    const accessToken = data.session?.access_token || data.access_token;
+    const refreshToken = data.session?.refresh_token || data.refresh_token;
+    const expiresAt = data.session?.expires_at || data.expires_at;
+    const user = data.session?.user || data?.user;
+
+    if (!accessToken || !refreshToken) {
+      return res.status(500).json({
+        success: false,
+        message: "MFA verified but session tokens were not returned",
+      });
+    }
     return res.status(200).json({
       success: true,
       message: "MFA verified successfully",
-      data,
+      access_token: accessToken,
+      refresh_token: refreshToken,
+      expires_at: expiresAt,
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.user_metadata?.full_name || "",
+      },
+      recovery_codes: recoveryCodes,
     });
+
   } catch (error) {
+
     console.error("Verify MFA Error:", error);
 
     return res.status(500).json({
@@ -507,43 +551,15 @@ const resetMFALogin = async (req, res) => {
 
 const requestMFARecovery = async (req, res) => {
   try {
-    const { email, password } = req.body;
-
-    if (!email || !password) {
-      return res.status(400).json({
+    const user = req.user;
+    if (!user?.id || !user?.email) {
+      return res.status(401).json({
         success: false,
-        message: "Email and password are required",
+        message: "Invalid recovery session",
       });
     }
 
-    const normalizedEmail = email.trim().toLowerCase();
-
-    /*
-    STEP 1
-    Verify credentials
-    */
-
-    const { data: authData, error: authError } =
-      await supabase.auth.signInWithPassword({
-        email: normalizedEmail,
-        password,
-      });
-
-    // Generic response for security
-    if (authError || !authData?.user) {
-      return res.status(200).json({
-        success: true,
-        message:
-          "If the account is valid, MFA recovery instructions will be processed.",
-      });
-    }
-
-    const user = authData.user;
-
-    /*
-    STEP 2
-    Check pending recovery request
-    */
+    const normalizedEmail = user.email.trim().toLowerCase();
 
     const { data: existingRequest } = await supabaseAdmin
       .from("mfa_recovery_requests")
@@ -556,18 +572,12 @@ const requestMFARecovery = async (req, res) => {
     if (existingRequest) {
       return res.status(200).json({
         success: true,
-        message:
-          "A recovery request is already pending review.",
+        message: "A recovery request is already pending review.",
       });
     }
 
-    /*
-    STEP 3
-    Create recovery request
-    */
-
     const expiresAt = new Date(
-      Date.now() + 24 * 60 * 60 * 1000
+      Date.now() + 24 * 60 * 60 * 1000,
     ).toISOString();
 
     const { error: insertError } = await supabaseAdmin
@@ -580,10 +590,7 @@ const requestMFARecovery = async (req, res) => {
       });
 
     if (insertError) {
-      console.error(
-        "MFA recovery insert error:",
-        insertError
-      );
+      console.error("MFA recovery insert error:", insertError);
 
       return res.status(500).json({
         success: false,
@@ -591,31 +598,13 @@ const requestMFARecovery = async (req, res) => {
       });
     }
 
-    /*
-    STEP 4
-    Optional email/admin notification
-    */
-
-    // sendRecoveryEmail(...)
-    // notifyAdmin(...)
-
-    /*
-    STEP 5
-    Success
-    */
-
     return res.status(200).json({
       success: true,
       message:
         "Your MFA recovery request has been submitted for review.",
     });
-
   } catch (error) {
-
-    console.error(
-      "requestMFARecovery error:",
-      error
-    );
+    console.error("requestMFARecovery error:", error);
 
     return res.status(500).json({
       success: false,
@@ -623,6 +612,63 @@ const requestMFARecovery = async (req, res) => {
     });
   }
 };
+
+const recoveryCodeLogin = async (req, res) => {
+  try {
+    const { recovery_code } = req.body;
+
+    if (!recovery_code) {
+      return res.status(400).json({
+        success: false,
+        message: "Recovery code is required",
+      });
+    }
+
+    const user = req.user;
+
+    if (!user?.id || !user?.email) {
+      return res.status(401).json({
+        success: false,
+        message: "Invalid recovery session",
+      });
+    }
+
+    const recoveryResult = await verifyAndConsumeRecoveryCode({
+      userId: user.id,
+      recoveryCode: recovery_code,
+      ip: req.ip,
+      userAgent: req.headers["user-agent"],
+    });
+
+    if (!recoveryResult.valid) {
+      return res.status(401).json({
+        success: false,
+        message: "Invalid or already used recovery code",
+      });
+    }
+
+    const removedFactorsCount =
+      await deleteAllUserMFAFactors(user.id);
+
+
+    return res.status(200).json({
+      success: true,
+      recovery_used: true,
+      requires_mfa_setup: true,
+      removed_factors_count: removedFactorsCount,
+      message:
+        "Recovery code accepted. Please setup MFA again.",
+    });
+  } catch (error) {
+    console.error("Recovery Code Login Error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Recovery login failed",
+    });
+  }
+};
+
 
 module.exports = {
   hasVerifiedMFA,
@@ -634,5 +680,6 @@ module.exports = {
   verifyMFALogin,
   resetMFA,
   resetMFALogin,
-  requestMFARecovery
+  requestMFARecovery,
+  recoveryCodeLogin
 };
