@@ -659,34 +659,24 @@ const requestMFARecovery = async (req, res) => {
 
 const recoveryCodeLogin = async (req, res) => {
   try {
-    const { email, password, recovery_code } = req.body;
+    const { recovery_code } = req.body;
 
-    if (!email || !password || !recovery_code) {
+    if (!recovery_code) {
       return res.status(400).json({
         success: false,
-        message: "email, password and recovery_code are required",
+        message: "Recovery code is required",
       });
     }
 
-    const normalizedEmail = email.trim().toLowerCase();
+    const user = req.user;
 
-    // 1. Verify password
-    const { data: authData, error: authError } =
-      await supabase.auth.signInWithPassword({
-        email: normalizedEmail,
-        password,
-      });
-
-    if (authError || !authData?.user) {
+    if (!user?.id || !user?.email) {
       return res.status(401).json({
         success: false,
-        message: "Invalid credentials",
+        message: "Invalid recovery session",
       });
     }
 
-    const user = authData.user;
-
-    // 2. Verify and consume recovery code
     const recoveryResult = await verifyAndConsumeRecoveryCode({
       userId: user.id,
       recoveryCode: recovery_code,
@@ -701,36 +691,15 @@ const recoveryCodeLogin = async (req, res) => {
       });
     }
 
-    // 3. Delete old MFA factors using Admin MFA API
-    await deleteAllUserMFAFactors(user.id);
+    const removedFactorsCount =
+      await deleteAllUserMFAFactors(user.id);
 
-    // 4. Sign in again to create clean AAL1 session
-    const { data: freshLoginData, error: freshLoginError } =
-      await supabase.auth.signInWithPassword({
-        email: normalizedEmail,
-        password,
-      });
-
-    if (freshLoginError || !freshLoginData?.session) {
-      return res.status(200).json({
-        success: true,
-        requires_relogin: true,
-        message:
-          "Recovery code accepted. Please login again to setup MFA.",
-      });
-    }
 
     return res.status(200).json({
       success: true,
       recovery_used: true,
       requires_mfa_setup: true,
-      temp_access_token: freshLoginData.session.access_token,
-      temp_refresh_token: freshLoginData.session.refresh_token,
-      user: {
-        id: user.id,
-        email: user.email,
-        name: user.user_metadata?.full_name || "",
-      },
+      removed_factors_count: removedFactorsCount,
       message:
         "Recovery code accepted. Please setup MFA again.",
     });
@@ -743,6 +712,7 @@ const recoveryCodeLogin = async (req, res) => {
     });
   }
 };
+
 
 module.exports = {
   hasVerifiedMFA,
