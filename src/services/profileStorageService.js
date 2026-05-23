@@ -1,4 +1,3 @@
-const path = require("path");
 const crypto = require("crypto");
 const { supabaseAdmin } = require("../config/supabase");
 
@@ -35,9 +34,7 @@ const uploadAvatar = async (fileBuffer, originalFileName, mimeType, userId) => {
       throw new Error("Unsupported image format");
     }
 
-    const uniqueName = `${crypto.randomUUID()}.${ext}`;
-
-    const filePath = `avatars/${userId}/${uniqueName}`;
+    const filePath = `avatars/${userId}/${crypto.randomUUID()}.${ext}`;
 
     const { data, error } = await supabaseAdmin.storage
       .from(BUCKET)
@@ -54,7 +51,7 @@ const uploadAvatar = async (fileBuffer, originalFileName, mimeType, userId) => {
 
     return {
       path: data.path,
-      publicUrl: encodeURI(publicUrl),
+      publicUrl,
     };
   } catch (error) {
     console.error("Supabase Storage Error:", error.message);
