@@ -8,7 +8,7 @@ const requireAAL2 = require("../middlewares/requireAAL2");
 const upload = multer({ storage: multer.memoryStorage() });
 
 // authMiddleware FIRST, then getProfile
-router.get("/profile",authMiddleware, requireAAL2 ,getProfile);
+router.get("/profile",authMiddleware ,getProfile);
 router.patch("/update", authMiddleware,upload.single('avatar') , updateProfile); 
 router.get("/test/:id", authMiddleware, async (req, res) => {
   try {
