@@ -647,7 +647,6 @@ const recoveryCodeLogin = async (req, res) => {
       });
     }
 
-    // Create one-time auth link internally
     const { data: linkData, error: linkError } =
       await supabaseAdmin.auth.admin.generateLink({
         type: "magiclink",
@@ -655,26 +654,30 @@ const recoveryCodeLogin = async (req, res) => {
       });
 
     if (linkError || !linkData?.properties?.hashed_token) {
+      console.error("Recovery magic link error:", linkError);
+
       return res.status(500).json({
         success: false,
         message: "Failed to generate recovery session",
       });
     }
 
-    // Exchange token hash for real Supabase session
     const { data: sessionData, error: sessionError } =
       await supabaseAdmin.auth.verifyOtp({
         type: "magiclink",
-        email: user.email,
         token_hash: linkData.properties.hashed_token,
       });
 
     if (sessionError || !sessionData?.session) {
+      console.error("Recovery session error:", sessionError);
+
       return res.status(500).json({
         success: false,
         message: "Failed to create recovery login session",
       });
     }
+
+    const session = sessionData.session;
 
     return res.status(200).json({
       success: true,
@@ -682,10 +685,11 @@ const recoveryCodeLogin = async (req, res) => {
       requires_mfa: false,
       requires_mfa_setup: false,
 
-      access_token: sessionData.session.access_token,
-      refresh_token: sessionData.session.refresh_token,
-      expires_in: sessionData.session.expires_in,
-      token_type: sessionData.session.token_type,
+      access_token: session.access_token,
+      refresh_token: session.refresh_token,
+      expires_at: session.expires_at,
+      expires_in: session.expires_in,
+      token_type: session.token_type,
 
       user: {
         id: sessionData.user.id,
@@ -703,7 +707,6 @@ const recoveryCodeLogin = async (req, res) => {
     });
   }
 };
-
 
 module.exports = {
   hasVerifiedMFA,
