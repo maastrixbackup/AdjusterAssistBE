@@ -62,10 +62,11 @@ const Subscription = {
           plan_type: 'free',
           usage_limit: 10,
           current_usage: 0,
-          expires_at: expiresAt.toISOString(), // Don't leave this null
+          expires_at: expiresAt.toISOString(),
           status: 'active'
         }
-      ]);
+      ])
+      .select(); // 🌟 Crucial addition to make sure 'data' actually contains the row metadata back!
 
     if (error) {
       console.error("Subscription Init Error:", error);
