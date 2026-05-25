@@ -221,10 +221,7 @@ export const generateNextStep = async ({
   retryMode = false,
 }) => {
 
-  const nextStepInstruction =
-    buildNextStepInstructions(
-      audienceType
-    );
+  const nextStepInstruction =buildNextStepInstructions(audienceType);
 
   const retryWarning = retryMode
     ? `
@@ -238,15 +235,11 @@ IMPORTANT RETRY CORRECTION:
 
   const completion =
     await openai.chat.completions.create({
-
       model: "gpt-4o",
-
       temperature: 0.2,
-
       messages: [
         {
           role: "system",
-
           content: `
 
 You are generating ONLY a claim next-step suggestion.
