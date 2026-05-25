@@ -13,8 +13,11 @@ const openai = new OpenAI({
 export const generateAIDraft = async (type, userInput, payload, conversationHistory = "", audienceType, userProfile) => {
     try {
         const formatStyle = getFormatInstruction(type);
+        // console.log("[FORMAT STYLE]: ", type ,": ",formatStyle)
         const guardrailInjection = getAppliedGuardrails(userInput);
+        // console.log("[GUARDRAIL]: ",guardrailInjection)
         const audienceInstruction = getAudienceInstruction(audienceType);
+        // console.log("[AUDIENCE]:  ",audienceType ," :",audienceInstruction)
         const signaturePrompt = getSignaturePrompt(type, userProfile);
         // console.log("[AI] Signature Prompt: ", signaturePrompt);
         const markdownInstruction =
@@ -23,7 +26,7 @@ export const generateAIDraft = async (type, userInput, payload, conversationHist
                 : getMarkdownInstruction(payload?.drafting_controls?.markdown_level);
 
         console.log("[AI] MARKDOWN LEVEL:", payload?.drafting_controls?.markdown_level);
-        // console.log("[MD]: ", markdownInstruction)
+        console.log("[MD Instruction]: ", markdownInstruction)
 
         const userMessageContent = [
             {
@@ -218,10 +221,7 @@ export const generateNextStep = async ({
   retryMode = false,
 }) => {
 
-  const nextStepInstruction =
-    buildNextStepInstructions(
-      audienceType
-    );
+  const nextStepInstruction =buildNextStepInstructions(audienceType);
 
   const retryWarning = retryMode
     ? `
@@ -235,15 +235,11 @@ IMPORTANT RETRY CORRECTION:
 
   const completion =
     await openai.chat.completions.create({
-
       model: "gpt-4o",
-
       temperature: 0.2,
-
       messages: [
         {
           role: "system",
-
           content: `
 
 You are generating ONLY a claim next-step suggestion.

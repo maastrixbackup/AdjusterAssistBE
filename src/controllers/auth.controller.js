@@ -35,7 +35,7 @@ const refreshSession = async (req, res) => {
         const session = data.session;
         const user = data.user;
         const payload = decodeJwtPayload(session.access_token);
-
+        console.log("Session Refreshed")
         return res.status(200).json({
             success: true,
             access_token: session.access_token,
@@ -50,7 +50,6 @@ const refreshSession = async (req, res) => {
         });
     } catch (error) {
         console.error("Refresh Session Error:", error);
-
         return res.status(500).json({
             success: false,
             message: "Failed to refresh session",
@@ -138,17 +137,16 @@ const login = async (req, res) => {
             });
         }
 
-        // STEP 5
-        // NORMAL NON-MFA LOGIN
-        let sub = await Subscription.getStats(user.id);
-        if (!sub) {
-            await Subscription.initFreeTier(user.id);
-            sub = await Subscription.getStats(user.id);
-        }
+    // NORMAL NON-MFA LOGIN STEP-5
+    // let sub = await Subscription.getStats(user.id);
+    // if (!sub) {
+    //   await Subscription.initFreeTier(user.id);
+    //   sub = await Subscription.getStats(user.id);
+    // }
 
-        sendLoginEmail(user.email).catch((err) =>
-            console.error("Email Notification Error:", err),
-        );
+    // sendLoginEmail(user.email).catch((err) =>
+    //   console.error("Email Notification Error:", err),
+    // );      
 
         return res.status(200).json({
             success: true,

@@ -42,9 +42,7 @@ const authMiddleware = async (req, res, next) => {
         next();
     } catch (err) {
         console.error("Auth Middleware Error:", err.message);
-
         const isExpired = err.message.includes("expired");
-
         return res.status(401).json({
             success: false,
             message: isExpired

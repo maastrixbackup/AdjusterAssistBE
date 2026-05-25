@@ -1,4 +1,5 @@
 const { createUserClient, supabaseAdmin, supabase } = require("../../config/supabase");
+const Subscription = require("../../models/subscription.model");
 const { generateMFARecoveryCodes, verifyAndConsumeRecoveryCode, deleteAllUserMFAFactors } = require("./recoveryCode");
 
 async function hasVerifiedMFA(accessToken) {
@@ -307,6 +308,7 @@ const verifyMFALogin = async (req, res) => {
       JSON.stringify({ data, error }, null, 2),
     );
 
+
     return res.status(200).json({
       success: true,
       message: "MFA login successful",
@@ -533,6 +535,8 @@ const resetMFALogin = async (req, res) => {
       });
     }
 
+
+
     // 6. Do not return new tokens. Force clean login.
     return res.status(200).json({
       success: true,
@@ -647,17 +651,56 @@ const recoveryCodeLogin = async (req, res) => {
       });
     }
 
-    const removedFactorsCount =
-      await deleteAllUserMFAFactors(user.id);
+    const { data: linkData, error: linkError } =
+      await supabaseAdmin.auth.admin.generateLink({
+        type: "magiclink",
+        email: user.email,
+      });
 
+    if (linkError || !linkData?.properties?.hashed_token) {
+      console.error("Recovery magic link error:", linkError);
+
+      return res.status(500).json({
+        success: false,
+        message: "Failed to generate recovery session",
+      });
+    }
+
+    const { data: sessionData, error: sessionError } =
+      await supabaseAdmin.auth.verifyOtp({
+        type: "magiclink",
+        token_hash: linkData.properties.hashed_token,
+      });
+
+    if (sessionError || !sessionData?.session) {
+      console.error("Recovery session error:", sessionError);
+
+      return res.status(500).json({
+        success: false,
+        message: "Failed to create recovery login session",
+      });
+    }
+
+    const session = sessionData.session;
 
     return res.status(200).json({
       success: true,
       recovery_used: true,
-      requires_mfa_setup: true,
-      removed_factors_count: removedFactorsCount,
-      message:
-        "Recovery code accepted. Please setup MFA again.",
+      requires_mfa: false,
+      requires_mfa_setup: false,
+
+      access_token: session.access_token,
+      refresh_token: session.refresh_token,
+      expires_at: session.expires_at,
+      expires_in: session.expires_in,
+      token_type: session.token_type,
+
+      user: {
+        id: sessionData.user.id,
+        email: sessionData.user.email,
+      },
+
+      message: "Recovery code accepted. Login successful.",
     });
   } catch (error) {
     console.error("Recovery Code Login Error:", error);
@@ -668,7 +711,6 @@ const recoveryCodeLogin = async (req, res) => {
     });
   }
 };
-
 
 module.exports = {
   hasVerifiedMFA,

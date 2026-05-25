@@ -1,6 +1,6 @@
+require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
-require("dotenv").config();
 
 const authRoutes = require("./routes/auth.routes");
 const userRoutes = require("./routes/profile.routes");
@@ -17,6 +17,8 @@ const { hasVerifiedMFA, getMFAStatus } = require("./services/auth/mfa.service");
 const authMiddleware = require("./middlewares/auth.middleware");
 
 const app = express();
+app.set("trust proxy", 1);
+
 
 // add this line
 app.use(

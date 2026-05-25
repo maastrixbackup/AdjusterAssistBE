@@ -50,27 +50,36 @@ const Subscription = {
 
   // 4. Initialization for new users
   async initFreeTier(userId) {
-    // Set a default expiry date for the free tier (e.g., 1 month from now)
+    if (!userId) {
+      throw new Error("userId is required");
+    }
+
     const expiresAt = new Date();
     expiresAt.setMonth(expiresAt.getMonth() + 1);
 
     const { data, error } = await supabaseAdmin
-      .from('subscriptions')
-      .insert([
+      .from("subscriptions")
+      .upsert(
         {
           user_id: userId,
-          plan_type: 'free',
+          plan_type: "free",
           usage_limit: 10,
           current_usage: 0,
-          expires_at: expiresAt.toISOString(), // Don't leave this null
-          status: 'active'
+          expires_at: expiresAt.toISOString(),
+          status: "active",
+        },
+        {
+          onConflict: "user_id",
         }
-      ]);
+      )
+      .select()
+      .single();
 
     if (error) {
       console.error("Subscription Init Error:", error);
       throw error;
     }
+
     return data;
   },
 
