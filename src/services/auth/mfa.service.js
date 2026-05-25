@@ -308,16 +308,7 @@ const verifyMFALogin = async (req, res) => {
       JSON.stringify({ data, error }, null, 2),
     );
 
-    // NORMAL NON-MFA LOGIN
-    let sub = await Subscription.getStats(user.id);
-    if (!sub) {
-      await Subscription.initFreeTier(user.id);
-      sub = await Subscription.getStats(user.id);
-    }
 
-    sendLoginEmail(user.email).catch((err) =>
-      console.error("Email Notification Error:", err),
-    );
     return res.status(200).json({
       success: true,
       message: "MFA login successful",
