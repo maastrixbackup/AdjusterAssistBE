@@ -1142,7 +1142,7 @@ export const buildNextStepInstructions = (
 - Avoid contractor-oriented or litigation-oriented wording unless clearly relevant.
 `,
 
- internal_file: `
+    internal_file: `
 - Use ONLY neutral internal claim handling language.
 - The next step MUST remain party-neutral unless a specific external party is explicitly identified in the prompt.
 - NEVER assume contractor involvement based solely on words such as:
@@ -1175,7 +1175,7 @@ export const buildNextStepInstructions = (
 `,
   };
 
-return rules[audience] || `
+  return rules[audience] || `
 - Use STRICT neutral claim-handling language.
 - NEVER assume contractor involvement unless the contractor is explicitly identified in the prompt.
 - Do not imply coverage, payment, approval, or denial.
