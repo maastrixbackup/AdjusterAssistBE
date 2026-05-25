@@ -80,10 +80,9 @@ const updateProfile = async (req, res) => {
         userId,
       );
 
-      avatar_url =
-        typeof uploadedAvatar === "string"
-          ? uploadedAvatar
-          : uploadedAvatar.publicUrl;
+      if (uploadedAvatar?.publicUrl) {
+        avatar_url = uploadedAvatar.publicUrl;
+      }
     }
 
     const updateFields = {};

@@ -647,17 +647,52 @@ const recoveryCodeLogin = async (req, res) => {
       });
     }
 
-    const removedFactorsCount =
-      await deleteAllUserMFAFactors(user.id);
+    // Create one-time auth link internally
+    const { data: linkData, error: linkError } =
+      await supabaseAdmin.auth.admin.generateLink({
+        type: "magiclink",
+        email: user.email,
+      });
 
+    if (linkError || !linkData?.properties?.hashed_token) {
+      return res.status(500).json({
+        success: false,
+        message: "Failed to generate recovery session",
+      });
+    }
+
+    // Exchange token hash for real Supabase session
+    const { data: sessionData, error: sessionError } =
+      await supabaseAdmin.auth.verifyOtp({
+        type: "magiclink",
+        email: user.email,
+        token_hash: linkData.properties.hashed_token,
+      });
+
+    if (sessionError || !sessionData?.session) {
+      return res.status(500).json({
+        success: false,
+        message: "Failed to create recovery login session",
+      });
+    }
 
     return res.status(200).json({
       success: true,
       recovery_used: true,
-      requires_mfa_setup: true,
-      removed_factors_count: removedFactorsCount,
-      message:
-        "Recovery code accepted. Please setup MFA again.",
+      requires_mfa: false,
+      requires_mfa_setup: false,
+
+      access_token: sessionData.session.access_token,
+      refresh_token: sessionData.session.refresh_token,
+      expires_in: sessionData.session.expires_in,
+      token_type: sessionData.session.token_type,
+
+      user: {
+        id: sessionData.user.id,
+        email: sessionData.user.email,
+      },
+
+      message: "Recovery code accepted. Login successful.",
     });
   } catch (error) {
     console.error("Recovery Code Login Error:", error);
