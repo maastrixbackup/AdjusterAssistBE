@@ -17,6 +17,8 @@ const { hasVerifiedMFA, getMFAStatus } = require("./services/auth/mfa.service");
 const authMiddleware = require("./middlewares/auth.middleware");
 
 const app = express();
+app.set("trust proxy", 1);
+
 
 // add this line
 app.use(
