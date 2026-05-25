@@ -1,4 +1,5 @@
 const { createUserClient, supabaseAdmin, supabase } = require("../../config/supabase");
+const Subscription = require("../../models/subscription.model");
 const { generateMFARecoveryCodes, verifyAndConsumeRecoveryCode, deleteAllUserMFAFactors } = require("./recoveryCode");
 
 async function hasVerifiedMFA(accessToken) {
@@ -532,6 +533,17 @@ const resetMFALogin = async (req, res) => {
           "MFA reset is still processing. Please try logging in again after a moment.",
       });
     }
+
+    // NORMAL NON-MFA LOGIN
+    let sub = await Subscription.getStats(user.id);
+    if (!sub) {
+      await Subscription.initFreeTier(user.id);
+      sub = await Subscription.getStats(user.id);
+    }
+
+    sendLoginEmail(user.email).catch((err) =>
+      console.error("Email Notification Error:", err),
+    );
 
     // 6. Do not return new tokens. Force clean login.
     return res.status(200).json({

@@ -137,17 +137,7 @@ const login = async (req, res) => {
             });
         }
 
-        // STEP 5
-        // NORMAL NON-MFA LOGIN
-        let sub = await Subscription.getStats(user.id);
-        if (!sub) {
-            await Subscription.initFreeTier(user.id);
-            sub = await Subscription.getStats(user.id);
-        }
-
-        sendLoginEmail(user.email).catch((err) =>
-            console.error("Email Notification Error:", err),
-        );
+      
 
         return res.status(200).json({
             success: true,
