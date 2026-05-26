@@ -1,4 +1,5 @@
 const { createUserClient, supabaseAdmin, supabase } = require("../../config/supabase");
+const { logAuthEvent } = require("../../models/log");
 const Subscription = require("../../models/subscription.model");
 const { generateMFARecoveryCodes, verifyAndConsumeRecoveryCode, deleteAllUserMFAFactors } = require("./recoveryCode");
 
@@ -262,6 +263,8 @@ const challengeMFA = async (req, res) => {
 };
 
 const verifyMFALogin = async (req, res) => {
+  const emailContext = req.body.email || ""; 
+
   try {
     const {
       factor_id,
@@ -271,7 +274,14 @@ const verifyMFALogin = async (req, res) => {
       temp_refresh_token,
     } = req.body;
 
+    // 1. Handle Missing Payload Fields Log
     if (!factor_id || !challenge_id || !code || !temp_access_token) {
+      logAuthEvent(req, { 
+        emailAttempted: emailContext, 
+        eventType: "MFA_BAD_REQUEST", 
+        status: "failed", 
+        failureReason: "missing_required_fields" 
+      });
       return res.status(400).json({
         success: false,
         message: "Missing MFA verification data",
@@ -291,24 +301,28 @@ const verifyMFALogin = async (req, res) => {
       code,
     });
 
+    // 2. Handle Explicit Verification Failure Log (e.g., Wrong Code entered)
     if (error) {
+      logAuthEvent(req, { 
+        emailAttempted: emailContext, 
+        eventType: "MFA_CHALLENGE_FAILED", 
+        status: "failed", 
+        failureReason: error.message,
+        mfaDetails: { factor_id, challenge_id }
+      });
       return res.status(400).json({
         success: false,
         message: error.message,
       });
     }
 
-    // FINAL AAL2 SESSION
+    // FINAL AAL2 SESSION DATA
     const access_token = data?.access_token;
     const refresh_token = data?.refresh_token;
     const expires_at = data?.expires_at;
     const user = data?.user;
-    console.log(
-      "MFA VERIFY RESPONSE:",
-      JSON.stringify({ data, error }, null, 2),
-    );
 
-    // NORMAL NON-MFA LOGIN
+    // NORMAL NON-MFA LOGIN TASKS
     let sub = await Subscription.getStats(user.id);
     if (!sub) {
       await Subscription.initFreeTier(user.id);
@@ -318,6 +332,16 @@ const verifyMFALogin = async (req, res) => {
     sendLoginEmail(user.email).catch((err) =>
       console.error("Email Notification Error:", err),
     );
+
+    // 3. Perfect Log: Authenticated Session Achieved
+    logAuthEvent(req, { 
+      userId: user.id, 
+      emailAttempted: user.email, 
+      eventType: "MFA_LOGIN_SUCCESS", 
+      status: "success",
+      mfaDetails: { resolved_aal: "aal2", factor_id }
+    });
+
     return res.status(200).json({
       success: true,
       message: "MFA login successful",
@@ -331,8 +355,17 @@ const verifyMFALogin = async (req, res) => {
         name: user.user_metadata?.full_name || "",
       },
     });
+
   } catch (error) {
     console.error("Verify MFA Login Error:", error);
+
+    // 4. Global Fallback Catch Log
+    logAuthEvent(req, { 
+      emailAttempted: emailContext, 
+      eventType: "MFA_SERVER_CRASH", 
+      status: "failed", 
+      failureReason: error.message 
+    });
 
     return res.status(500).json({
       success: false,
@@ -631,6 +664,7 @@ const recoveryCodeLogin = async (req, res) => {
     const { recovery_code } = req.body;
 
     if (!recovery_code) {
+      logAuthEvent(req, { emailAttempted: req.user?.email || "", eventType: "RECOVERY_CODE_BAD_REQUEST", status: "failed", failureReason: "missing_recovery_code" });
       return res.status(400).json({
         success: false,
         message: "Recovery code is required",
@@ -640,6 +674,7 @@ const recoveryCodeLogin = async (req, res) => {
     const user = req.user;
 
     if (!user?.id || !user?.email) {
+      logAuthEvent(req, { emailAttempted: "", eventType: "RECOVERY_CODE_INVALID_SESSION", status: "failed", failureReason: "missing_user_session_context" });
       return res.status(401).json({
         success: false,
         message: "Invalid recovery session",
@@ -654,6 +689,7 @@ const recoveryCodeLogin = async (req, res) => {
     });
 
     if (!recoveryResult.valid) {
+      logAuthEvent(req, { userId: user.id, emailAttempted: user.email, eventType: "RECOVERY_CODE_FAILED", status: "failed", failureReason: "invalid_or_consumed_code" });
       return res.status(401).json({
         success: false,
         message: "Invalid or already used recovery code",
@@ -668,7 +704,7 @@ const recoveryCodeLogin = async (req, res) => {
 
     if (linkError || !linkData?.properties?.hashed_token) {
       console.error("Recovery magic link error:", linkError);
-
+      logAuthEvent(req, { userId: user.id, emailAttempted: user.email, eventType: "RECOVERY_LINK_GENERATION_FAILED", status: "failed", failureReason: linkError?.message || "missing_hashed_token" });
       return res.status(500).json({
         success: false,
         message: "Failed to generate recovery session",
@@ -683,7 +719,7 @@ const recoveryCodeLogin = async (req, res) => {
 
     if (sessionError || !sessionData?.session) {
       console.error("Recovery session error:", sessionError);
-
+      logAuthEvent(req, { userId: user.id, emailAttempted: user.email, eventType: "RECOVERY_OTP_VERIFICATION_FAILED", status: "failed", failureReason: sessionError?.message || "missing_session" });
       return res.status(500).json({
         success: false,
         message: "Failed to create recovery login session",
@@ -692,6 +728,7 @@ const recoveryCodeLogin = async (req, res) => {
 
     const session = sessionData.session;
 
+    logAuthEvent(req, { userId: sessionData.user.id, emailAttempted: sessionData.user.email, eventType: "RECOVERY_CODE_LOGIN_SUCCESS", status: "success" });
     return res.status(200).json({
       success: true,
       recovery_used: true,
@@ -713,7 +750,7 @@ const recoveryCodeLogin = async (req, res) => {
     });
   } catch (error) {
     console.error("Recovery Code Login Error:", error);
-
+    logAuthEvent(req, { emailAttempted: req.user?.email || "", eventType: "RECOVERY_CODE_SERVER_CRASH", status: "failed", failureReason: error.message });
     return res.status(500).json({
       success: false,
       message: "Recovery login failed",
