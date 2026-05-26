@@ -1,3 +1,4 @@
+const { logSystemEvent } = require("../models/log");
 const File = require("../models/workspace.model");
 /**
  * Creates a new Workspace (File) - All fields are now mandatory
@@ -41,21 +42,28 @@ const createFile = async (req, res) => {
             line_of_business,
             claim_stage
         });
-
+        logSystemEvent(req, {
+            category: "drafts",
+            eventType: "WORKSPACE_CREATED",
+            payload: { file_id: newFile.id || "", user_id: userId }
+        });
         res.status(201).json({
             success: true,
             message: "Workspace created successfully",
             file: newFile
         });
     } catch (error) {
-        // Handle Unique Constraint for claim_number
         if (error.message.includes("unique constraint") || error.code === '23505') {
             return res.status(400).json({
                 success: false,
                 message: "A workspace with this claim number already exists."
             });
         }
-
+        logSystemEvent(req, {
+            category: "drafts",
+            eventType: "WORKSPACE_CREATION_FAILED",
+            payload: { user_id: req.user.id }
+        });
         console.error("Create File Error:", error.message);
         res.status(500).json({
             success: false,
@@ -171,7 +179,6 @@ const deleteFile = async (req, res) => {
     try {
         const { fileId } = req.params;
         const userId = req.user.id;
-
         const file = await File.findById(req.supabase, fileId);
 
         if (!file) {
@@ -189,6 +196,11 @@ const deleteFile = async (req, res) => {
         }
 
         await File.delete(req.supabase, fileId);
+        logSystemEvent(req, {
+            category: "drafts",
+            eventType: "WORKSPACE_DELETED",
+            payload: { user_id: req.user.id }
+        });
 
         res.status(200).json({
             success: true,
@@ -197,6 +209,11 @@ const deleteFile = async (req, res) => {
 
     } catch (error) {
         console.error("Delete File Controller Error:", error.message);
+        logSystemEvent(req, {
+            category: "drafts",
+            eventType: "WORKSPACE_DELETION_FAILED",
+            payload: { user_id: req.user.id }
+        });
 
         res.status(500).json({
             success: false,

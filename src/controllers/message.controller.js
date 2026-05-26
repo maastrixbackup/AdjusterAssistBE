@@ -20,6 +20,7 @@ const { parseAIResponse } = require("../utils/responseParser");
 const { refinementMap, BASE_REFINEMENT_RULES } = require("../utils/prompt.js");
 const { generateValidatedNextStep } = require("../services/nextstep.service.js");
 const { deductCredits } = require("../utils/creditHelper.js");
+const { logSystemEvent } = require("../models/log");
 
 // Example usage in your controller
 const uploadDir = path.join(__dirname, '../uploads');
@@ -458,7 +459,11 @@ const createAIDraft = async (req, res) => {
                 .select()
                 .single();
             console.log("Log Id:", logEntry.id)
-
+            logSystemEvent(req, {
+                category: "drafts",
+                eventType: "DRAFT_CREATED",
+                payload: { draft_id: turnResult.id, file_id: fileId, output_format:detectedType }
+            });
             if (logError) throw logError;
             await deductCredits(userId, 'AI Draft Created', file.claim_number);
         } catch (logErr) {
@@ -661,6 +666,11 @@ const createVariantDraft = async (req, res) => {
         }]);
 
         await deductCredits(userId, `AI Variant Created to ${variantLabel}`, file.claim_number);
+        logSystemEvent(req, {
+            category: "drafts",
+            eventType: "VARINAT_DRAFT_CREATED",
+            payload: { draft_id: parentMessageId, file_id: fileId, variant_label: variantLabel }
+        });
 
         // 9. Response
         res.status(200).json({
@@ -679,6 +689,11 @@ const createVariantDraft = async (req, res) => {
         });
 
     } catch (error) {
+        logSystemEvent(req, {
+            category: "drafts",
+            eventType: "VARIANT_CREATION_FAILED",
+            payload: { draft_id: parentMessageId || "", file_id: fileId || "" }
+        });
         console.error("VARIANT Controller Error:", error);
         res.status(500).json({ success: false, message: "Variant generation failed" });
     }
@@ -776,7 +791,11 @@ const refineAIDraft = async (req, res) => {
         }]);
 
         await deductCredits(userId, `AI draft refined to ${refinementType}`, file.claim_number);
-
+        logSystemEvent(req, {
+            category: "drafts",
+            eventType: "REFINED_DRAFT_CREATED",
+            payload: { draft_id: parentMessageId, file_id: fileId, refinement_type: refinementType }
+        });
 
         // 9. Response
         res.status(200).json({
@@ -796,6 +815,11 @@ const refineAIDraft = async (req, res) => {
 
     } catch (error) {
         console.error("REFINEMENT Controller Error:", error);
+        logSystemEvent(req, {
+            category: "drafts",
+            eventType: "REFINEMENT_FAILURE",
+            payload: { draft_id: parentMessageId || "", file_id: fileId || "" }
+        });
         res.status(500).json({ success: false, message: "Refinement failed." });
     }
 };
