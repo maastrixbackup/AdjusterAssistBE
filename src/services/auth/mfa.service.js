@@ -1,6 +1,7 @@
 const { createUserClient, supabaseAdmin, supabase } = require("../../config/supabase");
 const { logAuthEvent } = require("../../models/log");
 const Subscription = require("../../models/subscription.model");
+const { sendLoginEmail } = require("../email.service");
 const { generateMFARecoveryCodes, verifyAndConsumeRecoveryCode, deleteAllUserMFAFactors } = require("./recoveryCode");
 
 async function hasVerifiedMFA(accessToken) {
@@ -263,7 +264,7 @@ const challengeMFA = async (req, res) => {
 };
 
 const verifyMFALogin = async (req, res) => {
-  const emailContext = req.body.email || ""; 
+  const emailContext = req.body.email || "";
 
   try {
     const {
@@ -276,11 +277,11 @@ const verifyMFALogin = async (req, res) => {
 
     // 1. Handle Missing Payload Fields Log
     if (!factor_id || !challenge_id || !code || !temp_access_token) {
-      logAuthEvent(req, { 
-        emailAttempted: emailContext, 
-        eventType: "MFA_BAD_REQUEST", 
-        status: "failed", 
-        failureReason: "missing_required_fields" 
+      logAuthEvent(req, {
+        emailAttempted: emailContext,
+        eventType: "MFA_BAD_REQUEST",
+        status: "failed",
+        failureReason: "missing_required_fields"
       });
       return res.status(400).json({
         success: false,
@@ -303,10 +304,10 @@ const verifyMFALogin = async (req, res) => {
 
     // 2. Handle Explicit Verification Failure Log (e.g., Wrong Code entered)
     if (error) {
-      logAuthEvent(req, { 
-        emailAttempted: emailContext, 
-        eventType: "MFA_CHALLENGE_FAILED", 
-        status: "failed", 
+      logAuthEvent(req, {
+        emailAttempted: emailContext,
+        eventType: "MFA_CHALLENGE_FAILED",
+        status: "failed",
         failureReason: error.message,
         mfaDetails: { factor_id, challenge_id }
       });
@@ -334,10 +335,10 @@ const verifyMFALogin = async (req, res) => {
     );
 
     // 3. Perfect Log: Authenticated Session Achieved
-    logAuthEvent(req, { 
-      userId: user.id, 
-      emailAttempted: user.email, 
-      eventType: "MFA_LOGIN_SUCCESS", 
+    logAuthEvent(req, {
+      userId: user.id,
+      emailAttempted: user.email,
+      eventType: "MFA_LOGIN_SUCCESS",
       status: "success",
       mfaDetails: { resolved_aal: "aal2", factor_id }
     });
@@ -360,11 +361,11 @@ const verifyMFALogin = async (req, res) => {
     console.error("Verify MFA Login Error:", error);
 
     // 4. Global Fallback Catch Log
-    logAuthEvent(req, { 
-      emailAttempted: emailContext, 
-      eventType: "MFA_SERVER_CRASH", 
-      status: "failed", 
-      failureReason: error.message 
+    logAuthEvent(req, {
+      emailAttempted: emailContext,
+      eventType: "MFA_SERVER_CRASH",
+      status: "failed",
+      failureReason: error.message
     });
 
     return res.status(500).json({
@@ -470,7 +471,6 @@ const resetMFA = async (req, res) => {
 const resetMFALogin = async (req, res) => {
   try {
     const { email, password, temp_access_token } = req.body;
-
     if (!email || !password || !temp_access_token) {
       return res.status(400).json({
         success: false,

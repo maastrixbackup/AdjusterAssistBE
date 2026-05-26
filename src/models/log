@@ -1,4 +1,5 @@
-import { supabase } from "../config/supabase.js";
+
+import { supabaseAdmin } from "../config/supabase.js"; 
 
 export const getClientMetadata = (req) => {
     if (!req) return { ip: null, ua: null };
@@ -22,7 +23,8 @@ export const logAuthEvent = async (req, {
 }) => {
     const { ip, ua } = getClientMetadata(req);
 
-    supabase
+    // 🌟 CHANGED FROM supabase TO supabaseAdmin TO PASS RLS POLICIES
+    supabaseAdmin
         .from("auth_logs")
         .insert({
             user_id: userId,
