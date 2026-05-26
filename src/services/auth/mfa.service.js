@@ -99,6 +99,7 @@ const enrollMFA = async (req, res) => {
       await req.supabase.auth.mfa.enroll({
         factorType: "totp",
         friendlyName: `AdjusterAssist-${Date.now()}`,
+        issuer: "AdjusterAssist",
       });
 
     if (error) {
@@ -130,6 +131,7 @@ const verifyMFAEnrollment = async (req, res) => {
     const { factor_id, code } = req.body;
 
     if (!factor_id || !code) {
+      logAuthEvent(req, { emailAttempted: req.user?.email || "", eventType: "MFA_ENROLL_BAD_REQUEST", status: "failed", failureReason: "missing_factor_id_or_code" });
       return res.status(400).json({
         success: false,
         message: "factor_id and code required",
@@ -147,6 +149,7 @@ const verifyMFAEnrollment = async (req, res) => {
       });
 
     if (challengeError) {
+      logAuthEvent(req, { emailAttempted: req.user?.email || "", eventType: "MFA_ENROLL_CHALLENGE_FAILED", status: "failed", failureReason: challengeError.message, mfaDetails: { factor_id } });
       return res.status(400).json({
         success: false,
         message: challengeError.message,
@@ -166,6 +169,13 @@ const verifyMFAEnrollment = async (req, res) => {
       });
 
     if (error || !data?.user) {
+      logAuthEvent(req, {
+        emailAttempted: req.user?.email || "",
+        eventType: "MFA_ENROLLMENT_FAILED",
+        status: "failed",
+        failureReason: error?.message || "missing_user_data",
+        mfaDetails: { factor_id }
+      });
       return res.status(400).json({
         success: false,
         message: error?.message || "Failed to verify MFA",
@@ -190,11 +200,20 @@ const verifyMFAEnrollment = async (req, res) => {
     const user = data.session?.user || data?.user;
 
     if (!accessToken || !refreshToken) {
+      logAuthEvent(req, { userId: user.id, emailAttempted: user.email, eventType: "MFA_ENROLLMENT_TOKEN_ERROR", status: "failed", failureReason: "missing_session_tokens" });
       return res.status(500).json({
         success: false,
         message: "MFA verified but session tokens were not returned",
       });
     }
+
+    logAuthEvent(req, {
+      userId: user.id,
+      emailAttempted: user.email,
+      eventType: "MFA_ENROLLMENT_SUCCESS",
+      status: "success",
+      mfaDetails: { factor_id }
+    });
     return res.status(200).json({
       success: true,
       message: "MFA verified successfully",
@@ -210,15 +229,14 @@ const verifyMFAEnrollment = async (req, res) => {
     });
 
   } catch (error) {
-
     console.error("Verify MFA Error:", error);
-
+    logAuthEvent(req, { emailAttempted: req.user?.email || "", eventType: "MFA_ENROLLMENT_SERVER_CRASH", status: "failed", failureReason: error.message });
     return res.status(500).json({
       success: false,
       message: "Failed to verify MFA",
     });
   }
-};
+};    
 
 const challengeMFA = async (req, res) => {
   try {

@@ -3,6 +3,7 @@ const {
     supabase,
     createUserClient,
 } = require("../config/supabase");
+const { logAuthEvent } = require("../models/log");
 const Subscription = require("../models/subscription.model");
 const { sendLoginEmail } = require("../services/email.service");
 
@@ -170,16 +171,33 @@ const resendVerification = async (req, res) => {
             email,
         });
         if (error) {
+            logAuthEvent(req, { 
+                emailAttempted: email || "", 
+                eventType: "RESEND_VERIFICATION_FAILED", 
+                status: "failed", 
+                failureReason: error.message 
+            });
             return res.status(400).json({
                 success: false,
                 message: error.message,
             });
         }
+        logAuthEvent(req, { 
+            emailAttempted: email || "", 
+            eventType: "RESEND_VERIFICATION_SUCCESS", 
+            status: "success" 
+        });
         return res.status(200).json({
             success: true,
             message: "Verification email resent.",
         });
     } catch (error) {
+        logAuthEvent(req, { 
+            emailAttempted: req.body?.email || "", 
+            eventType: "RESEND_VERIFICATION_SERVER_CRASH", 
+            status: "failed", 
+            failureReason: error.message 
+        });
         return res.status(500).json({
             success: false,
             message: "Internal Server error",
@@ -308,6 +326,7 @@ const forgotPassword = async (req, res) => {
     try {
         const { email } = req.body;
         if (!email) {
+            logAuthEvent(req, { emailAttempted: "", eventType: "PASSWORD_RESET_BAD_REQUEST", status: "failed", failureReason: "missing_email" });
             return res
                 .status(400)
                 .json({ success: false, message: "Email is required." });
@@ -317,43 +336,41 @@ const forgotPassword = async (req, res) => {
         const { data: users, error: userError } =
             await supabaseAdmin.auth.admin.listUsers();
         if (userError) {
+            logAuthEvent(req, { emailAttempted: email, eventType: "PASSWORD_RESET_VERIFY_ERROR", status: "failed", failureReason: userError.message });
             return res
                 .status(500)
                 .json({ success: false, message: "Unable to verify account." });
         }
-
         const existingUser = users?.users?.find(
             (u) => u.email?.toLowerCase() === email.toLowerCase(),
         );
         if (!existingUser) {
+            logAuthEvent(req, { emailAttempted: email, eventType: "PASSWORD_RESET_USER_NOT_FOUND", status: "failed", failureReason: "account_does_not_exist" });
             return res
                 .status(404)
                 .json({ success: false, message: "No account found with this email." });
         }
-
-        // 💡 By NOT passing a "redirectTo" option, Supabase defaults to sending a 6-digit alphanumeric token code
         const { error } = await supabaseAdmin.auth.resetPasswordForEmail(
             email.trim().toLowerCase(),
         );
 
         if (error) {
+            logAuthEvent(req, { userId: existingUser.id, emailAttempted: email, eventType: "PASSWORD_RESET_TRIGGER_FAILED", status: "failed", failureReason: error.message });
             return res.status(400).json({ success: false, message: error.message });
         }
 
+        logAuthEvent(req, { userId: existingUser.id, emailAttempted: email, eventType: "PASSWORD_RESET_REQUESTED", status: "success" });
         return res.status(200).json({
             success: true,
             message: "A 6-digit secure recovery code has been sent to your email.",
         });
     } catch (error) {
         console.error("Forgot Password Error:", error);
+        logAuthEvent(req, { emailAttempted: req.body?.email || "", eventType: "PASSWORD_RESET_SERVER_CRASH", status: "failed", failureReason: error.message });
         return res.status(500).json({ success: false, message: "Server error." });
     }
 };
 
-/**
- * STEP 2: Verify the 6-digit OTP Token Code
- * Receives the code from the mobile app, validates it with Supabase, and returns an access token
- */
 const verifyOTP = async (req, res) => {
     try {
         const { email, token } = req.body; // 'token' is the 6-digit code entered by the user
@@ -393,15 +410,11 @@ const verifyOTP = async (req, res) => {
     }
 };
 
-/**
- * STEP 3: Complete Password Update
- * Uses the validated token context to overwrite the user's credentials securely
- */
 const resetPassword = async (req, res) => {
     try {
         const { newPassword, accessToken } = req.body;
-
         if (!newPassword || newPassword.length < 8) {
+            logAuthEvent(req, { emailAttempted: "", eventType: "PASSWORD_UPDATE_BAD_REQUEST", status: "failed", failureReason: "password_too_short" });
             return res.status(400).json({
                 success: false,
                 message: "Password must be at least 8 characters long.",
@@ -409,6 +422,7 @@ const resetPassword = async (req, res) => {
         }
 
         if (!accessToken) {
+            logAuthEvent(req, { emailAttempted: "", eventType: "PASSWORD_UPDATE_UNAUTHORIZED", status: "failed", failureReason: "missing_access_token" });
             return res.status(401).json({
                 success: false,
                 message: "Missing secure token authorization session context.",
@@ -422,6 +436,7 @@ const resetPassword = async (req, res) => {
         } = await supabaseAdmin.auth.getUser(accessToken);
 
         if (jwtError || !user) {
+            logAuthEvent(req, { emailAttempted: "", eventType: "PASSWORD_UPDATE_TOKEN_INVALID", status: "failed", failureReason: jwtError?.message || "invalid_user_session" });
             return res.status(401).json({
                 success: false,
                 message:
@@ -436,17 +451,20 @@ const resetPassword = async (req, res) => {
             });
 
         if (updateError) {
+            logAuthEvent(req, { userId: user.id, emailAttempted: user.email, eventType: "PASSWORD_UPDATE_SUBMISSION_FAILED", status: "failed", failureReason: updateError.message });
             return res
                 .status(400)
                 .json({ success: false, message: updateError.message });
         }
 
+        logAuthEvent(req, { userId: user.id, emailAttempted: user.email, eventType: "PASSWORD_UPDATE_SUCCESS", status: "success" });
         return res.status(200).json({
             success: true,
             message: "Password updated successfully.",
         });
     } catch (error) {
         console.error("Reset Password Error:", error);
+        logAuthEvent(req, { emailAttempted: "", eventType: "PASSWORD_UPDATE_SERVER_CRASH", status: "failed", failureReason: error.message });
         return res
             .status(500)
             .json({ success: false, message: "Server error saving password." });
