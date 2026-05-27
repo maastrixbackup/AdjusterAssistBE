@@ -1,8 +1,8 @@
-const { createUserClient, supabaseAdmin, supabase } = require("../../config/supabase");
-const { logAuthEvent } = require("../../models/log");
-const Subscription = require("../../models/subscription.model");
-const { sendLoginEmail } = require("../email.service");
-const { generateMFARecoveryCodes, verifyAndConsumeRecoveryCode, deleteAllUserMFAFactors } = require("./recoveryCode");
+const { createUserClient, supabaseAdmin, supabase } = require("../config/supabase");
+const { logAuthEvent } = require("../models/log");
+const Subscription = require("../models/subscription.model");
+const { sendLoginEmail } = require("../services/email.service");
+const { generateMFARecoveryCodes, verifyAndConsumeRecoveryCode, deleteAllUserMFAFactors } = require("../services/mfa/recoveryCode");
 
 async function hasVerifiedMFA(accessToken) {
   const client = createUserClient(accessToken);
