@@ -239,6 +239,11 @@ const deleteDraft = async (req, res) => {
         await Message.deleteById(req.supabase, draftId);
         res.status(200).json({ success: true, message: "Message deleted successfully" });
     } catch (error) {
+        logSystemEvent(req, {
+            category: "drafts",
+            eventType: "DRAFTS_DELETED",
+            payload: { user_id: req.user.id }
+        });
         console.error("Delete Message Error:", error.message);
         res.status(500).json({ success: false, message: "Error deleting draft" });
     }
@@ -315,6 +320,11 @@ const createAIDraft = async (req, res) => {
                 fileId
             );
         } catch (storageErr) {
+            logSystemEvent(req, {
+                category: "attachments",
+                eventType: "ATTACHMENTS_UPLOAD_FAILURE",
+                payload: { body: req.body, error: storageErr }
+            });
             console.error("🟥[STORAGE] Non-critical Storage Error:", storageErr.message);
         }
         // 2. OCR Service - Extract data from new files
@@ -325,6 +335,11 @@ const createAIDraft = async (req, res) => {
                 ocrInsights = await OCRService.extractInsights(files);
                 console.log("[OCR]", ocrInsights)
             } catch (ocrErr) {
+                logSystemEvent(req, {
+                    category: "ocr",
+                    eventType: "OCR_EXRACTION_FAILURE",
+                    payload: { body: req.body, error: storageErr }
+                });
                 console.error("🟥[OCR] OCR extraction failed:", ocrErr.message);
                 ocrInsights = "Technical error: Could not extract document insights.";
             }
@@ -462,7 +477,7 @@ const createAIDraft = async (req, res) => {
             logSystemEvent(req, {
                 category: "drafts",
                 eventType: "DRAFT_CREATED",
-                payload: { draft_id: turnResult.id, file_id: fileId, output_format:detectedType }
+                payload: { draft_id: turnResult.id, file_id: fileId, output_format: detectedType }
             });
             if (logError) throw logError;
             await deductCredits(userId, 'AI Draft Created', file.claim_number);
@@ -501,6 +516,11 @@ const createAIDraft = async (req, res) => {
 
     } catch (error) {
         console.error("CRITICAL AI Controller Error:", error);
+        logSystemEvent(req, {
+            category: "drafts",
+            eventType: "DRAFT_CREATION_FAILED",
+            payload: { error: error, body: req.body }
+        });
         res.status(500).json({ success: false, message: "Generation failed" });
     } finally {
         // Cleanup local temp files
@@ -692,7 +712,7 @@ const createVariantDraft = async (req, res) => {
         logSystemEvent(req, {
             category: "drafts",
             eventType: "VARIANT_CREATION_FAILED",
-            payload: { draft_id: parentMessageId || "", file_id: fileId || "" }
+            payload: { body: req.body || "", error: error }
         });
         console.error("VARIANT Controller Error:", error);
         res.status(500).json({ success: false, message: "Variant generation failed" });
@@ -702,7 +722,6 @@ const createVariantDraft = async (req, res) => {
 const refineAIDraft = async (req, res) => {
     const startTime = Date.now();
     const userId = req.user.id;
-
     try {
         const {
             userInput,
@@ -737,7 +756,6 @@ const refineAIDraft = async (req, res) => {
         );
 
         console.log("[AUDIENCE]: ", extraction.recipient_role);
-
         console.log(`[REFINE]: Applying '${refinementType}' logic to Message ${parentMessageId}`);
 
         const aiRawResponse = await aiService.refineAIDraft({
@@ -771,7 +789,6 @@ const refineAIDraft = async (req, res) => {
         };
 
         await updateWorkspaceActivity(fileId);
-
         const turnResult = await Message.updateById(req.supabase, parentMessageId, refinementUpdate);
         ContextService.ingestMessage(fileId, turnResult.id, aiRawResponse);
 
@@ -794,7 +811,7 @@ const refineAIDraft = async (req, res) => {
         logSystemEvent(req, {
             category: "drafts",
             eventType: "REFINED_DRAFT_CREATED",
-            payload: { draft_id: parentMessageId, file_id: fileId, refinement_type: refinementType }
+            payload: { draft_id: parentMessageId, file_id: fileId, refinement_type: refinementType, body: req.body }
         });
 
         // 9. Response
@@ -818,7 +835,7 @@ const refineAIDraft = async (req, res) => {
         logSystemEvent(req, {
             category: "drafts",
             eventType: "REFINEMENT_FAILURE",
-            payload: { draft_id: parentMessageId || "", file_id: fileId || "" }
+            payload: { body: req.body, error: error }
         });
         res.status(500).json({ success: false, message: "Refinement failed." });
     }
@@ -887,8 +904,12 @@ const getAttachmentPreview = async (req, res) => {
         });
 
     } catch (error) {
+        logSystemEvent(req, {
+            category: "attachment",
+            eventType: "ATTACHMENT_PREVIEW_FAILED",
+            payload: { body: req.body, error: error }
+        });
         console.error(error);
-
         return res.status(500).json({
             success: false,
             message: "Preview generation failed"
