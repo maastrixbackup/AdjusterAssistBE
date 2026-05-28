@@ -8,8 +8,8 @@ const draftRoutes = require("./routes/message.route");
 const subscriptionRoutes = require("./routes/subscription.routes");
 const fileRoutes = require("./routes/workspace.routes");
 const notificationsRoutes = require("./routes/notifications.routes");
+const screenRoutes = require('./routes/screens/dashboard.route')
 
-const swaggerUi = require("swagger-ui-express");
 const swaggerDocument = require("../swagger.json");
 const { sendPushNotification } = require("./utils/notificationHelper");
 const { supabaseAdmin } = require("./config/supabase");
@@ -19,15 +19,6 @@ const authMiddleware = require("./middlewares/auth.middleware");
 const app = express();
 app.set("trust proxy", 1);
 
-
-// add this line
-app.use(
-  "/docs",
-  swaggerUi.serve,
-  swaggerUi.setup(swaggerDocument, {
-    customSiteTitle: "Adjuster Assist API Docs",
-  }),
-);
 
 app.use(
   cors({
@@ -51,5 +42,6 @@ app.use("/api/v1/drafts", draftRoutes);
 app.use("/api/v1/files", fileRoutes);
 app.use("/api/v1", require("./services/speechToText"));
 app.use("/api/v1/notifications", notificationsRoutes);
+app.use("/api/v1", screenRoutes);
 
 module.exports = app;

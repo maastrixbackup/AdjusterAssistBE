@@ -236,7 +236,7 @@ const verifyMFAEnrollment = async (req, res) => {
       message: "Failed to verify MFA",
     });
   }
-};    
+};
 
 const challengeMFA = async (req, res) => {
   try {
@@ -340,13 +340,37 @@ const verifyMFALogin = async (req, res) => {
     const refresh_token = data?.refresh_token;
     const expires_at = data?.expires_at;
     const user = data?.user;
+    if (!access_token || !refresh_token || !user?.id) {
+      return res.status(500).json({
+        success: false,
+        message: "MFA verification succeeded but session data is incomplete",
+      });
+    }
 
     // NORMAL NON-MFA LOGIN
-    let sub = await Subscription.getStats(user.id);
-    if (!sub) {
-      await Subscription.initFreeTier(user.id);
-      sub = await Subscription.getStats(user.id);
+    try {
+      let sub = await Subscription.getStats(user.id);
+      if (!sub) {
+        await Subscription.initFreeTier(user.id);
+        sub = await Subscription.getStats(user.id);
+      }
+    } catch (subError) {
+      console.error("Subscription Init After MFA Error:", subError);
+      logAuthEvent(req, {
+        emailAttempted: user.email,
+        eventType: "SUBSCRIPTION_INIT_FAILED_AFTER_MFA",
+        status: "failed",
+        failureReason: subError?.message || "subscription_init_failed",
+      }).catch((err) => console.error("Auth Log Error:", err));
     }
+
+    logAuthEvent(req, {
+      emailAttempted: user.email,
+      userId: user.id,
+      eventType: "MFA_LOGIN_SUCCESS",
+      status: "success",
+      mfaDetails: { factor_id },
+    }).catch((err) => console.error("Auth Log Error:", err));
 
     sendLoginEmail(user.email).catch((err) =>
       console.error("Email Notification Error:", err),

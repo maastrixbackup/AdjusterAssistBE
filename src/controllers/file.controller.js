@@ -78,7 +78,6 @@ const createFile = async (req, res) => {
 const getMyFiles = async (req, res) => {
     try {
         const files = await File.findByUserId(req.supabase, req.user.id);
-
         res.status(200).json({
             success: true,
             count: files ? files.length : 0,
