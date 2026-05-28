@@ -1,3 +1,4 @@
+const { logSystemEvent } = require("../models/log");
 const Profile = require("../models/profile");
 const Subscription = require("../models/subscription.model");
 const { uploadAvatar } = require("../services/profileStorageService");
@@ -122,6 +123,12 @@ const updateProfile = async (req, res) => {
       updateFields,
     );
 
+    logSystemEvent(req, {
+      category: "profile",
+      eventType: "USER_PROFILE_UPDATED",
+      payload: { user_id: req.user.id, updated_data: updateFields }
+    });
+
     return res.status(200).json({
       success: true,
       message: "Profile updated successfully",
@@ -130,7 +137,11 @@ const updateProfile = async (req, res) => {
     });
   } catch (error) {
     console.error("Update Error:", error.message);
-
+    logSystemEvent(req, {
+      category: "profile",
+      eventType: "USER_PROFILE_UPDATE_FAILED",
+      payload: { user_id: req.user.id }
+    });
     return res.status(500).json({
       success: false,
       message: error.message || "Internal Server Error",

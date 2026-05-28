@@ -1,5 +1,6 @@
 const OpenAI = require('openai');
 const { supabaseAdmin } = require('../config/supabase.js');
+const { logSystemEvent } = require('../models/log.js');
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -76,19 +77,15 @@ const ContextService = {
         }
     },
 
-    /**
-     * 🔥 MAIN RAG FUNCTION (ENHANCED)
-     */
+
     getRelevantContext: async (fileId, userInput) => {
         try {
-            // ✅ STEP 0: INTENT DETECTION (NEW)
             const isConversionIntent =
                 /convert|make|draft|turn|rewrite|format|create/i.test(userInput);
 
             const isQuestionIntent =
                 /\?|what|should|can|do i|next step|best step|guidance|advise/i.test(userInput.toLowerCase());
 
-            // 👇 THIS WILL CONTROL HOW RAG BEHAVES
             let ragMode = "default";
             if (isConversionIntent) ragMode = "conversion";
             else if (isQuestionIntent) ragMode = "guidance";
@@ -119,11 +116,9 @@ const ContextService = {
             let hybridQuery;
 
             if (ragMode === "conversion") {
-                // 🔥 Conversion = focus on LAST AI OUTPUT (VERY IMPORTANT)
                 hybridQuery = contextSnippet; // ignore userInput noise
             }
             else if (ragMode === "guidance") {
-                // 🔥 Guidance = focus on facts + user question
                 hybridQuery = `${userInput} ${contextSnippet}`;
             }
             else {
@@ -268,6 +263,11 @@ INSTRUCTION: Use the SOURCE_TEXT_TO_CONVERT as the primary material for the requ
                 : "";
 
         } catch (error) {
+            logSystemEvent(req, {
+                category: "RAG",
+                eventType: "RAG_CONTEXT_EXTRACTION_FAILURE",
+                payload: { error:error }
+            });
             console.error("🟥[RAG] Retrieval Error:", error);
             return "";
         }
@@ -295,6 +295,11 @@ INSTRUCTION: Use the SOURCE_TEXT_TO_CONVERT as the primary material for the requ
             if (error) throw error;
             console.log(`✅[RAG] Ingested message ${messageId}`);
         } catch (error) {
+            logSystemEvent(req, {
+                category: "RAG",
+                eventType: "RAG_INGESTION_FAILURE",
+                payload: { error:error }
+            });
             console.error("🟥[RAG] Vector Ingestion Error:", error);
         }
     },

@@ -28,7 +28,7 @@ const {
   resetMFALogin,
   requestMFARecovery,
   recoveryCodeLogin
-} = require("../services/auth/mfa.service");
+} = require("../controllers/mfaController");
 
 router.post("/refresh", refreshSession);
 

@@ -3,7 +3,7 @@ import { adjusterPrompt, guidancePrompt, getAudienceInstruction, getFormatInstru
 import { getAppliedGuardrails } from "../utils/guardrails.js";
 import fs from 'fs';
 import { getSignaturePrompt } from "../utils/signature.js";
-import { signatureMiddleware } from "../middlewares/cleanSignature.js";
+import { signatureMiddleware } from "./cleanSignature.js";
 
 // Initialize OpenAI once
 const openai = new OpenAI({

@@ -13,7 +13,7 @@ const swaggerUi = require("swagger-ui-express");
 const swaggerDocument = require("../swagger.json");
 const { sendPushNotification } = require("./utils/notificationHelper");
 const { supabaseAdmin } = require("./config/supabase");
-const { hasVerifiedMFA, getMFAStatus } = require("./services/auth/mfa.service");
+const { hasVerifiedMFA, getMFAStatus } = require("./controllers/mfaController");
 const authMiddleware = require("./middlewares/auth.middleware");
 
 const app = express();
