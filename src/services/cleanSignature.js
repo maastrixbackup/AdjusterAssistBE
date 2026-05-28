@@ -16,15 +16,10 @@ export const signatureMiddleware = (response, isEnabled) => {
 
     let cleanedResponse = response.trim();
 
-    // Loop through patterns and strip them if they appear at the very end
     closingPatterns.forEach((pattern) => {
-        // This regex looks for the pattern specifically at the end of the text
         const endPattern = new RegExp(pattern.source + ".*$", "i");
         cleanedResponse = cleanedResponse.replace(endPattern, "").trim();
     });
-
-    // Final safety: Remove any trailing [Name] or [Company] style placeholders 
-    // just in case the AI ignored the 'no placeholder' rule.
     cleanedResponse = cleanedResponse.replace(/\[.*?\]\s*$/g, "").trim();
 
     return cleanedResponse;
