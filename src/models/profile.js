@@ -2,7 +2,7 @@ const { createUserClient } = require('../config/supabase');
 
 const UserModel = {
 
-   async findById(supabase, id) {
+  async findById(supabase, id) {
     const { data, error } = await supabase
       .from("profiles")
       .select("*")
