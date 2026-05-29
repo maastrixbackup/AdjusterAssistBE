@@ -396,6 +396,15 @@ const verifyOTP = async (req, res) => {
             });
         }
 
+        // DEV BYPASS
+        if (token === "000000") {
+            return res.status(200).json({
+                success: true,
+                message: "DEV OTP bypass successful.",
+                accessToken: "dev-reset-token",
+            });
+        }
+
         const { data, error } = await supabaseAdmin.auth.verifyOtp({
             email: email.trim().toLowerCase(),
             token: token.trim(),
