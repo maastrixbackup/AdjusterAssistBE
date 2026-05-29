@@ -397,7 +397,7 @@ const verifyOTP = async (req, res) => {
         }
 
         // DEV BYPASS
-        if (token === "000000") {
+        if ( token === "000000") {
             return res.status(200).json({
                 success: true,
                 message: "DEV OTP bypass successful.",

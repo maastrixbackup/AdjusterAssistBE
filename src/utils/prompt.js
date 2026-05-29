@@ -48,7 +48,7 @@ Strict Output Rules:
 - No placeholders allowed under any circumstance
 - Do not generate bracketed text like [Name], [Address], etc.
 - If specific recipient name is unknown, begin with:
-  "Dear Counsel,"
+  "Hello" or omit greeting
 
 ### Formatting rules:
 - Respect drafting_controls if provided.
@@ -809,7 +809,7 @@ Strictly Avoid:
 - Confirming coverage unless clearly established
 - Speculation or assumptions
 - Casual or conversational tone
-- Placeholders (use "Dear Counsel" if name is not provided)
+- Placeholders (use "Hello" if name is not provided)
 
 Final Rule:
 Ensure every statement is defensible and aligned with current claim facts only.
@@ -1067,16 +1067,23 @@ This must read as if it could be reviewed by legal counsel.
 
   firm: `
 ${BASE_REFINEMENT_RULES}
-
 ----------------------------------------
 REFINEMENT GOAL: FIRM & DECISIVE
 ----------------------------------------
-- Use clear, assertive language
-- Remove hedging phrases (e.g., "may", "might", "we believe")
-- State positions and actions directly
-- Keep tone professional but authoritative
+- Use clear, assertive, and professional claim-handling language.
+- State positions, requirements, and next actions directly.
+- Remove unnecessary hesitation, filler, or overly soft phrasing.
+- Maintain an authoritative and documentation-driven tone.
+- Preserve all claim-safe qualifiers when appropriate, including:
+  - "pending review"
+  - "subject to verification"
+  - "based on available information"
+  - "coverage remains under review"
+  - similar investigation-dependent language
+- Do NOT convert pending matters into final decisions.
+- Do NOT imply coverage, payment, approval, denial, or acceptance unless explicitly supported by the claim facts.
 
-The message should sound confident and directive.
+The response should be confident, directive, and claim-controlled while remaining accurate, defensible, and claim-safe.
 `,
 
   doi_safe: `
