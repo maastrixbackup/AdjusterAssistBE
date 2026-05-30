@@ -14,7 +14,8 @@ const {
   resetPassword,
   resendVerification,
   verifyCallback,
-  refreshSession
+  refreshSession,
+  verifyOTP
 } = require("../controllers/auth.controller");
 const authMiddleware = require("../middlewares/auth.middleware");
 const requireAAL2 = require("../middlewares/requireAAL2");
@@ -60,6 +61,7 @@ router.post("/login", resetLimiter, login);
 router.post("/verify-callback", verifyCallback);
 router.post("/resend-verification", resendVerification);
 router.post("/forgot-password", resetLimiter, forgotPassword);
+router.post("/verify-reset-otp", verifyOTP);
 router.post("/reset-password", resetPassword);
 
 router.post("/logout", authMiddleware, (req, res) => {

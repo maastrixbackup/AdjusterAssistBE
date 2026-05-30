@@ -72,7 +72,6 @@ const enrollMFA = async (req, res) => {
     }
 
     const totpFactors = factorData?.totp || [];
-
     const verifiedFactor = totpFactors.find(
       (factor) => factor.status === "verified"
     );
