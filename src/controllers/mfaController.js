@@ -186,8 +186,7 @@ const verifyMFAEnrollment = async (req, res) => {
       Generate recovery codes
     */
 
-    const recoveryCodes =
-      await generateMFARecoveryCodes(data.user.id);
+    const recoveryCodes = await generateMFARecoveryCodes(data.user.id);
 
     /*
       STEP 4
