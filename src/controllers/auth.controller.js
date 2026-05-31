@@ -377,7 +377,7 @@ const forgotPassword = async (req, res) => {
         logAuthEvent(req, { userId: existingUser.id, emailAttempted: email, eventType: "PASSWORD_RESET_REQUESTED", status: "success" });
         return res.status(200).json({
             success: true,
-            message: "A 6-digit secure code has been sent to your email.",
+            message: "A 8-digit secure code has been sent to your email.",
         });
     } catch (error) {
         console.error("Forgot Password Error:", error);
