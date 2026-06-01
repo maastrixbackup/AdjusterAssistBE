@@ -23,7 +23,6 @@ export const logAuthEvent = async (req, {
 }) => {
     const { ip, ua } = getClientMetadata(req);
 
-    // 🌟 CHANGED FROM supabase TO supabaseAdmin TO PASS RLS POLICIES
     supabaseAdmin
         .from("auth_logs")
         .insert({
