@@ -1,5 +1,5 @@
 const { supabaseAdmin } = require('../config/supabase');
-const { sendPushNotificationToUser, sendPushNotificationToMultipleUsers } = require('../services/pushNotification.service');
+const { sendPushNotificationToUser, sendPushNotificationToMultipleUsers } = require('../services/notifications/pushNotification.service');
 
 exports.saveToken = async (req, res) => {
   try {
