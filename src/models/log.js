@@ -20,9 +20,6 @@ export const logAuthEvent = async (req, {
     failureReason = null,
     mfaDetails = {},
 }) => {
-    console.log(`🚨 [LOG AUTH TRACE] Executing ${eventType} for ${emailAttempted || 'unknown'}`);
-    console.log(`👉 Payload parameters received:`, { userId, eventType, status, failureReason });
-
     try {
         const { ip, ua } = getClientMetadata(req);
 
@@ -41,11 +38,10 @@ export const logAuthEvent = async (req, {
             .select();
 
         if (error) {
-            console.error("❌ [SUPABASE DATABASE ERROR]: INSERT to 'auth_logs' rejected:", error);
+            console.error("[SUPABASE DATABASE ERROR]: INSERT to 'auth_logs' rejected:", error);
             return false;
         }
 
-        console.log("✅ [SUPABASE INSERT SUCCESS]: Log line written to DB:", data);
         return true;
     } catch (err) {
         console.error("💥 [LOG AUTH CRITICAL FAIL]: Logger execution crashed:", err.message);
@@ -59,7 +55,6 @@ export const logSystemEvent = async (req, {
     category,
     payload = {},
 }) => {
-    console.log(`🛠️ [LOG SYSTEM TRACE] Executing ${eventType} under category ${category}`);
 
     try {
         let ip = null;

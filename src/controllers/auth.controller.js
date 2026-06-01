@@ -63,20 +63,14 @@ const refreshSession = async (req, res) => {
  */
 const login = async (req, res) => {
     const { email, password } = req.body;
-
-    console.log("ℹ️ [LOGIN START] Request received for email:", email);
-
     try {
         if (!email || !password) {
-            console.warn("⚠️ [LOGIN FAILED] Missing email or password in request body");
             return res.status(400).json({
                 success: false,
                 message: "Credentials missing",
             });
         }
-
         const normalizedEmail = email.trim().toLowerCase();
-        console.log(`🔄 [STEP 1] Attempting Supabase Auth for: ${normalizedEmail}`);
 
         const { data, error } = await supabase.auth.signInWithPassword({
             email: normalizedEmail,
@@ -84,10 +78,7 @@ const login = async (req, res) => {
         });
 
         if (error) {
-            console.error("❌ [STEP 1 ERROR] Supabase auth rejection:", error.status, error.message);
-
             if (error.message?.toLowerCase().includes("email not confirmed")) {
-                console.log("👉 [BRANCH] Falling into: EMAIL_NOT_VERIFIED");
                 return res.status(403).json({
                     success: false,
                     code: "EMAIL_NOT_VERIFIED",
@@ -95,52 +86,41 @@ const login = async (req, res) => {
                 });
             }
 
-            console.log("👉 [BRANCH] Falling into: INVALID_CREDENTIALS");
             return res.status(401).json({
                 success: false,
                 message: "Invalid login credentials",
             });
         }
 
-        console.log("✅ [STEP 1 SUCCESS] Supabase authenticated. Session data retrieved.");
         const user = data.user;
         const session = data.session;
-
         if (!session) {
-            console.error("❌ [SESSION ERROR] Supabase authenticated, but session object is null/undefined");
             return res.status(401).json({
                 success: false,
                 message: "Failed to create session.",
             });
         }
 
-        console.log(`🔄 [STEP 2] Creating user client with tokens. User ID: ${user?.id}`);
         const userClient = await createUserClient(
             session.access_token,
             session.refresh_token,
         );
 
-        console.log("🔄 [STEP 3] Fetching MFA factors list via userClient...");
         const { data: factorData, error: factorError } =
             await userClient.auth.mfa.listFactors();
 
         if (factorError) {
-            console.error("❌ [STEP 3 ERROR] Failed to list MFA factors:", factorError.message);
             return res.status(400).json({
                 success: false,
                 message: factorError.message,
             });
         }
 
-        console.log("ℹ️ [MFA DATA TRACE] Total factors found:", JSON.stringify(factorData));
-        const verifiedFactors = factorData.totp ? factorData.totp.filter(
+        const verifiedFactors = factorData.totp.filter(
             (factor) => factor.status === "verified",
-        ) : [];
-
-        console.log(`ℹ️ [MFA DATA TRACE] Verified TOTP factors count: ${verifiedFactors.length}`);
+        );
 
         if (verifiedFactors.length > 0) {
-            console.log("👉 [BRANCH] Falling into: MFA_REQUIRED_FLOW. Factor ID:", verifiedFactors[0].id);
             return res.status(200).json({
                 success: true,
                 requires_mfa: true,
@@ -151,14 +131,12 @@ const login = async (req, res) => {
             });
         }
 
-        console.log("🔄 [STEP 4] No active MFA factors found. Proceeding to log success event...");
-        await logAuthEvent(req, {
+        logAuthEvent(req, {
             emailAttempted: email || "",
             eventType: "LOGIN_SUCCESS",
             status: "success"
         });
 
-        console.log("👉 [BRANCH] Falling into: MFA_SETUP_REQUIRED (First login/No MFA configured)");
         return res.status(200).json({
             success: true,
             requires_mfa: false,
@@ -172,23 +150,21 @@ const login = async (req, res) => {
                 name: user.user_metadata?.full_name || "",
             },
         });
-
     } catch (error) {
-        console.error("💥 [CRITICAL FAILURE] Exception caught in login wrapper:", error);
-
-        await logAuthEvent(req, {
+        console.error("Login Failure:", error);
+        logAuthEvent(req, {
             emailAttempted: email || "",
             eventType: "LOGIN_FAILURE",
             status: "failed",
             failureReason: error.message
         });
-
         return res.status(500).json({
             success: false,
             message: "Internal server error",
         });
     }
 };
+
 
 const resendVerification = async (req, res) => {
     try {
