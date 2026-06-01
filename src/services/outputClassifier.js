@@ -48,6 +48,119 @@ class ClassifierService {
       text.includes("law firm") ||
       /\bcounsel\b/.test(text);
 
+
+    const isCallRecap =
+      text.includes("call recap") ||
+      text.includes("phone call") ||
+      text.includes("phone conversation") ||
+      text.includes("call summary") ||
+      text.includes("transcript") ||
+      text.includes("voicemail") ||
+      text.includes("spoke with") ||
+      text.includes("discussion with") ||
+      text.includes("insured called") ||
+      text.includes("insured called back") ||
+      text.includes("follow up call") ||
+      text.includes("returned call");
+
+
+    const isCallTranscript =
+      text.includes("call recap") ||
+      text.includes("call summary") ||
+      text.includes("phone call") ||
+      text.includes("phone conversation") ||
+      text.includes("voicemail") ||
+      text.includes("transcript") ||
+      text.includes("dictated note") ||
+      text.includes("dictated conversation") ||
+      text.includes("spoke with") ||
+      text.includes("discussion with") ||
+      text.includes("insured called") ||
+      text.includes("insured called back") ||
+      text.includes("policyholder called") ||
+      text.includes("customer called") ||
+      text.includes("claimant called") ||
+      text.includes("returned call") ||
+      text.includes("follow up call") ||
+      text.includes("follow-up call");
+
+    if (isCallTranscript) {
+      const asksForEmail =
+        text.includes("email") ||
+        text.includes("send recap") ||
+        text.includes("send summary") ||
+        text.includes("draft recap") ||
+        text.includes("draft email") ||
+        text.includes("create email") ||
+        text.includes("send to");
+
+      const asksToDocument =
+        text.includes("document") ||
+        text.includes("file note") ||
+        text.includes("note the call") ||
+        text.includes("summarize the call") ||
+        text.includes("call note") ||
+        text.includes("create note") ||
+        text.includes("log the call");
+
+      // Attorney/counsel call
+      if (
+        text.includes("attorney called") ||
+        text.includes("spoke with attorney") ||
+        text.includes("counsel called") ||
+        text.includes("spoke with counsel") ||
+        text.includes("law firm called")
+      ) {
+        return { type: "attorney_response", confidence: 0.95, source: "call_transcript" };
+      }
+
+      // Contractor/vendor call ONLY when contractor is clearly the communicating party
+      if (
+        text.includes("contractor called") ||
+        text.includes("spoke with contractor") ||
+        text.includes("vendor called") ||
+        text.includes("spoke with vendor") ||
+        text.includes("mitigation company called") ||
+        text.includes("spoke with mitigation company")
+      ) {
+        if (asksForEmail || hasEmailIntent) {
+          return { type: "email_contractor", confidence: 0.94, source: "call_transcript" };
+        }
+
+        return { type: "file_note", confidence: 0.94, source: "call_transcript" };
+      }
+
+      // Insured/member/policyholder call
+      if (
+        text.includes("insured called") ||
+        text.includes("insured called back") ||
+        text.includes("spoke with insured") ||
+        text.includes("policyholder called") ||
+        text.includes("spoke with policyholder") ||
+        text.includes("customer called") ||
+        text.includes("claimant called") ||
+        text.includes("member called") ||
+        text.includes("spoke with member")
+      ) {
+        if (asksForEmail) {
+          return { type: "email_insured", confidence: 0.95, source: "call_transcript" };
+        }
+
+        return { type: "file_note", confidence: 0.95, source: "call_transcript" };
+      }
+
+      // Default for call/transcript when party is unclear
+      if (asksForEmail && isInsured) {
+        return { type: "email_insured", confidence: 0.90, source: "call_transcript" };
+      }
+
+      if (asksForEmail && isContractor) {
+        return { type: "email_contractor", confidence: 0.88, source: "call_transcript" };
+      }
+
+      return { type: "file_note", confidence: 0.90, source: "call_transcript" };
+    }
+
     // ── 1. ATTORNEY ─────────────────────────────────────────
     if (
       text.includes("into a attorney response format") ||
@@ -413,7 +526,19 @@ Then classify based on TARGET:
 - mentions closing → closing_note
 - mentions first contact → first_contact_note
 
-⚠️ NEVER return file_note if drafting intent exists
+NEVER return file_note if drafting intent exists
+
+
+# CALL TRANSCRIPT / CALL RECAP RULE:
+
+If the input appears to be a call recap, phone call summary, voicemail note, dictated note, or transcript, first identify who the conversation was with.
+
+- If documenting or summarizing the call → file_note
+- If creating a recap email to the insured/policyholder/member/claimant → email_insured
+- If clearly sending communication to a contractor/vendor/mitigation company → email_contractor
+- If clearly directed to attorney/counsel/law firm → attorney_response
+
+Do not classify as email_contractor merely because the call mentioned contractor estimates, invoices, repair documentation, or mitigation documents. Classify based on the actual communication party and requested output.
 
 ----------------------------------------
 

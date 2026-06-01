@@ -12,13 +12,101 @@ export const extractUnifiedContext = async (inputText, ocrData = "") => {
         You MUST intelligently interpret the text — not rely on labels like #Insured.
 
         -----------------------------------
+        CALL / TRANSCRIPT DETECTION
+        -----------------------------------
+
+        Many inputs are:
+
+        - call recaps
+        - phone conversations
+        - voicemail summaries
+        - dictated notes
+        - transcripts
+
+        When this occurs:
+
+        STEP A:
+        Identify WHO participated in the conversation.
+
+        Possible parties:
+
+        - insured
+        - policyholder
+        - claimant
+        - contractor
+        - vendor
+        - mitigation company
+        - public adjuster
+        - attorney
+
+        STEP B:
+        Assign recipient_role based on the actual communicating party.
+
+        Examples:
+
+        "insured called regarding contractor estimate"
+        → insured
+
+        "insured called regarding mitigation invoice"
+        → insured
+
+        "insured called regarding HOA documents"
+        → insured
+
+        "contractor called regarding supplement"
+        → contractor
+
+        "attorney called regarding demand letter"
+        → attorney
+
+        Documents discussed do not determine recipient_role.
+        The communicating party determines recipient_role.
+
+        -----------------------------------
         ### STEP 1: DETERMINE RECIPIENT ROLE (PRIORITY ORDER)
         
         1. attorney: Keywords: attorney, law firm, counsel, litigation, demand letter, suit, mediation,legal representation, regulatory demand.
+
         2. public_adjuster: Keywords: PA, letter of representation, representation, estimate dispute, scope dispute, supplement demand, request for reconsideration from PA, signed authorization/representation.
-        3. contractor: Keywords: contractor estimate, repair estimate, pricing dispute, mitigation, contractor email, scope item dispute.
-        4. internal_file: Keywords: file note, coverage analysis, status note, closing note, escalation note, claim summary, coverage analysis FNOL OR if no other role is clear.
-        5. insured: Keywords: status, policyholder, payment, customer questions,document request, repair question, payment question, general claim communication when will.
+        
+        3. insured: Keywords: status, policyholder, payment, customer questions,document request, repair question, payment question, general claim communication when will.
+        
+        4. contractor: ONLY classify as contractor when the communication
+            is directed TO or FROM a contractor, vendor,
+            restoration company, mitigation company,
+            roofer, plumber, or repair company.
+
+            Examples:
+            - contractor called
+            - spoke with contractor
+            - email to contractor
+            - contractor requested review
+            - contractor submitted estimate
+            - vendor requested response
+
+            IMPORTANT:
+            The presence of:
+            - contractor estimate
+            - contractor invoice
+            - contractor bid
+            - mitigation invoice
+            - repair estimate
+            - pricing dispute
+
+            DOES NOT automatically mean the recipient is contractor.
+            These documents may be discussed with the insured.
+            Determine WHO is communicating, not which documents are referenced.
+
+        5. internal_file: Use internal_file when:
+            - user is documenting activity
+            - user is summarizing a call
+            - user is creating a file note
+            - user is creating a claim summary
+            - user is creating an internal note
+            - user is performing coverage analysis
+            - no external communication is requested
+            Call recaps and transcript summaries should generally default to internal_file unless an email or external communication is specifically requested.
+        
         6. vendor: Keywords: mitigation vendor, dry logs, moisture readings, pack-out, emergency services, restoration vendor, plumber report, leak detection report
 
         -----------------------------------
