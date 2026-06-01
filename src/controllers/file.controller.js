@@ -21,12 +21,12 @@ const createFile = async (req, res) => {
         const userId = req.user.id;
 
         // 1. Strict Validation
-        if (!claim_number || !client_name || !address || !loss_type || !jurisdiction) {
-            return res.status(400).json({
-                success: false,
-                message: "All fields are required to create a professional workspace."
-            });
-        }
+        // if (!claim_number || !client_name || !address || !loss_type || !jurisdiction) {
+        //     return res.status(400).json({
+        //         success: false,
+        //         message: "All fields are required to create a professional workspace."
+        //     });
+        // }
 
         // 2. Pass the full object to the Model
         const newFile = await File.create(req.supabase, {
