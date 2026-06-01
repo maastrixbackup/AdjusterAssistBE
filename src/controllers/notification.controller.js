@@ -87,7 +87,8 @@ exports.sendBroadcastNotification = async (req, res) => {
     const { data: users, error } = await supabaseAdmin
       .from('profiles')
       .select('expo_push_token')
-      .not('expo_push_token', 'is', null);
+      .not('expo_push_token', 'is', null)
+      .eq('push_enabled', true);
 
     if (error) {
       console.error('Supabase fetch error:', error);
