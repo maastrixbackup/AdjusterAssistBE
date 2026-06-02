@@ -206,7 +206,30 @@ class ClassifierService {
     ) {
       return { type: 'denial_support', confidence: 0.92, source: 'deterministic' };
     }
+    // ── 4A. HARD CONTRACTOR EMAIL REQUEST ─────────────────────
+    // Must run BEFORE supplement/scope detection.
 
+    if (
+      text.includes("create an email to the contractor") ||
+      text.includes("create email to the contractor") ||
+      text.includes("draft an email to the contractor") ||
+      text.includes("draft email to the contractor") ||
+      text.includes("send an email to the contractor") ||
+      text.includes("send email to the contractor") ||
+      text.includes("email to the contractor") ||
+      text.includes("email contractor") ||
+      text.includes("respond to contractor") ||
+      text.includes("reply to contractor") ||
+      /create\s+(an?\s+)?email\s+to\s+(the\s+)?contractor/.test(text) ||
+      /draft\s+(an?\s+)?email\s+to\s+(the\s+)?contractor/.test(text) ||
+      /send\s+(an?\s+)?email\s+to\s+(the\s+)?contractor/.test(text)
+    ) {
+      return {
+        type: "email_contractor",
+        confidence: 0.99,
+        source: "deterministic_hard_contractor_email"
+      };
+    }
     // ── 5. SUPPLEMENT ───────────────────────────────────────
     if (
       text.includes("supplement request") ||
@@ -305,7 +328,7 @@ class ClassifierService {
       /reply\s+to\s+(the\s+)?contractor/.test(text) ||
       /respond\s+to\s+(the\s+)?contractor/.test(text) ||
       /draft\s+(an?\s+)?email\s+(to\s+)?(the\s+)?contractor/.test(text) ||
-      (isContractor && hasEmailIntent) // 🔥 NEW BOOST
+      (isContractor && hasEmailIntent)
     ) {
       return { type: 'email_contractor', confidence: 0.97, source: 'deterministic' };
     }
@@ -386,7 +409,6 @@ class ClassifierService {
       return { type: 'claim_guidance', confidence: 0.95, source: 'deterministic' };
     }
 
-    // ── 17. FINAL SAFETY NET (🔥 CRITICAL FIX)
     if (hasEmailIntent) {
       if (isContractor) return { type: 'email_contractor', confidence: 0.85, source: 'fallback' };
       if (isAttorney) return { type: 'attorney_response', confidence: 0.85, source: 'fallback' };
