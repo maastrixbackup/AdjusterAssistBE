@@ -187,7 +187,7 @@ const resendVerification = async (req, res) => {
         }
         logAuthEvent(req, {
             emailAttempted: email || "",
-            eventType: "RESEND_VERIFICATION_SUCCESS",
+            eventType: "RESEND_VERIFICATION_LINK_SUCCESS",
             status: "success"
         });
         return res.status(200).json({

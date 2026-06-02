@@ -49,116 +49,108 @@ class ClassifierService {
       /\bcounsel\b/.test(text);
 
 
-    const isCallRecap =
-      text.includes("call recap") ||
-      text.includes("phone call") ||
-      text.includes("phone conversation") ||
-      text.includes("call summary") ||
-      text.includes("transcript") ||
-      text.includes("voicemail") ||
-      text.includes("spoke with") ||
-      text.includes("discussion with") ||
-      text.includes("insured called") ||
-      text.includes("insured called back") ||
-      text.includes("follow up call") ||
-      text.includes("returned call");
-
+    // ── 0. CALL TRANSCRIPT / CALL RECAP INTENT LOCK ─────────────────────
+    // Must run before contractor/email rules.
 
     const isCallTranscript =
-      text.includes("call recap") ||
-      text.includes("call summary") ||
-      text.includes("phone call") ||
-      text.includes("phone conversation") ||
-      text.includes("voicemail") ||
-      text.includes("transcript") ||
-      text.includes("dictated note") ||
-      text.includes("dictated conversation") ||
+      text.includes("this is ") ||
+      text.includes("i'm returning your call") ||
+      text.includes("im returning your call") ||
+      text.includes("thanks for calling back") ||
+      text.includes("i spoke with") ||
       text.includes("spoke with") ||
-      text.includes("discussion with") ||
-      text.includes("insured called") ||
-      text.includes("insured called back") ||
-      text.includes("policyholder called") ||
-      text.includes("customer called") ||
-      text.includes("claimant called") ||
-      text.includes("returned call") ||
-      text.includes("follow up call") ||
-      text.includes("follow-up call");
+      text.includes("insured advised") ||
+      text.includes("caller stated") ||
+      text.includes("she said") ||
+      text.includes("he said") ||
+      text.includes("during the call") ||
+      text.includes("i explained") ||
+      text.includes("i advised") ||
+      text.includes("they will submit") ||
+      text.includes("i'll follow up") ||
+      text.includes("ill follow up") ||
+      text.includes("voicemail") ||
+      text.includes("call summary") ||
+      text.includes("call recap") ||
+      text.includes("phone conversation") ||
+      text.includes("phone call");
+
+    const wantsCallDocumentation =
+      text.includes("document this conversation") ||
+      text.includes("summarize the call") ||
+      text.includes("summarise the call") ||
+      text.includes("document the call") ||
+      text.includes("create a note") ||
+      text.includes("create note") ||
+      text.includes("call note") ||
+      text.includes("file note") ||
+      text.includes("document this call") ||
+      text.includes("summarize this conversation");
+
+    const wantsInsuredEmail =
+      text.includes("draft an email to the insured") ||
+      text.includes("send recap email") ||
+      text.includes("create insured email") ||
+      text.includes("email the insured") ||
+      text.includes("recap email to the insured") ||
+      text.includes("send email to insured");
+
+    const wantsContractorEmail =
+      text.includes("respond to contractor") ||
+      text.includes("email contractor") ||
+      text.includes("email to contractor") ||
+      text.includes("send to contractor") ||
+      text.includes("reply to contractor");
+
+    const wantsAttorneyResponse =
+      text.includes("response to counsel") ||
+      text.includes("respond to counsel") ||
+      text.includes("draft a response to counsel") ||
+      text.includes("response to attorney") ||
+      text.includes("respond to attorney");
 
     if (isCallTranscript) {
-      const asksForEmail =
-        text.includes("email") ||
-        text.includes("send recap") ||
-        text.includes("send summary") ||
-        text.includes("draft recap") ||
-        text.includes("draft email") ||
-        text.includes("create email") ||
-        text.includes("send to");
+      // Highest priority inside transcript: explicit documentation intent
+      if (wantsCallDocumentation) {
+        return { type: "file_note", confidence: 0.98, source: "call_transcript" };
+      }
 
-      const asksToDocument =
-        text.includes("document") ||
-        text.includes("file note") ||
-        text.includes("note the call") ||
-        text.includes("summarize the call") ||
-        text.includes("call note") ||
-        text.includes("create note") ||
-        text.includes("log the call");
+      // Explicit external-output intent
+      if (wantsInsuredEmail) {
+        return { type: "email_insured", confidence: 0.97, source: "call_transcript" };
+      }
 
-      // Attorney/counsel call
+      if (wantsContractorEmail) {
+        return { type: "email_contractor", confidence: 0.97, source: "call_transcript" };
+      }
+
+      if (wantsAttorneyResponse) {
+        return { type: "attorney_response", confidence: 0.97, source: "call_transcript" };
+      }
+
+      // If conversation is clearly with contractor AND user asks for email/response
       if (
-        text.includes("attorney called") ||
-        text.includes("spoke with attorney") ||
-        text.includes("counsel called") ||
-        text.includes("spoke with counsel") ||
-        text.includes("law firm called")
+        (text.includes("contractor called") || text.includes("spoke with contractor")) &&
+        (text.includes("email") || text.includes("respond") || text.includes("reply"))
       ) {
-        return { type: "attorney_response", confidence: 0.95, source: "call_transcript" };
+        return { type: "email_contractor", confidence: 0.94, source: "call_transcript" };
       }
 
-      // Contractor/vendor call ONLY when contractor is clearly the communicating party
+      // If conversation is clearly with insured and user asks for email
       if (
-        text.includes("contractor called") ||
-        text.includes("spoke with contractor") ||
-        text.includes("vendor called") ||
-        text.includes("spoke with vendor") ||
-        text.includes("mitigation company called") ||
-        text.includes("spoke with mitigation company")
+        (
+          text.includes("insured") ||
+          text.includes("policyholder") ||
+          text.includes("claimant") ||
+          text.includes("member")
+        ) &&
+        text.includes("email")
       ) {
-        if (asksForEmail || hasEmailIntent) {
-          return { type: "email_contractor", confidence: 0.94, source: "call_transcript" };
-        }
-
-        return { type: "file_note", confidence: 0.94, source: "call_transcript" };
+        return { type: "email_insured", confidence: 0.94, source: "call_transcript" };
       }
 
-      // Insured/member/policyholder call
-      if (
-        text.includes("insured called") ||
-        text.includes("insured called back") ||
-        text.includes("spoke with insured") ||
-        text.includes("policyholder called") ||
-        text.includes("spoke with policyholder") ||
-        text.includes("customer called") ||
-        text.includes("claimant called") ||
-        text.includes("member called") ||
-        text.includes("spoke with member")
-      ) {
-        if (asksForEmail) {
-          return { type: "email_insured", confidence: 0.95, source: "call_transcript" };
-        }
-
-        return { type: "file_note", confidence: 0.95, source: "call_transcript" };
-      }
-
-      // Default for call/transcript when party is unclear
-      if (asksForEmail && isInsured) {
-        return { type: "email_insured", confidence: 0.90, source: "call_transcript" };
-      }
-
-      if (asksForEmail && isContractor) {
-        return { type: "email_contractor", confidence: 0.88, source: "call_transcript" };
-      }
-
-      return { type: "file_note", confidence: 0.90, source: "call_transcript" };
+      // Safe default for call transcripts
+      return { type: "file_note", confidence: 0.95, source: "call_transcript" };
     }
 
     // ── 1. ATTORNEY ─────────────────────────────────────────
@@ -528,21 +520,24 @@ Then classify based on TARGET:
 
 NEVER return file_note if drafting intent exists
 
+----------------------------------------
 
-# CALL TRANSCRIPT / CALL RECAP RULE:
+3. CALL TRANSCRIPT RULE:
 
-If the input appears to be a call recap, phone call summary, voicemail note, dictated note, or transcript, first identify who the conversation was with.
+If input appears to be a call recap, voicemail, phone conversation, or transcript, classify by the user's requested output.
 
-- If documenting or summarizing the call → file_note
-- If creating a recap email to the insured/policyholder/member/claimant → email_insured
-- If clearly sending communication to a contractor/vendor/mitigation company → email_contractor
-- If clearly directed to attorney/counsel/law firm → attorney_response
+- "document this conversation", "summarize the call", "document the call", "call note", "file note", "create a note" → file_note
+- "draft email to insured", "send recap email", "email the insured", "create insured email" → email_insured
+- "respond to contractor", "email contractor", "reply to contractor" → email_contractor
+- "respond to counsel/attorney" → attorney_response
 
-Do not classify as email_contractor merely because the call mentioned contractor estimates, invoices, repair documentation, or mitigation documents. Classify based on the actual communication party and requested output.
+Important:
+Mentioning contractor estimate, contractor documentation, mitigation invoice, or repair estimate does NOT mean email_contractor.
+For call transcripts, default to file_note unless external email intent is clearly requested.
 
 ----------------------------------------
 
-3. AUDIENCE DETECTION (EXTERNAL COMMUNICATION)
+4. AUDIENCE DETECTION (EXTERNAL COMMUNICATION)
 If communication is implied:
 
 - contractor/vendor → email_contractor
@@ -551,7 +546,7 @@ If communication is implied:
 
 ----------------------------------------
 
-4. SPECIALIZED TYPES
+5. SPECIALIZED TYPES
 
 - supplement / estimate dispute / PA → supplement_response
 - denial / not covered → denial_support
@@ -561,7 +556,7 @@ If communication is implied:
 
 ----------------------------------------
 
-5. FALLBACK RULE
+6. FALLBACK RULE
 Only return file_note if:
 - no audience
 - no drafting intent
@@ -570,7 +565,7 @@ Only return file_note if:
 
 ----------------------------------------
 
-CONFIDENCE RULES:
+7. CONFIDENCE RULES:
 - Clear intent → 0.90+
 - Strong inference → 0.75–0.89
 - Weak guess → 0.60–0.74
