@@ -100,6 +100,15 @@ class ClassifierService {
       text.includes("email contractor") ||
       text.includes("email to contractor") ||
       text.includes("send to contractor") ||
+      text.includes("reply to contractor") ||
+      text.includes("create an email to the contractor") ||
+      text.includes("create email to the contractor") ||
+      text.includes("draft an email to the contractor") ||
+      text.includes("draft email to the contractor") ||
+      text.includes("send an email to the contractor") ||
+      text.includes("send email to the contractor") ||
+      text.includes("email to the contractor") ||
+      text.includes("respond to contractor") ||
       text.includes("reply to contractor");
 
     const wantsAttorneyResponse =
@@ -232,24 +241,25 @@ class ClassifierService {
     }
     // ── 5. SUPPLEMENT ───────────────────────────────────────
     if (
-      text.includes("supplement request") ||
-      text.includes("supplement response") ||
-      text.includes("revised estimate") ||
-      text.includes("additional scope") ||
-      text.includes("scope dispute") ||
-      text.includes("dispute estimate") ||
-      text.includes("pricing dispute") ||
-      text.includes("line item dispute") ||
-      text.includes("shingle count") ||
-      text.includes("beyond observed damage") ||
-      text.includes("estimate exceeds") ||
-      text.includes("over scope") ||
-      text.includes("public adjuster") ||
-      text.includes("pa submitted") ||
-      text.includes("pa request") ||
-      text.includes("pa estimate") ||
-      (text.includes("supplement") && (text.includes("respond") || text.includes("draft") || text.includes("create")))
-    ) {
+      !wantsContractorEmail &&
+      (
+        text.includes("supplement request") ||
+        text.includes("supplement response") ||
+        text.includes("additional scope") ||
+        text.includes("scope dispute") ||
+        text.includes("dispute estimate") ||
+        text.includes("pricing dispute") ||
+        text.includes("line item dispute") ||
+        text.includes("shingle count") ||
+        text.includes("beyond observed damage") ||
+        text.includes("estimate exceeds") ||
+        text.includes("over scope") ||
+        text.includes("public adjuster") ||
+        text.includes("pa submitted") ||
+        text.includes("pa request") ||
+        text.includes("pa estimate") ||
+        (text.includes("supplement") && (text.includes("respond") || text.includes("draft") || text.includes("create")))
+      )) {
       return { type: 'supplement_response', confidence: 0.95, source: 'deterministic' };
     }
 
