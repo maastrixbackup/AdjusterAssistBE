@@ -158,11 +158,10 @@ const deleteAccount = async (req, res) => {
 
     const userId = req.user.id;
     const userEmail = req.user.email || null;
-
     const { confirmation } = req.body;
 
     if (confirmation !== "DELETE") {
-      logSystemEvent(req, {
+      await logSystemEvent(req, {
         category: "account",
         eventType: "USER_ACCOUNT_DELETE_CONFIRMATION_FAILED",
         payload: {
@@ -177,7 +176,7 @@ const deleteAccount = async (req, res) => {
       });
     }
 
-    logSystemEvent(req, {
+    await logSystemEvent(req, {
       category: "account",
       eventType: "USER_ACCOUNT_DELETE_REQUESTED",
       payload: {
@@ -188,11 +187,12 @@ const deleteAccount = async (req, res) => {
 
     await Profile.deleteAccount(userId);
 
-    logSystemEvent(req, {
+    await logSystemEvent(null, {
       category: "account",
       eventType: "USER_ACCOUNT_DELETED",
+      userId: null,
       payload: {
-        user_id: userId,
+        deleted_user_id: userId,
         email: userEmail,
       },
     });
@@ -204,11 +204,12 @@ const deleteAccount = async (req, res) => {
   } catch (error) {
     console.error("Delete Account Error:", error);
 
-    logSystemEvent(req, {
+    await logSystemEvent(null, {
       category: "account",
       eventType: "USER_ACCOUNT_DELETE_FAILED",
+      userId: null,
       payload: {
-        user_id: req.user?.id || null,
+        deleted_user_id: req.user?.id || null,
         email: req.user?.email || null,
         error: error.message,
       },
