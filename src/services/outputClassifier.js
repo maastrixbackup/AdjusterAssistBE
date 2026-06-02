@@ -110,46 +110,46 @@ class ClassifierService {
       text.includes("respond to attorney");
 
     if (isCallTranscript) {
-      // Highest priority inside transcript: explicit documentation intent
+      // 1. Explicit file-note/documentation intent
       if (wantsCallDocumentation) {
         return { type: "file_note", confidence: 0.98, source: "call_transcript" };
       }
 
-      // Explicit external-output intent
+      // 2. Explicit insured recap/email intent ONLY
       if (wantsInsuredEmail) {
         return { type: "email_insured", confidence: 0.97, source: "call_transcript" };
       }
 
+      // 3. Explicit contractor email intent ONLY
       if (wantsContractorEmail) {
         return { type: "email_contractor", confidence: 0.97, source: "call_transcript" };
       }
 
+      // 4. Explicit attorney/counsel response ONLY
       if (wantsAttorneyResponse) {
         return { type: "attorney_response", confidence: 0.97, source: "call_transcript" };
       }
 
-      // If conversation is clearly with contractor AND user asks for email/response
+      // 5. Contractor call + explicit email/reply/respond
       if (
-        (text.includes("contractor called") || text.includes("spoke with contractor")) &&
-        (text.includes("email") || text.includes("respond") || text.includes("reply"))
+        (
+          text.includes("contractor called") ||
+          text.includes("spoke with contractor") ||
+          text.includes("vendor called") ||
+          text.includes("spoke with vendor") ||
+          text.includes("mitigation company called") ||
+          text.includes("spoke with mitigation company")
+        ) &&
+        (
+          text.includes("email") ||
+          text.includes("respond") ||
+          text.includes("reply")
+        )
       ) {
         return { type: "email_contractor", confidence: 0.94, source: "call_transcript" };
       }
 
-      // If conversation is clearly with insured and user asks for email
-      if (
-        (
-          text.includes("insured") ||
-          text.includes("policyholder") ||
-          text.includes("claimant") ||
-          text.includes("member")
-        ) &&
-        text.includes("email")
-      ) {
-        return { type: "email_insured", confidence: 0.94, source: "call_transcript" };
-      }
-
-      // Safe default for call transcripts
+      // 6. IMPORTANT: file_note Fallback
       return { type: "file_note", confidence: 0.95, source: "call_transcript" };
     }
 
