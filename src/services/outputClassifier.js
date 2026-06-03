@@ -48,6 +48,120 @@ class ClassifierService {
       text.includes("law firm") ||
       /\bcounsel\b/.test(text);
 
+
+    // ── 0. CALL TRANSCRIPT / CALL RECAP INTENT LOCK ─────────────────────
+    // Must run before contractor/email rules.
+
+    const isCallTranscript =
+      text.includes("this is ") ||
+      text.includes("i'm returning your call") ||
+      text.includes("im returning your call") ||
+      text.includes("thanks for calling back") ||
+      text.includes("i spoke with") ||
+      text.includes("spoke with") ||
+      text.includes("insured advised") ||
+      text.includes("caller stated") ||
+      text.includes("she said") ||
+      text.includes("he said") ||
+      text.includes("during the call") ||
+      text.includes("i explained") ||
+      text.includes("i advised") ||
+      text.includes("they will submit") ||
+      text.includes("i'll follow up") ||
+      text.includes("ill follow up") ||
+      text.includes("voicemail") ||
+      text.includes("call summary") ||
+      text.includes("call recap") ||
+      text.includes("phone conversation") ||
+      text.includes("phone call");
+
+    const wantsCallDocumentation =
+      text.includes("document this conversation") ||
+      text.includes("summarize the call") ||
+      text.includes("summarise the call") ||
+      text.includes("document the call") ||
+      text.includes("create a note") ||
+      text.includes("create note") ||
+      text.includes("call note") ||
+      text.includes("file note") ||
+      text.includes("document this call") ||
+      text.includes("summarize this conversation");
+
+    const wantsInsuredEmail =
+      text.includes("draft an email to the insured") ||
+      text.includes("send recap email") ||
+      text.includes("create insured email") ||
+      text.includes("email the insured") ||
+      text.includes("recap email to the insured") ||
+      text.includes("send email to insured");
+
+    const wantsContractorEmail =
+      text.includes("respond to contractor") ||
+      text.includes("email contractor") ||
+      text.includes("email to contractor") ||
+      text.includes("send to contractor") ||
+      text.includes("reply to contractor") ||
+      text.includes("create an email to the contractor") ||
+      text.includes("create email to the contractor") ||
+      text.includes("draft an email to the contractor") ||
+      text.includes("draft email to the contractor") ||
+      text.includes("send an email to the contractor") ||
+      text.includes("send email to the contractor") ||
+      text.includes("email to the contractor") ||
+      text.includes("respond to contractor") ||
+      text.includes("reply to contractor");
+
+    const wantsAttorneyResponse =
+      text.includes("response to counsel") ||
+      text.includes("respond to counsel") ||
+      text.includes("draft a response to counsel") ||
+      text.includes("response to attorney") ||
+      text.includes("respond to attorney");
+
+    if (isCallTranscript) {
+      // 1. Explicit file-note/documentation intent
+      if (wantsCallDocumentation) {
+        return { type: "file_note", confidence: 0.98, source: "call_transcript" };
+      }
+
+      // 2. Explicit insured recap/email intent ONLY
+      if (wantsInsuredEmail) {
+        return { type: "email_insured", confidence: 0.97, source: "call_transcript" };
+      }
+
+      // 3. Explicit contractor email intent ONLY
+      if (wantsContractorEmail) {
+        return { type: "email_contractor", confidence: 0.97, source: "call_transcript" };
+      }
+
+      // 4. Explicit attorney/counsel response ONLY
+      if (wantsAttorneyResponse) {
+        return { type: "attorney_response", confidence: 0.97, source: "call_transcript" };
+      }
+
+      // 5. Contractor call + explicit email/reply/respond
+      if (
+        (
+          text.includes("contractor called") ||
+          text.includes("spoke with contractor") ||
+          text.includes("vendor called") ||
+          text.includes("spoke with vendor") ||
+          text.includes("mitigation company called") ||
+          text.includes("spoke with mitigation company")
+        ) &&
+        (
+          text.includes("email") ||
+          text.includes("respond") ||
+          text.includes("reply")
+        )
+      ) {
+        return { type: "email_contractor", confidence: 0.94, source: "call_transcript" };
+      }
+
+      // 6. IMPORTANT: file_note Fallback
+      return { type: "file_note", confidence: 0.95, source: "call_transcript" };
+    }
+
     // ── 1. ATTORNEY ─────────────────────────────────────────
     if (
       text.includes("into a attorney response format") ||
@@ -101,27 +215,51 @@ class ClassifierService {
     ) {
       return { type: 'denial_support', confidence: 0.92, source: 'deterministic' };
     }
+    // ── 4A. HARD CONTRACTOR EMAIL REQUEST ─────────────────────
+    // Must run BEFORE supplement/scope detection.
 
+    if (
+      text.includes("create an email to the contractor") ||
+      text.includes("create email to the contractor") ||
+      text.includes("draft an email to the contractor") ||
+      text.includes("draft email to the contractor") ||
+      text.includes("send an email to the contractor") ||
+      text.includes("send email to the contractor") ||
+      text.includes("email to the contractor") ||
+      text.includes("email contractor") ||
+      text.includes("respond to contractor") ||
+      text.includes("reply to contractor") ||
+      /create\s+(an?\s+)?email\s+to\s+(the\s+)?contractor/.test(text) ||
+      /draft\s+(an?\s+)?email\s+to\s+(the\s+)?contractor/.test(text) ||
+      /send\s+(an?\s+)?email\s+to\s+(the\s+)?contractor/.test(text)
+    ) {
+      return {
+        type: "email_contractor",
+        confidence: 0.99,
+        source: "deterministic_hard_contractor_email"
+      };
+    }
     // ── 5. SUPPLEMENT ───────────────────────────────────────
     if (
-      text.includes("supplement request") ||
-      text.includes("supplement response") ||
-      text.includes("revised estimate") ||
-      text.includes("additional scope") ||
-      text.includes("scope dispute") ||
-      text.includes("dispute estimate") ||
-      text.includes("pricing dispute") ||
-      text.includes("line item dispute") ||
-      text.includes("shingle count") ||
-      text.includes("beyond observed damage") ||
-      text.includes("estimate exceeds") ||
-      text.includes("over scope") ||
-      text.includes("public adjuster") ||
-      text.includes("pa submitted") ||
-      text.includes("pa request") ||
-      text.includes("pa estimate") ||
-      (text.includes("supplement") && (text.includes("respond") || text.includes("draft") || text.includes("create")))
-    ) {
+      !wantsContractorEmail &&
+      (
+        text.includes("supplement request") ||
+        text.includes("supplement response") ||
+        text.includes("additional scope") ||
+        text.includes("scope dispute") ||
+        text.includes("dispute estimate") ||
+        text.includes("pricing dispute") ||
+        text.includes("line item dispute") ||
+        text.includes("shingle count") ||
+        text.includes("beyond observed damage") ||
+        text.includes("estimate exceeds") ||
+        text.includes("over scope") ||
+        text.includes("public adjuster") ||
+        text.includes("pa submitted") ||
+        text.includes("pa request") ||
+        text.includes("pa estimate") ||
+        (text.includes("supplement") && (text.includes("respond") || text.includes("draft") || text.includes("create")))
+      )) {
       return { type: 'supplement_response', confidence: 0.95, source: 'deterministic' };
     }
 
@@ -200,7 +338,7 @@ class ClassifierService {
       /reply\s+to\s+(the\s+)?contractor/.test(text) ||
       /respond\s+to\s+(the\s+)?contractor/.test(text) ||
       /draft\s+(an?\s+)?email\s+(to\s+)?(the\s+)?contractor/.test(text) ||
-      (isContractor && hasEmailIntent) // 🔥 NEW BOOST
+      (isContractor && hasEmailIntent)
     ) {
       return { type: 'email_contractor', confidence: 0.97, source: 'deterministic' };
     }
@@ -281,7 +419,6 @@ class ClassifierService {
       return { type: 'claim_guidance', confidence: 0.95, source: 'deterministic' };
     }
 
-    // ── 17. FINAL SAFETY NET (🔥 CRITICAL FIX)
     if (hasEmailIntent) {
       if (isContractor) return { type: 'email_contractor', confidence: 0.85, source: 'fallback' };
       if (isAttorney) return { type: 'attorney_response', confidence: 0.85, source: 'fallback' };
@@ -413,11 +550,26 @@ Then classify based on TARGET:
 - mentions closing → closing_note
 - mentions first contact → first_contact_note
 
-⚠️ NEVER return file_note if drafting intent exists
+NEVER return file_note if drafting intent exists
 
 ----------------------------------------
 
-3. AUDIENCE DETECTION (EXTERNAL COMMUNICATION)
+3. CALL TRANSCRIPT RULE:
+
+If input appears to be a call recap, voicemail, phone conversation, or transcript, classify by the user's requested output.
+
+- "document this conversation", "summarize the call", "document the call", "call note", "file note", "create a note" → file_note
+- "draft email to insured", "send recap email", "email the insured", "create insured email" → email_insured
+- "respond to contractor", "email contractor", "reply to contractor" → email_contractor
+- "respond to counsel/attorney" → attorney_response
+
+Important:
+Mentioning contractor estimate, contractor documentation, mitigation invoice, or repair estimate does NOT mean email_contractor.
+For call transcripts, default to file_note unless external email intent is clearly requested.
+
+----------------------------------------
+
+4. AUDIENCE DETECTION (EXTERNAL COMMUNICATION)
 If communication is implied:
 
 - contractor/vendor → email_contractor
@@ -426,7 +578,7 @@ If communication is implied:
 
 ----------------------------------------
 
-4. SPECIALIZED TYPES
+5. SPECIALIZED TYPES
 
 - supplement / estimate dispute / PA → supplement_response
 - denial / not covered → denial_support
@@ -436,7 +588,7 @@ If communication is implied:
 
 ----------------------------------------
 
-5. FALLBACK RULE
+6. FALLBACK RULE
 Only return file_note if:
 - no audience
 - no drafting intent
@@ -445,7 +597,7 @@ Only return file_note if:
 
 ----------------------------------------
 
-CONFIDENCE RULES:
+7. CONFIDENCE RULES:
 - Clear intent → 0.90+
 - Strong inference → 0.75–0.89
 - Weak guess → 0.60–0.74

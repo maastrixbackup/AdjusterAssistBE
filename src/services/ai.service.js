@@ -20,10 +20,7 @@ export const generateAIDraft = async (type, userInput, payload, conversationHist
         // console.log("[AUDIENCE]:  ",audienceType ," :",audienceInstruction)
         const signaturePrompt = getSignaturePrompt(type, userProfile);
         // console.log("[AI] Signature Prompt: ", signaturePrompt);
-        const markdownInstruction =
-            type === "claim_guidance"
-                ? "Use clean paragraphs. Avoid heavy markdown, bullets and bold only if necessary."
-                : getMarkdownInstruction(payload?.drafting_controls?.markdown_level);
+        const markdownInstruction = type === "claim_guidance" ? "Use clean paragraphs. Avoid heavy markdown, bullets and bold only if necessary." : getMarkdownInstruction(payload?.drafting_controls?.markdown_level);
 
         console.log("[AI] MARKDOWN LEVEL:", payload?.drafting_controls?.markdown_level);
         console.log("[MD Instruction]: ", markdownInstruction)

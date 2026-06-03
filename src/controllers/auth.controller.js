@@ -62,8 +62,8 @@ const refreshSession = async (req, res) => {
  * Handles User Login via Supabase Auth
  */
 const login = async (req, res) => {
+    const { email, password } = req.body;
     try {
-        const { email, password } = req.body;
         if (!email || !password) {
             return res.status(400).json({
                 success: false,
@@ -71,8 +71,7 @@ const login = async (req, res) => {
             });
         }
         const normalizedEmail = email.trim().toLowerCase();
-        // STEP 1
-        // PASSWORD LOGIN
+
         const { data, error } = await supabase.auth.signInWithPassword({
             email: normalizedEmail,
             password,
@@ -102,15 +101,11 @@ const login = async (req, res) => {
             });
         }
 
-        // STEP 2
-        // CREATE USER CLIENT USING AAL1 TOKEN
         const userClient = await createUserClient(
             session.access_token,
             session.refresh_token,
         );
 
-        // STEP 3
-        // CHECK MFA FACTORS
         const { data: factorData, error: factorError } =
             await userClient.auth.mfa.listFactors();
 
@@ -125,8 +120,6 @@ const login = async (req, res) => {
             (factor) => factor.status === "verified",
         );
 
-        // STEP 4
-        // MFA REQUIRED FLOW
         if (verifiedFactors.length > 0) {
             return res.status(200).json({
                 success: true,
@@ -151,7 +144,6 @@ const login = async (req, res) => {
             temp_access_token: session.access_token,
             temp_refresh_token: session.refresh_token,
             message: "MFA setup required before accessing the app.",
-
             user: {
                 id: user.id,
                 email: user.email,
@@ -172,6 +164,7 @@ const login = async (req, res) => {
         });
     }
 };
+
 
 const resendVerification = async (req, res) => {
     try {
@@ -194,7 +187,7 @@ const resendVerification = async (req, res) => {
         }
         logAuthEvent(req, {
             emailAttempted: email || "",
-            eventType: "RESEND_VERIFICATION_SUCCESS",
+            eventType: "RESEND_VERIFICATION_LINK_SUCCESS",
             status: "success"
         });
         return res.status(200).json({
@@ -274,6 +267,7 @@ const signup = async (req, res) => {
             eventType: "SIGNUP_SUCCESS",
             status: "success"
         });
+
         return res.status(201).json({
             success: true,
             message: "Account created. Please verify your email before logging in.",
@@ -397,7 +391,7 @@ const verifyOTP = async (req, res) => {
         }
 
         // DEV BYPASS
-        if ( token === "000000") {
+        if (token === "000000") {
             return res.status(200).json({
                 success: true,
                 message: "DEV OTP bypass successful.",

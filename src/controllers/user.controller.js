@@ -3,9 +3,7 @@ const Profile = require("../models/profile");
 const Subscription = require("../models/subscription.model");
 const { uploadAvatar } = require("../services/profileStorageService");
 
-/**
- * Retrieves the logged-in user's detailed profile and subscription
- */
+
 const getProfile = async (req, res) => {
   try {
     const userId = req.user.id;
@@ -149,4 +147,79 @@ const updateProfile = async (req, res) => {
   }
 };
 
-module.exports = { getProfile, updateProfile };
+const deleteAccount = async (req, res) => {
+  try {
+    if (!req.user?.id) {
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized",
+      });
+    }
+
+    const userId = req.user.id;
+    const userEmail = req.user.email || null;
+    const { confirmation } = req.body;
+
+    if (confirmation !== "DELETE") {
+      await logSystemEvent(req, {
+        category: "account",
+        eventType: "USER_ACCOUNT_DELETE_CONFIRMATION_FAILED",
+        payload: {
+          user_id: userId,
+          email: userEmail,
+        },
+      });
+
+      return res.status(400).json({
+        success: false,
+        message: "Please type DELETE to confirm account deletion.",
+      });
+    }
+
+    await logSystemEvent(req, {
+      category: "account",
+      eventType: "USER_ACCOUNT_DELETE_REQUESTED",
+      payload: {
+        user_id: userId,
+        email: userEmail,
+      },
+    });
+
+    await Profile.deleteAccount(userId);
+
+    await logSystemEvent(null, {
+      category: "account",
+      eventType: "USER_ACCOUNT_DELETED",
+      userId: null,
+      payload: {
+        deleted_user_id: userId,
+        email: userEmail,
+      },
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Account deleted successfully.",
+    });
+  } catch (error) {
+    console.error("Delete Account Error:", error);
+
+    await logSystemEvent(null, {
+      category: "account",
+      eventType: "USER_ACCOUNT_DELETE_FAILED",
+      userId: null,
+      payload: {
+        deleted_user_id: req.user?.id || null,
+        email: req.user?.email || null,
+        error: error.message,
+      },
+    });
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to delete account.",
+    });
+  }
+};
+
+module.exports = { getProfile, updateProfile, deleteAccount };

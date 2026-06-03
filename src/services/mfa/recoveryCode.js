@@ -46,7 +46,6 @@ async function generateMFARecoveryCodes(userId) {
             user_id: userId,
             code_index: index + 1,
             code_hash: await bcrypt.hash(normalizeRecoveryCode(code), BCRYPT_ROUNDS),
-            last_four: code.slice(-4),
             expires_at: null,
             regenerated_at: new Date().toISOString(),
         })),

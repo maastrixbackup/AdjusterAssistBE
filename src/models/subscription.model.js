@@ -1,4 +1,5 @@
 const { supabaseAdmin } = require("../config/supabase");
+const { dispatchNotification } = require("../services/notifications/notificationDispatcher");
 
 const Subscription = {
   // 1. Unified Stats Fetcher
@@ -9,7 +10,6 @@ const Subscription = {
       .eq("user_id", userId)
       .single();
 
-    // PGRST116 means "No rows found", which we handle in the reset logic
     if (error && error.code !== "PGRST116") {
       console.error("Error fetching stats:", error.message);
       throw error;
@@ -30,7 +30,6 @@ const Subscription = {
     return true;
   },
 
-  // 3. Upgrade logic for Pro/Enterprise plans
   async updateTier(userId, planData) {
     const { plan_type, usage_limit, expires_at } = planData;
     const { data, error } = await supabaseAdmin
@@ -45,6 +44,15 @@ const Subscription = {
       .eq("user_id", userId);
 
     if (error) throw error;
+
+    await dispatchNotification({
+      userId: userId,
+      type: 'SUBSCRIPTION_UPDATE',
+      title: 'Plan Activated Successfully! 💎',
+      body: `Welcome to the ${plan_type.toUpperCase()} plan. Your new limit is ${usage_limit} drafts.`,
+      metadata: { plan_type, usage_limit }
+    });
+
     return data;
   },
 
@@ -80,16 +88,22 @@ const Subscription = {
       throw error;
     }
 
+    await dispatchNotification({
+      userId: userId,
+      type: 'SUBSCRIPTION_UPDATE',
+      title: 'Welcome to AdjusterAssist! 🎉',
+      body: 'Your free tier has been activated with 10 complimentary draft credits.',
+      metadata: { plan_type: "free", usage_limit: 10 }
+    });
+
     return data;
   },
 
   // 5. Monthly Reset & Auto-Repair Logic
   async checkAndResetMonthlyUsage(userId) {
     try {
-      // 1. Check if sub exists
       let sub = await this.getStats(userId);
 
-      // 2. Initialize if missing (Auto-Repair)
       if (!sub) {
         console.log(`🔧 Initializing missing subscription for user: ${userId}`);
         await this.initFreeTier(userId);
@@ -99,15 +113,16 @@ const Subscription = {
       const now = new Date();
       const expiry = new Date(sub.expires_at);
 
-      // 3. Monthly Rollover Logic
       if (now > expiry) {
         const nextExpiry = new Date();
         nextExpiry.setMonth(nextExpiry.getMonth() + 1);
 
+        const limit = sub.usage_limit || 10;
+
         const { error } = await supabaseAdmin
           .from("subscriptions")
           .update({
-            current_usage: 0, // Reset usage
+            current_usage: 0, 
             expires_at: nextExpiry.toISOString(),
             status: "active",
           })
@@ -115,9 +130,16 @@ const Subscription = {
 
         if (error) throw error;
         console.log(`🚀 Usage Refreshed for user ${userId}. Plan: ${sub.plan_type}`);
+        
+        await dispatchNotification({
+          userId: userId,
+          type: 'SUBSCRIPTION_UPDATE',
+          title: 'Monthly Usage Renewed! 🚀',
+          body: `Your usage metrics have successfully rolled over. You have ${limit} drafts available this month.`,
+          metadata: { current_limit: limit }
+        });
       }
     } catch (error) {
-      // We log but don't crash the app (per your middleware strategy)
       console.error("Error in checkAndResetMonthlyUsage:", error.message);
     }
   }
