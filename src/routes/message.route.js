@@ -16,6 +16,7 @@ const {
 const authMiddleware = require("../middlewares/auth.middleware");
 const checkUsageLimit = require("../middlewares/usageLimit");
 const multer = require('multer');
+const requireAAL2 = require("../middlewares/requireAAL2");
 const upload = multer({ dest: 'uploads/' });
 
 // Health Check
@@ -31,7 +32,7 @@ router.get(
     getAttachmentPreview
 );
 
-router.post("/generate", authMiddleware, checkUsageLimit, (req, res, next) => {
+router.post("/generate", authMiddleware, requireAAL2 ,checkUsageLimit, (req, res, next) => {
     upload.array('attachments')(req, res, (err) => {
         if (err instanceof multer.MulterError) {
             return res.status(400).json({
@@ -45,9 +46,9 @@ router.post("/generate", authMiddleware, checkUsageLimit, (req, res, next) => {
     });
 }, createAIDraft);
 
-router.post("/variant", authMiddleware, checkUsageLimit, createVariantDraft);
+router.post("/variant", authMiddleware, requireAAL2, checkUsageLimit, createVariantDraft);
 
-router.post("/refine", authMiddleware, checkUsageLimit, refineAIDraft);
+router.post("/refine", authMiddleware, requireAAL2, checkUsageLimit, refineAIDraft);
 
 // router.post('/generate-next-step', authMiddleware, checkUsageLimit, generateNextStepDraft);
 
@@ -56,6 +57,6 @@ router.delete("/delete/:draftId", authMiddleware, deleteDraft);
 router.get("/recent", authMiddleware, getRecentDrafts);
 router.get("/history", authMiddleware, AllDrafts);
 
-router.patch("/update/:draftId", authMiddleware, updateDraft)
+router.patch("/update/:draftId", authMiddleware, requireAAL2, updateDraft)
 
 module.exports = router;

@@ -176,40 +176,37 @@ const deleteAccount = async (req, res) => {
       });
     }
 
+    const result = await Profile.createDeletionRequest(userId, userEmail);
+
     await logSystemEvent(req, {
       category: "account",
-      eventType: "USER_ACCOUNT_DELETE_REQUESTED",
+      eventType: result.alreadyPending
+        ? "USER_ACCOUNT_DELETION_ALREADY_PENDING"
+        : "USER_ACCOUNT_DELETION_REQUESTED",
       payload: {
         user_id: userId,
         email: userEmail,
-      },
-    });
-
-    await Profile.deleteAccount(userId);
-
-    await logSystemEvent(null, {
-      category: "account",
-      eventType: "USER_ACCOUNT_DELETED",
-      userId: null,
-      payload: {
-        deleted_user_id: userId,
-        email: userEmail,
+        request_id: result.request.id,
       },
     });
 
     return res.status(200).json({
       success: true,
-      message: "Account deleted successfully.",
+      status: "pending",
+      already_pending: result.alreadyPending,
+      request_id: result.request.id,
+      message: result.alreadyPending
+        ? "An account deletion request is already pending review."
+        : "Your account deletion request has been submitted.",
     });
   } catch (error) {
-    console.error("Delete Account Error:", error);
+    console.error("Delete Account Request Error:", error);
 
-    await logSystemEvent(null, {
+    await logSystemEvent(req, {
       category: "account",
-      eventType: "USER_ACCOUNT_DELETE_FAILED",
-      userId: null,
+      eventType: "USER_ACCOUNT_DELETE_REQUEST_FAILED",
       payload: {
-        deleted_user_id: req.user?.id || null,
+        user_id: req.user?.id || null,
         email: req.user?.email || null,
         error: error.message,
       },
@@ -217,9 +214,12 @@ const deleteAccount = async (req, res) => {
 
     return res.status(500).json({
       success: false,
-      message: "Failed to delete account.",
+      message: "Failed to submit account deletion request.",
     });
   }
 };
+
+
+
 
 module.exports = { getProfile, updateProfile, deleteAccount };

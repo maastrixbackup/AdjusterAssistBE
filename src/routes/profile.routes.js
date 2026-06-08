@@ -9,8 +9,8 @@ const upload = multer({ storage: multer.memoryStorage() });
 
 // authMiddleware FIRST, then getProfile
 router.get("/profile",authMiddleware ,getProfile);
-router.patch("/update", authMiddleware,upload.single('avatar') , updateProfile); 
-router.delete("/delete-account", authMiddleware, deleteAccount);
+router.patch("/update", authMiddleware, requireAAL2, upload.single('avatar') , updateProfile); 
+router.delete("/delete-account", authMiddleware, requireAAL2, deleteAccount);
 // router.get("/all", authMiddleware, getAllProfiles )
 
 module.exports = router; 
