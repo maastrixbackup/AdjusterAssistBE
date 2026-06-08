@@ -294,7 +294,7 @@ const verifyMFALogin = async (req, res) => {
     // 1. Handle Missing Payload Fields Log
     if (!factor_id || !challenge_id || !code || !temp_access_token) {
       logAuthEvent(req, {
-        emailAttempted: emailContext,
+        emailAttempted: emailContext || req.body.email,
         eventType: "MFA_BAD_REQUEST",
         status: "failed",
         failureReason: "missing_required_fields"
@@ -321,7 +321,7 @@ const verifyMFALogin = async (req, res) => {
     // 2. Handle Explicit Verification Failure Log (e.g., Wrong Code entered)
     if (error) {
       logAuthEvent(req, {
-        emailAttempted: emailContext,
+        emailAttempted: emailContext || req.body.email || "",
         eventType: "MFA_CHALLENGE_FAILED",
         status: "failed",
         failureReason: error.message,
