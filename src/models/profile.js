@@ -57,6 +57,40 @@ const UserModel = {
     }
     return true;
   },
+
+  async createDeletionRequest(userId, email) {
+    const { data: existingRequest, error: existingError } = await supabaseAdmin
+      .from("account_deletion_requests")
+      .select("id, status")
+      .eq("user_id", userId)
+      .eq("status", "pending")
+      .maybeSingle();
+
+    if (existingError) throw existingError;
+
+    if (existingRequest) {
+      return {
+        alreadyPending: true,
+        request: existingRequest,
+      };
+    }
+    const { data, error } = await supabaseAdmin
+      .from("account_deletion_requests")
+      .insert({
+        user_id: userId,
+        email,
+        status: "pending",
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    return {
+      alreadyPending: false,
+      request: data,
+    };
+  }
 };
 
 module.exports = UserModel;
