@@ -5,7 +5,10 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "nodemon src/server.js",
-    "dev": "node src/server.js"
+    "dev": "node src/server.js",
+    "release:dev": "standard-version --prerelease dev",
+    "release:patch": "standard-version --release-as patch",
+    "release:minor": "standard-version --release-as minor"
   },
   "keywords": [],
   "author": "",
@@ -40,6 +43,7 @@
     "swagger-ui-express": "^5.0.1"
   },
   "devDependencies": {
-    "nodemon": "^3.1.14"
+    "nodemon": "^3.1.14",
+    "standard-version": "^9.5.0"
   }
 }
